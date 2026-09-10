@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { db, hasDatabase } from "@/db";
+import { hasAnthropicKey } from "@/lib/llm/client";
 import { buildSession, parseIntensity } from "@/lib/review/session";
 import { ReviewSession } from "./session";
 
@@ -36,7 +37,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
 
   return (
     <Shell>
-      <ReviewSession key={`${intensity}-${session.cards.map((c) => c.atomId).join(",")}`} session={session} />
+      <ReviewSession key={`${intensity}-${session.cards.map((c) => c.atomId).join(",")}`} session={session} canWhy={hasAnthropicKey()} />
     </Shell>
   );
 }

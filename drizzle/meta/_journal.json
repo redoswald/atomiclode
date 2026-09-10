@@ -22,6 +22,20 @@
       "when": 1789069686974,
       "tag": "0002_reader",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789071086249,
+      "tag": "0003_why_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789071087279,
+      "tag": "0004_drop_explanations",
+      "breakpoints": true
     }
   ]
 }

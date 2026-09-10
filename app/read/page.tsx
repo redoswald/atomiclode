@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { generateOrReuse } from "@/app/actions/generate";
 import { importPassage } from "@/app/actions/reader";
+import { hasAnthropicKey } from "@/lib/llm/client";
+import { GENRES } from "@/lib/llm/generate";
 import { db, hasDatabase } from "@/db";
 import { nlpServiceConfigured } from "@/lib/reader/analyze";
 import { listPassages } from "@/lib/reader/passages";
@@ -50,6 +53,47 @@ export default async function ReadPage({ searchParams }: PageProps<"/read">) {
           Analysed with {nlpServiceConfigured() ? "the spaCy service" : "the built-in lemmatizer"}. Unknown words get
           underlined; tap one to see its meaning and add it to your reviews.
         </p>
+      </form>
+
+      <form action={generateOrReuse} className="mt-10 flex flex-col gap-3 rounded-md border border-line p-4">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-medium">Generate</h2>
+          <span className="text-xs text-muted">reuses a fitting passage first</span>
+        </div>
+        <label className="flex items-center justify-between gap-3 text-sm">
+          <span>Genre</span>
+          <select name="genre" defaultValue="short story" className="rounded-md border border-line bg-transparent px-2 py-1.5">
+            {GENRES.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </label>
+        <input
+          name="topic"
+          placeholder="Topic or place (optional): un marché à Lyon, mon trajet en train…"
+          className="rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+        />
+        <label className="text-sm">
+          <span className="flex justify-between">
+            <span>Stretch</span>
+            <span className="text-muted">98% known ↔ 90% known</span>
+          </span>
+          <input name="stretch" type="range" min={90} max={98} step={1} defaultValue={95} className="mt-1 w-full" />
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input name="includeDue" type="checkbox" defaultChecked />
+          Work in words that are due for review
+        </label>
+        <button type="submit" className="rounded-md bg-foreground py-2.5 text-background">
+          Read something new
+        </button>
+        {!hasAnthropicKey() && (
+          <p className="text-xs text-muted">
+            Without <code className="font-mono">ANTHROPIC_API_KEY</code> this only serves passages already in the library.
+          </p>
+        )}
       </form>
 
       {list.length > 0 && (
