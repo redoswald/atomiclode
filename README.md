@@ -1,2 +1,86 @@
-# atomiclode
-An app for language learning 
+# Lode
+
+A language-learning app for adults: honest spaced repetition, a reader that turns real text into review material, and a "why?" button. French first. See [SPEC.md](./SPEC.md) for the full design.
+
+## Status
+
+Milestone 1 (skeleton): Next.js app, Postgres schema, seed data, home screen with counts. Nothing to review or read yet.
+
+## Stack
+
+- Next.js 16 (App Router) · TypeScript · Tailwind 4, deployed on Vercel
+- Postgres on Neon via Drizzle (`db/schema.ts`, migrations in `drizzle/`)
+- Anthropic API for glosses, explanations, and generation (`@anthropic-ai/sdk`)
+- Python FastAPI + spaCy service for tokenization (milestone 3, `nlp/`)
+
+## Local setup (macOS)
+
+Node is a system tool; install it with Homebrew if it is missing (`brew install node`). Everything else is project-local.
+
+```bash
+# npm (project-local; nothing global)
+npm install
+cp .env.example .env.local     # fill in DATABASE_URL at minimum
+
+npm run db:migrate             # apply drizzle/ migrations to the database
+npm run db:seed                # load 3000 words, 44 chunks, 40 grammar atoms
+npm run dev                    # http://localhost:3000
+```
+
+For `DATABASE_URL`, create a free Neon project and use its connection string. A Neon branch per developer avoids running Postgres locally.
+
+### Glosses
+
+The frequency list ships without English glosses. To fill them once with the model (about 30 requests):
+
+```bash
+# needs ANTHROPIC_API_KEY in .env.local
+npm run seed:gloss             # writes glosses into db/seed/frequency-fr.json, resumable
+npm run db:seed                # push the glosses into the database
+```
+
+Commit the updated JSON so nobody has to run it again.
+
+### Regenerating the frequency list
+
+`db/seed/frequency-fr.json` is derived from Lexique 3.83 (CC BY-SA 4.0, New, Pallier, Brysbaert & Ferrand) by `db/seed/build-frequency.py`. Run it in a conda env, with pip inside that env for the PyPI-only package:
+
+```bash
+conda create -n lode-nlp python=3.12
+conda activate lode-nlp
+pip install pylexique           # bundles Lexique383.txt
+python db/seed/build-frequency.py
+```
+
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` / `build` / `start` | Next.js |
+| `npm run lint` / `typecheck` | ESLint / `tsc --noEmit` |
+| `npm test` | Vitest: seed-file checks plus an integration test that runs the real migrations and seed against in-memory Postgres (PGlite) |
+| `npm run db:generate` | Generate a migration from `db/schema.ts` |
+| `npm run db:migrate` | Apply migrations to `DATABASE_URL` |
+| `npm run db:seed` | Upsert seed atoms (idempotent; never touches memory state) |
+| `npm run seed:gloss` | Fill empty glosses via the Anthropic API |
+
+## Deploying on Vercel
+
+1. Import the GitHub repo in Vercel; the Next.js preset is detected automatically.
+2. Add the Neon integration from the Vercel marketplace (injects `DATABASE_URL`), or paste a connection string.
+3. Set `ANTHROPIC_API_KEY`. `NLP_SERVICE_URL`, `NLP_SERVICE_TOKEN`, and `APP_SECRET` are not needed until later milestones.
+4. Run `npm run db:migrate` and `npm run db:seed` once against the production database from your machine (the build does not run migrations).
+
+## Layout
+
+```
+app/            Next.js routes (home only, for now)
+lib/atoms/      types, seed-row builders, home-screen counts
+lib/scheduler/  planSession / applyReview (milestone 2)
+lib/reader/     passage analysis client (milestone 3)
+lib/llm/        prompts and API client (milestone 4)
+db/             Drizzle schema, client, seed data and runner
+drizzle/        generated SQL migrations
+scripts/        one-off tooling (gloss filling)
+nlp/            Python spaCy service (milestone 3)
+```
