@@ -1,0 +1,202 @@
+[
+  {
+    "key": "definite-articles",
+    "gloss": "Definite articles: le, la, les, l'",
+    "explanation": "French nouns take a definite article that agrees in gender and number: le (masculine), la (feminine), les (plural). Before a vowel sound, le and la both shrink to l'. English drops \"the\" for general statements; French keeps it: j'aime le café."
+  },
+  {
+    "key": "indefinite-articles",
+    "gloss": "Indefinite articles: un, une, des",
+    "explanation": "Un (masculine) and une (feminine) mean \"a\"; des is the plural, \"some\", which English usually leaves out: j'ai des amis, I have friends."
+  },
+  {
+    "key": "partitive-articles",
+    "gloss": "Partitive articles: du, de la, de l'",
+    "explanation": "For an unspecified quantity of something uncountable, French uses du, de la, or de l' where English says \"some\" or nothing: je bois du café. After a negation it collapses to de: je ne bois pas de café."
+  },
+  {
+    "key": "contractions-au-du",
+    "gloss": "à + le = au, de + le = du",
+    "explanation": "The prepositions à and de fuse with le and les: à + le = au, à + les = aux, de + le = du, de + les = des. They never fuse with la or l': à la gare, de l'hôtel."
+  },
+  {
+    "key": "noun-gender",
+    "gloss": "Every noun is masculine or feminine",
+    "explanation": "Each French noun has a fixed grammatical gender that has nothing to do with meaning. It decides which article, adjective ending, and pronoun go with it, so learn the article with the noun: une table, un livre."
+  },
+  {
+    "key": "noun-plural",
+    "gloss": "Plural nouns: add -s (usually silent)",
+    "explanation": "Most nouns form the plural by adding a silent -s, so the article carries the sound of the plural: le livre / les livres. Nouns ending in -eau or -al change instead: bateau → bateaux, journal → journaux."
+  },
+  {
+    "key": "adjective-agreement",
+    "gloss": "Adjectives agree in gender and number",
+    "explanation": "Adjectives change ending to match their noun: petit, petite, petits, petites. The feminine usually adds -e, which often makes a silent final consonant audible: grand /grã/ → grande /grãd/."
+  },
+  {
+    "key": "adjective-position",
+    "gloss": "Most adjectives follow the noun",
+    "explanation": "Unlike English, most French adjectives come after the noun: une voiture rouge. A small set of short, common ones go before: beau, bon, grand, petit, jeune, vieux, nouveau, mauvais."
+  },
+  {
+    "key": "possessive-adjectives",
+    "gloss": "Possessives: mon, ma, mes...",
+    "explanation": "Possessive adjectives agree with the thing owned, not the owner: mon livre, ma maison, mes amis. Before a feminine noun starting with a vowel, ma becomes mon: mon amie."
+  },
+  {
+    "key": "demonstrative-adjectives",
+    "gloss": "Demonstratives: ce, cet, cette, ces",
+    "explanation": "Ce (masculine), cet (masculine before a vowel), cette (feminine), and ces (plural) all mean \"this\" or \"that\"; French does not distinguish near from far unless you add -ci or -là: ce livre-là."
+  },
+  {
+    "key": "subject-pronouns",
+    "gloss": "Subject pronouns: je, tu, il/elle, nous, vous, ils/elles",
+    "explanation": "French verbs always need a stated subject pronoun. Je shrinks to j' before a vowel. Ils covers any group that includes a masculine noun; elles is for all-feminine groups."
+  },
+  {
+    "key": "tu-vs-vous",
+    "gloss": "Tu (informal) vs vous (formal or plural)",
+    "explanation": "Tu addresses one person you are close to; vous addresses a group, or one person politely. Shopkeepers, strangers, and most adults you have just met get vous. The verb ending changes with the choice."
+  },
+  {
+    "key": "on-as-we",
+    "gloss": "On used to mean \"we\"",
+    "explanation": "In everyday speech on replaces nous as \"we\" and takes the same verb form as il: on va au marché. It also means \"one\" or \"people in general\": on dit que..."
+  },
+  {
+    "key": "present-er-verbs",
+    "gloss": "Present tense of regular -er verbs",
+    "explanation": "Drop -er and add -e, -es, -e, -ons, -ez, -ent: je parle, tu parles, il parle, nous parlons, vous parlez, ils parlent. Four of the six forms sound identical; the spelling changes are silent."
+  },
+  {
+    "key": "present-ir-verbs",
+    "gloss": "Present tense of regular -ir verbs",
+    "explanation": "Drop -ir and add -is, -is, -it, -issons, -issez, -issent: je finis, nous finissons. The plural forms insert -iss-."
+  },
+  {
+    "key": "present-re-verbs",
+    "gloss": "Present tense of regular -re verbs",
+    "explanation": "Drop -re and add -s, -s, nothing, -ons, -ez, -ent: je vends, il vend, nous vendons."
+  },
+  {
+    "key": "present-irregular-verbs",
+    "gloss": "Irregular present: être, avoir, aller, faire",
+    "explanation": "The four most common verbs are irregular and must be memorised: je suis / j'ai / je vais / je fais. They also build other tenses, so they are worth knowing cold."
+  },
+  {
+    "key": "negation-ne-pas",
+    "gloss": "Negation with ne... pas",
+    "explanation": "Negation wraps the conjugated verb: je ne sais pas. In speech the ne is often dropped, leaving just pas after the verb: je sais pas. Other pairs work the same way: ne... jamais, ne... rien, ne... plus."
+  },
+  {
+    "key": "questions-est-ce-que",
+    "gloss": "Questions with est-ce que",
+    "explanation": "Put est-ce que in front of a statement to make a neutral question without changing word order: est-ce que tu viens? Question words go before it: où est-ce que tu vas?"
+  },
+  {
+    "key": "questions-inversion",
+    "gloss": "Questions by inversion",
+    "explanation": "In more formal French the verb and subject pronoun swap and are joined by a hyphen: viens-tu? A -t- is inserted between two vowels: a-t-il?"
+  },
+  {
+    "key": "questions-intonation",
+    "gloss": "Questions by intonation",
+    "explanation": "In conversation, a statement with rising intonation is the most common question form: tu viens? No word-order change at all."
+  },
+  {
+    "key": "passe-compose-avoir",
+    "gloss": "Passé composé with avoir",
+    "explanation": "The everyday past tense is a present form of avoir plus a past participle: j'ai mangé, tu as fini, il a vendu. Regular participles end in -é, -i, -u."
+  },
+  {
+    "key": "passe-compose-etre",
+    "gloss": "Passé composé with être",
+    "explanation": "A short list of movement and change-of-state verbs (aller, venir, arriver, partir, rester, naître, mourir...) and all reflexive verbs use être instead of avoir, and the participle agrees with the subject: elle est allée."
+  },
+  {
+    "key": "imparfait",
+    "gloss": "Imparfait for background and habit",
+    "explanation": "The imparfait describes what was going on, used to happen, or how things were: il faisait beau, je jouais souvent. Take the nous form of the present, drop -ons, add -ais, -ais, -ait, -ions, -iez, -aient."
+  },
+  {
+    "key": "futur-proche",
+    "gloss": "Near future with aller + infinitive",
+    "explanation": "A present form of aller followed by an infinitive expresses what is about to happen, like English \"going to\": je vais manger. It is the everyday future in speech."
+  },
+  {
+    "key": "conditional-polite-request",
+    "gloss": "Conditional for polite requests",
+    "explanation": "The conditional softens a request, like English \"would\": je voudrais un café rather than je veux. It is built from the future stem plus the imparfait endings: voudr- + -ais."
+  },
+  {
+    "key": "imperative",
+    "gloss": "Imperative for commands",
+    "explanation": "Commands use the tu, nous, or vous form without the pronoun: écoute, écoutons, écoutez. For -er verbs the tu form drops its -s: parle! Object pronouns attach after with a hyphen: excusez-moi."
+  },
+  {
+    "key": "reflexive-verbs",
+    "gloss": "Reflexive verbs with se",
+    "explanation": "Many daily-routine verbs take a reflexive pronoun that matches the subject: je me lève, tu te lèves, il se lève. In the passé composé they use être: je me suis levé."
+  },
+  {
+    "key": "direct-object-pronouns",
+    "gloss": "Direct object pronouns before the verb",
+    "explanation": "Me, te, le, la, nous, vous, les replace a direct object and go before the conjugated verb, not after it as in English: je le vois, I see him / it."
+  },
+  {
+    "key": "indirect-object-pronouns",
+    "gloss": "Indirect object pronouns: lui, leur",
+    "explanation": "Lui (to him / to her) and leur (to them) replace à + person and sit before the verb: je lui parle, I am talking to him."
+  },
+  {
+    "key": "pronoun-y",
+    "gloss": "The pronoun y for places",
+    "explanation": "Y replaces à + a place or thing and goes before the verb: tu vas à Paris? j'y vais. It is why on y va means \"let's go (there)\"."
+  },
+  {
+    "key": "pronoun-en",
+    "gloss": "The pronoun en for quantities",
+    "explanation": "En replaces de + something, often a quantity: tu veux du pain? j'en veux. It sits before the verb and is required even when English says nothing."
+  },
+  {
+    "key": "il-y-a",
+    "gloss": "Il y a: there is / there are",
+    "explanation": "Il y a is invariable and means both \"there is\" and \"there are\": il y a un problème, il y a des gens. With a time expression it means \"ago\": il y a deux ans."
+  },
+  {
+    "key": "impersonal-il-faut",
+    "gloss": "Il faut: it is necessary",
+    "explanation": "Il faut plus an infinitive says what must be done in general: il faut partir. Il followed by a noun means something is needed: il faut du temps."
+  },
+  {
+    "key": "c-est-vs-il-est",
+    "gloss": "C'est vs il est",
+    "explanation": "Use c'est before a noun with an article or a pronoun: c'est un ami, c'est moi. Use il est or elle est before an adjective or a bare profession: il est médecin, elle est contente."
+  },
+  {
+    "key": "avoir-expressions",
+    "gloss": "Avoir where English uses \"to be\"",
+    "explanation": "Age, hunger, thirst, fear, and being right use avoir, not être: j'ai vingt ans, j'ai faim, tu as raison. Because faim is a noun, everyday speech intensifies it with très: j'ai très faim."
+  },
+  {
+    "key": "en-train-de",
+    "gloss": "Être en train de + infinitive",
+    "explanation": "French has no -ing form; to stress that something is happening right now, use être en train de plus an infinitive: je suis en train de lire. Otherwise the plain present already covers it."
+  },
+  {
+    "key": "comparatives",
+    "gloss": "Comparatives: plus... que, moins... que",
+    "explanation": "Compare with plus (more), moins (less), or aussi (as) before the adjective and que after it: elle est plus grande que moi. Bon becomes meilleur, not plus bon."
+  },
+  {
+    "key": "prepositions-of-place",
+    "gloss": "Prepositions of place",
+    "explanation": "Dans (in), sur (on), sous (under), devant (in front of), derrière (behind), entre (between), à côté de (next to), en face de (opposite). Those ending in de contract with le and les: à côté du parc."
+  },
+  {
+    "key": "liaison-elision",
+    "gloss": "Elision and liaison",
+    "explanation": "Elision drops a final vowel before another vowel: je + ai = j'ai, le + homme = l'homme. Liaison sounds a normally silent final consonant when the next word begins with a vowel: les_amis, vous_avez."
+  }
+]
