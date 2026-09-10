@@ -14,7 +14,9 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx db/seed/index.ts",
     "seed:gloss": "tsx scripts/gloss-seed.ts",
-    "db:prepare": "tsx scripts/db-prepare.ts"
+    "db:prepare": "tsx scripts/db-prepare.ts",
+    "seed:export": "tsx scripts/export-glosses.ts",
+    "db:replay": "tsx scripts/replay.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -23,6 +25,7 @@
     "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "ts-fsrs": "^5.4.2",
     "zod": "^4.6.1"
   },
   "devDependencies": {

@@ -68,8 +68,14 @@ describe("migrations + seed", () => {
     expect(after.status).toBe("review");
     expect(after.stability).toBe(12.5);
     expect(after.reps).toBe(4);
-    // Seed data (gloss) is refreshed from the file.
-    expect(after.gloss).toBe(files.freq.find((f) => f.lemma === "vouloir")!.gloss);
+    // An empty gloss in the file never blanks a gloss filled in the app…
+    expect(after.gloss).toBe("stale gloss");
+    // …but a real gloss in the file wins.
+    const glossed = { ...files, freq: files.freq.map((f) => (f.lemma === "vouloir" ? { ...f, gloss: "to want" } : f)) };
+    await seedAtoms(d, glossed);
+    const [reglossed] = await d.select().from(atoms).where(eq(atoms.key, "vouloir"));
+    expect(reglossed.gloss).toBe("to want");
+    expect(reglossed.status).toBe("review");
   }, 60_000);
 
   it("homeCounts reflects status, due, and review history", async () => {
