@@ -184,23 +184,22 @@ export const encounters = pgTable(
   (t) => [index("encounters_atom_at_idx").on(t.atomId, t.at)],
 );
 
-// ---- contextual "why?" cache ----------------------------------------------
-// Generic explanations live on atoms.explanation; per-sentence ones live here.
+// ---- "why?" cache ------------------------------------------------------------
+// Generic explanations (sentence = "") also mirror onto atoms.explanation.
+// Keyed by atom key + sentence text so the reader can ask before an atom exists.
 
-export const explanations = pgTable(
-  "explanations",
+export const whyCache = pgTable(
+  "why_cache",
   {
-    atomId: uuid("atom_id")
-      .notNull()
-      .references(() => atoms.id, { onDelete: "cascade" }),
-    sentenceId: uuid("sentence_id")
-      .notNull()
-      .references(() => sentences.id, { onDelete: "cascade" }),
-    text: text("text").notNull(),
+    atomKey: text("atom_key").notNull(),
+    sentence: text("sentence").notNull().default(""),
+    explanation: text("explanation").notNull(),
     grammarAtomKey: text("grammar_atom_key"),
+    grammarTitle: text("grammar_title"),
+    grammarExplanation: text("grammar_explanation"),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
-  (t) => [primaryKey({ columns: [t.atomId, t.sentenceId] })],
+  (t) => [primaryKey({ columns: [t.atomKey, t.sentence] })],
 );
 
 // ---- contextual gloss cache (per lemma + sentence) ---------------------------

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { submitReview } from "@/app/actions/review";
+import { WhyPanel } from "@/app/why-panel";
 import type { Grade } from "@/lib/atoms/types";
 import { lenientMatch } from "@/lib/review/match";
 import type { BuiltSession, SessionCard } from "@/lib/review/session";
@@ -21,7 +22,7 @@ const GRADES: Array<{ grade: Grade; label: string; key: string }> = [
   { grade: 4, label: "Easy", key: "4" },
 ];
 
-export function ReviewSession({ session }: { session: BuiltSession }) {
+export function ReviewSession({ session, canWhy }: { session: BuiltSession; canWhy: boolean }) {
   const { cards, plan, intensity } = session;
   const [index, setIndex] = useState(0);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
@@ -75,17 +76,24 @@ export function ReviewSession({ session }: { session: BuiltSession }) {
         </span>
       </div>
       {/* Keyed by index so every card starts with fresh local state. */}
-      <CardView key={index} card={card} onGrade={onGrade} />
+      <CardView key={index} card={card} onGrade={onGrade} canWhy={canWhy} />
       {error && <p className="mt-3 text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }
 
-function CardView({ card, onGrade }: { card: SessionCard; onGrade: (grade: Grade, responseMs: number) => void }) {
+function CardView({
+  card,
+  onGrade,
+  canWhy,
+}: {
+  card: SessionCard;
+  onGrade: (grade: Grade, responseMs: number) => void;
+  canWhy: boolean;
+}) {
   const [phase, setPhase] = useState<Phase>("prompt");
   const [typed, setTyped] = useState("");
   const [correct, setCorrect] = useState<boolean | undefined>();
-  const [showWhy, setShowWhy] = useState(false);
   const startedAt = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -142,13 +150,13 @@ function CardView({ card, onGrade }: { card: SessionCard; onGrade: (grade: Grade
           <RecognizePrompt card={card} phase={phase} />
         )}
 
-        {phase === "revealed" && card.explanation && card.type !== "grammar" && (
-          <div className="mt-6 text-sm">
-            <button onClick={() => setShowWhy((v) => !v)} className="text-muted underline">
-              Why?
-            </button>
-            {showWhy && <p className="mt-2 leading-6">{card.explanation}</p>}
-          </div>
+        {phase === "revealed" && card.type !== "grammar" && (
+          <WhyPanel
+            request={{ atomId: card.atomId, sentence: card.sentence?.text }}
+            cached={card.sentence ? undefined : card.explanation}
+            canWhy={canWhy}
+            className="mt-6"
+          />
         )}
       </div>
 

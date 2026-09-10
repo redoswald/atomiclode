@@ -4,7 +4,7 @@ A language-learning app for adults: honest spaced repetition, a reader that turn
 
 ## Status
 
-Milestone 3: the reader. Paste text or an article URL, see coverage against what you know, tap a word for its meaning in context, *Mine* it into your reviews (the sentence is saved and becomes a cloze card) or mark it *Already know*. Scheduler and review screen (recognize, recall, cloze) from milestone 2; reviews are logged append-only and memory state can be rebuilt from the log (`npm run db:replay`). Next: "why?" explanations and passage generation (milestone 4).
+Milestone 4: "Why?" explanations and passage generation. Every word in the reader and every review card has a *Why?* that explains it in 3–6 sentences using the sentence at hand, cached per atom and per sentence; when the explanation names a grammar concept the app offers to add it as a grammar atom. *Read something new* serves a passage from your library whose coverage fits what you know today, or generates one (genre, topic, stretch slider, due words worked in). Earlier milestones: reader with import, coverage, tap-to-mine and cloze cards; scheduler and review screen; append-only review log with replay (`npm run db:replay`). Next: triage, intensity polish, exposure signals, stats, PWA (milestone 5).
 
 ## Stack
 
@@ -42,6 +42,14 @@ Re-seeding never blanks a gloss that was filled in the app.
 ### Reader analysis
 
 Passages are tokenized and lemmatized inside the app with a Lexique-derived table (`lib/reader/lexicon-fr.json`, built by `db/seed/build-lexicon.py`), so no second service is required. For better lemmas in context, deploy `nlp/` (FastAPI + spaCy `fr_core_news_md`; the Dockerfile works on Railway or Fly.io), set `NLP_SERVICE_TOKEN` there, and set `NLP_SERVICE_URL` and `NLP_SERVICE_TOKEN` in Vercel. The app switches automatically and falls back to the built-in analysis if the service is unreachable. Local run of the service is described at the top of `nlp/main.py`.
+
+### "Why?" endpoint
+
+`POST /api/why` with `{ atomId }` or `{ lemma, surface, sentence }` returns `{ explanation, grammar?, cached }`. The UI uses the same logic through a server action. One model call per (atom, sentence), cached in `why_cache`; generic explanations also live on `atoms.explanation`.
+
+### Generation and the library
+
+Before generating, the app looks for an existing passage (imported or generated) whose coverage against today's atoms is within −4/+2 points of the stretch target, that contains some of the due words if asked, and that hasn't been read in the last 7 days. Otherwise it generates one 150–300 word passage constrained to your known lemmas and stores it. One unread generated passage at a time.
 
 ### Sign-in
 

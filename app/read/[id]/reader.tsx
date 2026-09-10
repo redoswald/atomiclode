@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { alreadyKnow, mine, tapWord } from "@/app/actions/reader";
+import { WhyPanel } from "@/app/why-panel";
 import type { PassageView, ViewToken } from "@/lib/reader/passages";
 
 type LemmaState = "unknown" | "queued" | "known";
@@ -151,6 +152,17 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
                 This sentence has {selUnknowns} new words; the cloze card will be harder.
               </p>
             )}
+            <WhyPanel
+              key={sel.index}
+              request={{
+                atomId: sel.token.atomId,
+                lemma: sel.token.lemma,
+                surface: sel.token.surface,
+                sentence: view.sentences[sel.token.sentenceIdx] ?? "",
+              }}
+              canWhy={canGloss}
+              className="mt-3"
+            />
             <div className="mt-4 flex gap-2 text-sm">
               {selState === "unknown" && (
                 <>
