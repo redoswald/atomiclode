@@ -14,12 +14,14 @@ export interface HomeCounts {
   /** New atoms available to introduce (never reviewed, not suspended). */
   newAvailable: { word: number; chunk: number; grammar: number };
   reviewsTotal: number;
+  /** Word atoms with an empty gloss; they can't be introduced until filled. */
+  unglossed: number;
 }
 
 export async function homeCounts(now = new Date(), d: Db = db()): Promise<HomeCounts> {
   const nowIso = now.toISOString();
 
-  const [statusRows, typeRows, dueRows, newRows, reviewRows] = await Promise.all([
+  const [statusRows, typeRows, dueRows, newRows, reviewRows, unglossedRows] = await Promise.all([
     d.select({ status: atoms.status, n: count() }).from(atoms).groupBy(atoms.status),
     d.select({ type: atoms.type, n: count() }).from(atoms).groupBy(atoms.type),
     d
@@ -32,6 +34,10 @@ export async function homeCounts(now = new Date(), d: Db = db()): Promise<HomeCo
       .where(sql`${atoms.status} = 'new'`)
       .groupBy(atoms.type),
     d.select({ n: count(), first: min(reviewEvents.at) }).from(reviewEvents),
+    d
+      .select({ n: count() })
+      .from(atoms)
+      .where(sql`${atoms.type} = 'word' and ${atoms.gloss} = ''`),
   ]);
 
   const byStatus: Record<MemoryStatus, number> = { new: 0, learning: 0, review: 0, suspended: 0 };
@@ -52,5 +58,6 @@ export async function homeCounts(now = new Date(), d: Db = db()): Promise<HomeCo
     dueNow: dueRows[0]?.n ?? 0,
     newAvailable,
     reviewsTotal: reviewRows[0]?.n ?? 0,
+    unglossed: unglossedRows[0]?.n ?? 0,
   };
 }

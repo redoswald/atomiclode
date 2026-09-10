@@ -45,7 +45,8 @@ export async function seedAtoms(d: Db, files: SeedFiles): Promise<SeedResult> {
         target: [atoms.lang, atoms.type, atoms.key],
         set: {
           forms: sql`excluded.forms`,
-          gloss: sql`excluded.gloss`,
+          // Never blank a gloss that was filled in the app after the seed file was written.
+          gloss: sql`case when excluded.gloss = '' then ${atoms.gloss} else excluded.gloss end`,
           pos: sql`excluded.pos`,
           gender: sql`excluded.gender`,
           frequencyRank: sql`excluded.frequency_rank`,

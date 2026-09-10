@@ -11,6 +11,8 @@ export function rowToAtom(row: AtomRow): Atom {
     reps: row.reps,
     lapses: row.lapses,
     status: row.status,
+    learningSteps: row.learningSteps,
+    scheduledDays: row.scheduledDays,
   };
   return {
     id: row.id,
@@ -54,6 +56,8 @@ export function atomToRow(atom: Atom): NewAtomRow {
     reps: atom.memory.reps,
     lapses: atom.memory.lapses,
     status: atom.memory.status,
+    learningSteps: atom.memory.learningSteps,
+    scheduledDays: atom.memory.scheduledDays,
     modality: atom.modality,
     source: atom.source,
     createdAt: atom.createdAt,

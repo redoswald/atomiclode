@@ -106,6 +106,8 @@ export const atoms = pgTable(
     reps: integer("reps").notNull().default(0),
     lapses: integer("lapses").notNull().default(0),
     status: memoryStatusEnum("status").notNull().default("new"),
+    learningSteps: integer("learning_steps").notNull().default(0),
+    scheduledDays: real("scheduled_days").notNull().default(0),
 
     modality: jsonb("modality")
       .$type<Record<Modality, ModalityStat>>()

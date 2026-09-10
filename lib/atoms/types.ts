@@ -37,6 +37,9 @@ export interface MemoryState {
   reps: number;
   lapses: number;
   status: MemoryStatus;
+  /** FSRS bookkeeping (not in SPEC §3): position within (re)learning steps and last scheduled interval. */
+  learningSteps: number;
+  scheduledDays: number;
 }
 
 export interface ModalityStat {
@@ -120,5 +123,7 @@ export function newMemoryState(now: string): MemoryState {
     reps: 0,
     lapses: 0,
     status: "new",
+    learningSteps: 0,
+    scheduledDays: 0,
   };
 }
