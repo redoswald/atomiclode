@@ -3,6 +3,7 @@ import type { Db } from "@/db";
 import { atoms, reviewEvents, sentences } from "@/db/schema";
 import { rowToAtom } from "@/lib/atoms/rows";
 import type { Atom, AtomType, Modality, Sentence } from "@/lib/atoms/types";
+import { normalizeForm } from "@/lib/reader/lexicon";
 import { planSession, type Intensity, type SessionPlan, type SessionReason } from "@/lib/scheduler";
 
 export const BUDGETS: Record<Intensity, number> = { light: 5, steady: 12, push: 20 };
@@ -21,6 +22,8 @@ export interface SessionCard {
   gender?: "m" | "f";
   explanation?: string;
   sentence?: { id: string; text: string; translation?: string };
+  /** For cloze: the sentence split around the gap. */
+  cloze?: { before: string; answer: string; after: string };
 }
 
 export interface BuiltSession {
@@ -69,9 +72,12 @@ export async function buildSession(d: Db, intensity: Intensity, now = new Date()
   const cards: SessionCard[] = plan.items.map((item) => {
     const a = byId.get(item.atomId)!;
     const s = item.sentenceId ? sentenceById.get(item.sentenceId) : undefined;
+    const cloze = item.modality === "cloze" && s ? findGap(s.text, [a.key, ...a.forms]) : undefined;
     return {
       atomId: a.id,
-      modality: item.modality,
+      // A cloze with no findable gap degrades to recognize-in-context.
+      modality: item.modality === "cloze" && !cloze ? "recognize" : item.modality,
+      cloze,
       reason: item.reason,
       type: a.type,
       key: a.key,
@@ -100,4 +106,33 @@ export async function newAtomsIntroducedToday(d: Db, now = new Date()): Promise<
     .from(firsts)
     .where(and(gte(firsts.first, dayStart)));
   return row?.n ?? 0;
+}
+
+/**
+ * Locate the atom's surface form in a sentence (accent- and case-insensitive,
+ * whole word) and split the sentence around it. Longest form first.
+ */
+export function findGap(sentence: string, forms: string[]): { before: string; answer: string; after: string } | undefined {
+  const norm = (x: string) =>
+    normalizeForm(x)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  const target = norm(sentence);
+  const wordChar = /[a-z]/;
+  for (const form of [...new Set(forms)].filter(Boolean).sort((x, y) => y.length - x.length)) {
+    const f = norm(form);
+    if (!f) continue;
+    let from = 0;
+    while (from <= target.length - f.length) {
+      const i = target.indexOf(f, from);
+      if (i < 0) break;
+      const leftOk = i === 0 || !wordChar.test(target[i - 1]);
+      const rightOk = i + f.length === target.length || !wordChar.test(target[i + f.length]);
+      if (leftOk && rightOk && norm(sentence.slice(i, i + f.length)) === f) {
+        return { before: sentence.slice(0, i), answer: sentence.slice(i, i + f.length), after: sentence.slice(i + f.length) };
+      }
+      from = i + 1;
+    }
+  }
+  return undefined;
 }

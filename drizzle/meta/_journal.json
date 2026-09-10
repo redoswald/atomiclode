@@ -15,6 +15,13 @@
       "when": 1789067915669,
       "tag": "0001_memory_bookkeeping",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789069686974,
+      "tag": "0002_reader",
+      "breakpoints": true
     }
   ]
 }
