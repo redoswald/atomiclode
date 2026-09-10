@@ -31,6 +31,7 @@ export function rowToAtom(row: AtomRow): Atom {
     modality: { ...emptyModalityStats(), ...row.modality },
     createdAt: row.createdAt,
     source: row.source,
+    markedKnownAt: row.markedKnownAt ?? undefined,
   };
 }
 
@@ -61,5 +62,6 @@ export function atomToRow(atom: Atom): NewAtomRow {
     modality: atom.modality,
     source: atom.source,
     createdAt: atom.createdAt,
+    markedKnownAt: atom.markedKnownAt ?? null,
   };
 }

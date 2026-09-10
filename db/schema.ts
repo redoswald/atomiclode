@@ -61,6 +61,8 @@ export const passages = pgTable("passages", {
   genre: text("genre"),
   /** Raw text as imported or generated; sentences/tokens are derived. */
   text: text("text").notNull(),
+  /** Sentence texts in order; tokens refer to them by index. */
+  sentenceTexts: jsonb("sentence_texts").$type<string[]>().notNull().default([]),
   /** Token[] from SPEC §5, stored as a blob; recomputed when re-analysed. */
   tokens: jsonb("tokens").$type<PassageToken[]>().notNull().default([]),
   coverage: real("coverage").notNull().default(0),
@@ -72,10 +74,12 @@ export const passages = pgTable("passages", {
 });
 
 export interface PassageToken {
+  /** Whitespace (may include paragraph breaks) before this token. */
+  pre: string;
   surface: string;
   lemma: string;
-  atomId?: string;
-  chunkId?: string;
+  /** Chunk atom key this token belongs to, when a known chunk matched. */
+  chunkKey?: string;
   sentenceIdx: number;
   isWord: boolean;
 }
@@ -116,6 +120,7 @@ export const atoms = pgTable(
 
     source: atomSourceEnum("source").notNull(),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
+    markedKnownAt: timestamptz("marked_known_at"),
   },
   (t) => [
     uniqueIndex("atoms_lang_type_key_idx").on(t.lang, t.type, t.key),
@@ -196,6 +201,19 @@ export const explanations = pgTable(
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.atomId, t.sentenceId] })],
+);
+
+// ---- contextual gloss cache (per lemma + sentence) ---------------------------
+
+export const contextGlosses = pgTable(
+  "context_glosses",
+  {
+    lemma: text("lemma").notNull(),
+    sentence: text("sentence").notNull(),
+    gloss: text("gloss").notNull(),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.lemma, t.sentence] })],
 );
 
 export type AtomRow = typeof atoms.$inferSelect;

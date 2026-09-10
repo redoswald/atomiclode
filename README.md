@@ -4,14 +4,14 @@ A language-learning app for adults: honest spaced repetition, a reader that turn
 
 ## Status
 
-Milestone 2: the scheduler (`lib/scheduler`, FSRS via `ts-fsrs`) and a review screen for recognize and recall. Reviews are logged append-only and memory state can be rebuilt from the log (`npm run db:replay`). Reading arrives in milestone 3.
+Milestone 3: the reader. Paste text or an article URL, see coverage against what you know, tap a word for its meaning in context, *Mine* it into your reviews (the sentence is saved and becomes a cloze card) or mark it *Already know*. Scheduler and review screen (recognize, recall, cloze) from milestone 2; reviews are logged append-only and memory state can be rebuilt from the log (`npm run db:replay`). Next: "why?" explanations and passage generation (milestone 4).
 
 ## Stack
 
 - Next.js 16 (App Router) · TypeScript · Tailwind 4, deployed on Vercel
 - Postgres on Neon via Drizzle (`db/schema.ts`, migrations in `drizzle/`)
 - Anthropic API for glosses, explanations, and generation (`@anthropic-ai/sdk`)
-- Python FastAPI + spaCy service for tokenization (milestone 3, `nlp/`)
+- Built-in French tokenizer and lookup lemmatizer (`lib/reader`, table from Lexique 3.83), with an optional spaCy service (`nlp/`) for context-aware lemmas
 
 ## Local setup (macOS)
 
@@ -38,6 +38,10 @@ The frequency list ships without English glosses, and words can't be introduced 
 - **From a terminal**: with `ANTHROPIC_API_KEY` in `.env.local`, `npm run seed:gloss` fills the JSON directly (resumable), then `npm run db:seed` pushes it. Commit the JSON either way.
 
 Re-seeding never blanks a gloss that was filled in the app.
+
+### Reader analysis
+
+Passages are tokenized and lemmatized inside the app with a Lexique-derived table (`lib/reader/lexicon-fr.json`, built by `db/seed/build-lexicon.py`), so no second service is required. For better lemmas in context, deploy `nlp/` (FastAPI + spaCy `fr_core_news_md`; the Dockerfile works on Railway or Fly.io), set `NLP_SERVICE_TOKEN` there, and set `NLP_SERVICE_URL` and `NLP_SERVICE_TOKEN` in Vercel. The app switches automatically and falls back to the built-in analysis if the service is unreachable. Local run of the service is described at the top of `nlp/main.py`.
 
 ### Sign-in
 
@@ -79,16 +83,16 @@ python db/seed/build-frequency.py
 ## Layout
 
 ```
-app/            Next.js routes: home, /review, /login, server actions
+app/            Next.js routes: home, /review, /read, /login, server actions
 lib/atoms/      types, seed-row builders, home-screen counts
 lib/auth.ts     APP_SECRET cookie auth (proxy.ts enforces it)
 lib/scheduler/  planSession, applyReview, replay, FSRS wrapper + tests
 lib/review/     session builder, review recording, lenient answer matching
 lib/llm/        Anthropic client and gloss prompt
-lib/reader/     passage analysis client (milestone 3)
+lib/reader/     tokenizer + lexicon, chunk matching, coverage, passages, URL import
 lib/llm/        prompts and API client (milestone 4)
 db/             Drizzle schema, client, seed data and runner
 drizzle/        generated SQL migrations
 scripts/        one-off tooling (gloss filling)
-nlp/            Python spaCy service (milestone 3)
+nlp/            optional Python spaCy service (FastAPI, Dockerfile)
 ```

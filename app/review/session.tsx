@@ -93,11 +93,13 @@ function CardView({ card, onGrade }: { card: SessionCard; onGrade: (grade: Grade
     startedAt.current = Date.now();
   }, []);
 
-  const suggested: Grade = card.modality === "recall" ? (correct ? 3 : 1) : 3;
+  const typedModality = card.modality === "recall" || card.modality === "cloze";
+  const suggested: Grade = typedModality ? (correct ? 3 : 1) : 3;
 
   function reveal() {
     if (phase !== "prompt") return;
     if (card.modality === "recall") setCorrect(lenientMatch(typed, [card.key, ...card.forms]));
+    if (card.modality === "cloze") setCorrect(lenientMatch(typed, [card.cloze?.answer ?? card.key, ...card.forms]));
     setPhase("revealed");
   }
 
@@ -134,6 +136,8 @@ function CardView({ card, onGrade }: { card: SessionCard; onGrade: (grade: Grade
       <div className="mt-10 flex-1">
         {card.modality === "recall" ? (
           <RecallPrompt card={card} phase={phase} typed={typed} setTyped={setTyped} correct={correct} inputRef={inputRef} onSubmit={reveal} />
+        ) : card.modality === "cloze" && card.cloze ? (
+          <ClozePrompt card={card} phase={phase} typed={typed} setTyped={setTyped} correct={correct} inputRef={inputRef} onSubmit={reveal} />
         ) : (
           <RecognizePrompt card={card} phase={phase} />
         )}
@@ -151,7 +155,7 @@ function CardView({ card, onGrade }: { card: SessionCard; onGrade: (grade: Grade
       <div className="mt-8">
         {phase === "prompt" ? (
           <button onClick={reveal} className="w-full rounded-md bg-foreground py-3 text-background">
-            {card.modality === "recall" ? "Check" : "Show"}
+            {typedModality ? "Check" : "Show"}
           </button>
         ) : (
           <div className="grid grid-cols-4 gap-2">
@@ -262,6 +266,72 @@ function RecallPrompt({
           </p>
           <p className="mt-1 text-2xl">{displayKey(card)}</p>
           <OtherForms card={card} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClozePrompt({
+  card,
+  phase,
+  typed,
+  setTyped,
+  correct,
+  inputRef,
+  onSubmit,
+}: {
+  card: SessionCard;
+  phase: Phase;
+  typed: string;
+  setTyped: (s: string) => void;
+  correct?: boolean;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onSubmit: () => void;
+}) {
+  const c = card.cloze!;
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wide text-muted">fill the gap</p>
+      <p className="mt-1 text-xl leading-8" lang="fr">
+        {c.before}
+        <span className="mx-1 inline-block min-w-16 border-b border-foreground text-center">
+          {phase === "revealed" ? c.answer : "\u00a0"}
+        </span>
+        {c.after}
+      </p>
+      {card.gloss && <p className="mt-2 text-sm text-muted">{card.gloss}</p>}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}
+        className="mt-6"
+      >
+        <input
+          ref={inputRef}
+          autoFocus
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          disabled={phase === "revealed"}
+          placeholder="le mot manquant"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          lang="fr"
+          className="w-full rounded-md border border-line bg-transparent px-3 py-2 text-xl outline-none focus:border-foreground disabled:opacity-70"
+        />
+      </form>
+      {phase === "revealed" && (
+        <div className="mt-6 border-t border-line pt-6">
+          <p className={`text-sm ${correct ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+            {correct ? "Correct" : "Not quite"}
+          </p>
+          <p className="mt-1 text-2xl">{c.answer}</p>
+          <p className="mt-1 text-sm text-muted">
+            {card.key}
+            {card.gloss ? ` · ${card.gloss}` : ""}
+          </p>
         </div>
       )}
     </div>

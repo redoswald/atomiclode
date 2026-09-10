@@ -4,6 +4,7 @@ import { homeCounts, type HomeCounts } from "@/lib/atoms/stats";
 import { authEnabled } from "@/lib/auth";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { BUDGETS, DEFAULT_NEW_PER_DAY } from "@/lib/review/session";
+import { listPassages } from "@/lib/reader/passages";
 import { MODALITY_SECONDS } from "@/lib/scheduler";
 import { GlossFiller } from "./gloss-filler";
 
@@ -24,8 +25,9 @@ export default async function Home() {
   }
 
   let counts: HomeCounts;
+  let latest: Awaited<ReturnType<typeof listPassages>>[number] | undefined;
   try {
-    counts = await homeCounts(new Date(), db());
+    [counts, [latest]] = await Promise.all([homeCounts(new Date(), db()), listPassages(db())]);
   } catch (err) {
     return (
       <Shell>
@@ -92,8 +94,14 @@ export default async function Home() {
         {counts.newAvailable.grammar} grammar {plural(counts.newAvailable.grammar, "idea")}
       </Section>
 
-      <Section title="Read" note="milestone 3">
-        <span className="text-muted">Import or generate a passage.</span>
+      <Section title="Read" href="/read" note={latest ? `${Math.round(latest.coverage * 100)}% known` : undefined}>
+        {latest ? (
+          <Link href={`/read/${latest.id}`} className="underline underline-offset-4">
+            {latest.title ?? "Untitled"}
+          </Link>
+        ) : (
+          <span className="text-muted">Paste a text or an article URL.</span>
+        )}
       </Section>
 
       <GlossFiller remaining={counts.unglossed} hasKey={hasAnthropicKey()} />

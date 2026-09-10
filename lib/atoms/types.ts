@@ -70,6 +70,8 @@ export interface Atom {
 
   createdAt: string;
   source: AtomSource;
+  /** Set by "Already know" in the reader; replay starts such atoms from a mature state. */
+  markedKnownAt?: string;
 }
 
 export type SentenceOrigin = "generated" | "imported" | "conversation";

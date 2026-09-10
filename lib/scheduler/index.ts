@@ -13,4 +13,4 @@ export {
   type SessionReason,
   type SessionRequest,
 } from "./planSession";
-export { replay } from "./replay";
+export { KNOWN_STABILITY_DAYS, knownMemoryState, replay } from "./replay";
