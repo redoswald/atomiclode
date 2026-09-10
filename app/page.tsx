@@ -9,8 +9,9 @@ export default async function Home() {
     return (
       <Shell>
         <Notice title="No database configured">
-          Set <code className="font-mono">DATABASE_URL</code> (see <code className="font-mono">.env.example</code>), then
-          run <code className="font-mono">npm run db:migrate</code> and <code className="font-mono">npm run db:seed</code>.
+          On Vercel: open the project&apos;s Storage tab, create a Neon Postgres database, connect it, and redeploy. The
+          build applies migrations and seed data by itself. Locally: set <code className="font-mono">DATABASE_URL</code> in{" "}
+          <code className="font-mono">.env.local</code> and run <code className="font-mono">npm run db:prepare</code>.
         </Notice>
       </Shell>
     );
@@ -23,8 +24,8 @@ export default async function Home() {
     return (
       <Shell>
         <Notice title="Database error">
-          {err instanceof Error ? err.message : String(err)}. Have the migrations been applied? Run{" "}
-          <code className="font-mono">npm run db:migrate</code>.
+          {err instanceof Error ? err.message : String(err)}. If the tables are missing, redeploy (the build applies
+          migrations) or run <code className="font-mono">npm run db:prepare</code> locally.
         </Notice>
       </Shell>
     );
@@ -34,8 +35,8 @@ export default async function Home() {
     return (
       <Shell>
         <Notice title="Empty database">
-          The schema is in place but there are no atoms. Run <code className="font-mono">npm run db:seed</code> to load
-          the starter frequency list, chunks, and grammar.
+          The schema is in place but there are no atoms. Redeploy (the build seeds the database) or run{" "}
+          <code className="font-mono">npm run db:prepare</code> locally.
         </Notice>
       </Shell>
     );

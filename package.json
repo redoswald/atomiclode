@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "tsx scripts/db-prepare.ts && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -13,7 +13,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx db/seed/index.ts",
-    "seed:gloss": "tsx scripts/gloss-seed.ts"
+    "seed:gloss": "tsx scripts/gloss-seed.ts",
+    "db:prepare": "tsx scripts/db-prepare.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
