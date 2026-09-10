@@ -22,10 +22,11 @@ Node is a system tool; install it with Homebrew if it is missing (`brew install 
 npm install
 cp .env.example .env.local     # fill in DATABASE_URL at minimum
 
-npm run db:migrate             # apply drizzle/ migrations to the database
-npm run db:seed                # load 3000 words, 44 chunks, 40 grammar atoms
+npm run db:prepare             # apply migrations and load seed atoms (idempotent)
 npm run dev                    # http://localhost:3000
 ```
+
+`npm run build` runs `db:prepare` first, so a Vercel build with `DATABASE_URL` set migrates and seeds on its own. Without `DATABASE_URL` the step is skipped and the build still succeeds.
 
 For `DATABASE_URL`, create a free Neon project and use its connection string. A Neon branch per developer avoids running Postgres locally.
 
@@ -60,16 +61,17 @@ python db/seed/build-frequency.py
 | `npm run lint` / `typecheck` | ESLint / `tsc --noEmit` |
 | `npm test` | Vitest: seed-file checks plus an integration test that runs the real migrations and seed against in-memory Postgres (PGlite) |
 | `npm run db:generate` | Generate a migration from `db/schema.ts` |
-| `npm run db:migrate` | Apply migrations to `DATABASE_URL` |
-| `npm run db:seed` | Upsert seed atoms (idempotent; never touches memory state) |
+| `npm run db:prepare` | Apply migrations, then upsert seed atoms (idempotent; runs automatically before `build`) |
+| `npm run db:migrate` | Apply migrations only |
+| `npm run db:seed` | Upsert seed atoms only (never touches memory state) |
 | `npm run seed:gloss` | Fill empty glosses via the Anthropic API |
 
 ## Deploying on Vercel
 
 1. Import the GitHub repo in Vercel; the Next.js preset is detected automatically.
-2. Add the Neon integration from the Vercel marketplace (injects `DATABASE_URL`), or paste a connection string.
-3. Set `ANTHROPIC_API_KEY`. `NLP_SERVICE_URL`, `NLP_SERVICE_TOKEN`, and `APP_SECRET` are not needed until later milestones.
-4. Run `npm run db:migrate` and `npm run db:seed` once against the production database from your machine (the build does not run migrations).
+2. In the project's **Storage** tab, create a **Neon** Postgres database and connect it. This injects `DATABASE_URL`.
+3. Redeploy. The build applies migrations and loads the seed atoms; no terminal needed.
+4. Set `ANTHROPIC_API_KEY` when you reach the model features. `NLP_SERVICE_URL`, `NLP_SERVICE_TOKEN`, and `APP_SECRET` are not needed until later milestones.
 
 ## Layout
 
