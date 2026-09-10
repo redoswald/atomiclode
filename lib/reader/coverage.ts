@@ -13,6 +13,7 @@ export interface AtomLite {
   key: string;
   status: MemoryStatus;
   gloss: string;
+  pos?: string | null;
 }
 
 export interface CoverageReport {

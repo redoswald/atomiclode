@@ -29,10 +29,10 @@ export function GlossFiller({ remaining: initial, hasKey }: { remaining: number;
   if (remaining === 0 && filled === 0) return null;
 
   return (
-    <section className="mt-8 rounded-md border border-line p-4 text-sm">
+    <section className="card mt-6 p-5 text-sm">
       <div className="flex items-baseline justify-between gap-4">
         <div>
-          <h2 className="font-medium">Glosses</h2>
+          <h2 className="font-display text-2xl">Glosses</h2>
           <p className="mt-1 text-muted">
             {remaining === 0
               ? `Done: ${filled} words glossed.`
@@ -43,7 +43,7 @@ export function GlossFiller({ remaining: initial, hasKey }: { remaining: number;
           <button
             onClick={run}
             disabled={running}
-            className="shrink-0 rounded-md bg-foreground px-3 py-1.5 text-background disabled:opacity-50"
+            className="btn-primary shrink-0 text-sm"
           >
             {running ? `Filling… ${filled}` : "Fill glosses"}
           </button>

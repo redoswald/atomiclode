@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { login } from "@/app/actions/auth";
+import { Shell } from "@/app/components/shell";
 import { authEnabled, isAuthenticated } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -11,25 +12,17 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const next = typeof params.next === "string" ? params.next : "/";
 
   return (
-    <main className="mx-auto w-full max-w-sm flex-1 px-5 py-16">
-      <h1 className="text-lg font-medium">Lode</h1>
-      <p className="mt-1 text-sm text-muted">Enter the app secret to continue.</p>
-      <form action={login} className="mt-6 flex flex-col gap-3">
+    <Shell nav={false}>
+      <form action={login} className="card mt-4 flex flex-col gap-3 p-5">
+        <h2 className="font-display text-2xl">Sign in</h2>
+        <p className="text-sm text-muted">Enter the app secret to continue.</p>
         <input type="hidden" name="next" value={next} />
-        <input
-          name="secret"
-          type="password"
-          autoComplete="current-password"
-          autoFocus
-          required
-          placeholder="Secret"
-          className="rounded-md border border-line bg-transparent px-3 py-2 text-base outline-none focus:border-foreground"
-        />
-        {error && <p className="text-sm text-red-600 dark:text-red-400">That secret didn&apos;t match.</p>}
-        <button type="submit" className="rounded-md bg-foreground px-3 py-2 text-background">
+        <input name="secret" type="password" autoComplete="current-password" autoFocus required placeholder="Secret" className="field text-base" />
+        {error && <p className="text-sm text-bad">That secret didn&apos;t match.</p>}
+        <button type="submit" className="btn-primary">
           Sign in
         </button>
       </form>
-    </main>
+    </Shell>
   );
 }

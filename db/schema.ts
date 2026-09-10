@@ -215,6 +215,14 @@ export const contextGlosses = pgTable(
   (t) => [primaryKey({ columns: [t.lemma, t.sentence] })],
 );
 
+// ---- sentence translation cache -----------------------------------------------
+
+export const sentenceTranslations = pgTable("sentence_translations", {
+  sentence: text("sentence").primaryKey(),
+  translation: text("translation").notNull(),
+  createdAt: timestamptz("created_at").notNull().defaultNow(),
+});
+
 export type AtomRow = typeof atoms.$inferSelect;
 export type NewAtomRow = typeof atoms.$inferInsert;
 export type SentenceRow = typeof sentences.$inferSelect;

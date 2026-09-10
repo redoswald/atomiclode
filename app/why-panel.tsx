@@ -49,7 +49,7 @@ export function WhyPanel({
   return (
     <div className={`text-sm ${className}`}>
       {!open ? (
-        <button onClick={ask} className="text-muted underline">
+        <button onClick={ask} className="rounded-full border border-line px-3 py-1 text-xs text-muted">
           Why?
         </button>
       ) : loading || !answer ? (
@@ -58,7 +58,7 @@ export function WhyPanel({
         <p className="text-muted">{answer.error}</p>
       ) : (
         <div>
-          <p className="leading-6">{answer.explanation}</p>
+          <p className="rounded-xl bg-tint-sage/60 px-3 py-2 leading-6">{answer.explanation}</p>
           {answer.grammar && (
             <p className="mt-2 text-muted">
               {answer.grammar.existing ? (

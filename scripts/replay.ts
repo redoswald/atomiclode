@@ -7,7 +7,7 @@
 import "dotenv/config";
 import { asc, eq } from "drizzle-orm";
 import { db, hasDatabase } from "@/db";
-import { atoms, reviewEvents } from "@/db/schema";
+import { atoms, encounters, reviewEvents } from "@/db/schema";
 import { atomToRow, rowToAtom } from "@/lib/atoms/rows";
 import type { Grade } from "@/lib/atoms/types";
 import { replay } from "@/lib/scheduler";
@@ -20,6 +20,13 @@ async function main() {
   const d = db();
   const rows = await d.select().from(atoms);
   const events = await d.select().from(reviewEvents).orderBy(asc(reviewEvents.at), asc(reviewEvents.id));
+  const exposure = (await d.select().from(encounters)).map((e) => ({
+    atomId: e.atomId,
+    sentenceId: e.sentenceId ?? "",
+    passageId: e.passageId ?? "",
+    at: e.at,
+    tapped: e.tapped,
+  }));
   const rebuilt = replay(
     rows.map(rowToAtom),
     events.map((e) => ({
@@ -30,6 +37,7 @@ async function main() {
       responseMs: e.responseMs,
       at: e.at,
     })),
+    exposure,
   );
   let changed = 0;
   for (let i = 0; i < rows.length; i++) {
