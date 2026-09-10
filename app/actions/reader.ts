@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { contextGlosses } from "@/db/schema";
+import { contextGlosses, sentenceTranslations } from "@/db/schema";
 import { requireAuth } from "@/lib/auth";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { glossInContext } from "@/lib/llm/contextGloss";
@@ -36,6 +36,7 @@ export async function importPassage(formData: FormData): Promise<void> {
 export interface TapResult {
   gloss?: string;
   lemmaGloss?: string;
+  translation?: string;
   /** Present when the gloss came from the model rather than the atom. */
   fromModel: boolean;
   error?: string;
@@ -56,20 +57,23 @@ export async function tapWord(input: {
   const d = db();
   if (input.atomId) await logTap(d, input.atomId, input.passageId);
 
-  const [cached] = await d
-    .select({ gloss: contextGlosses.gloss })
-    .from(contextGlosses)
-    .where(and(eq(contextGlosses.lemma, input.lemma), eq(contextGlosses.sentence, input.sentence)));
-  if (cached) return { gloss: cached.gloss, fromModel: true };
-  if (!hasAnthropicKey()) return { fromModel: false, error: "Set ANTHROPIC_API_KEY for in-context meanings." };
+  const [[cached], [tr]] = await Promise.all([
+    d
+      .select({ gloss: contextGlosses.gloss })
+      .from(contextGlosses)
+      .where(and(eq(contextGlosses.lemma, input.lemma), eq(contextGlosses.sentence, input.sentence))),
+    d.select({ translation: sentenceTranslations.translation }).from(sentenceTranslations).where(eq(sentenceTranslations.sentence, input.sentence)),
+  ]);
+  if (cached && tr) return { gloss: cached.gloss, translation: tr.translation, fromModel: true };
+  if (!hasAnthropicKey()) return { gloss: cached?.gloss, translation: tr?.translation, fromModel: false, error: "Set ANTHROPIC_API_KEY for in-context meanings." };
 
   try {
     const g = await glossInContext(input.lemma, input.surface, input.sentence);
-    await d
-      .insert(contextGlosses)
-      .values({ lemma: input.lemma, sentence: input.sentence, gloss: g.gloss })
-      .onConflictDoNothing();
-    return { gloss: g.gloss, lemmaGloss: g.lemmaGloss, fromModel: true };
+    await Promise.all([
+      d.insert(contextGlosses).values({ lemma: input.lemma, sentence: input.sentence, gloss: g.gloss }).onConflictDoNothing(),
+      d.insert(sentenceTranslations).values({ sentence: input.sentence, translation: g.sentenceTranslation }).onConflictDoNothing(),
+    ]);
+    return { gloss: cached?.gloss ?? g.gloss, lemmaGloss: g.lemmaGloss, translation: tr?.translation ?? g.sentenceTranslation, fromModel: true };
   } catch (err) {
     return { fromModel: false, error: err instanceof Error ? err.message : String(err) };
   }

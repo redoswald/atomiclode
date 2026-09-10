@@ -8,6 +8,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { atoms, passages } from "@/db/schema";
+import { adaptText as adaptWithModel, type AdaptInput, type Level } from "@/lib/llm/adapt";
 import { generatePassage as generateWithModel, type GenerateInput, type GeneratedPassage, type Genre } from "@/lib/llm/generate";
 import { computeCoverage, isKnownStatus, type AtomLite } from "./coverage";
 import { createPassage } from "./passages";
@@ -70,7 +71,7 @@ export async function unreadGenerated(d: Db): Promise<{ id: string; title: strin
   const [row] = await d
     .select({ id: passages.id, title: passages.title })
     .from(passages)
-    .where(and(eq(passages.origin, "generated"), eq(passages.reads, 0)))
+    .where(and(eq(passages.origin, "generated"), eq(passages.reads, 0), sql`coalesce(${passages.sourceRef}, '') not like 'passage:%'`))
     .orderBy(desc(passages.createdAt))
     .limit(1);
   return row;
@@ -128,4 +129,45 @@ export async function dueLemmas(d: Db, limit = 8, now = new Date()): Promise<str
     .orderBy(atoms.due)
     .limit(limit);
   return rows.map((r) => r.key);
+}
+
+export type AdaptFn = (input: AdaptInput) => Promise<{ title: string; text: string }>;
+
+/**
+ * "Adapt this text": rewrite an existing passage at a target coverage, keeping
+ * the meaning. The adaptation is a generated passage that points back to the
+ * original through sourceRef ("passage:<id>"), and is reused if it already exists.
+ */
+export async function adaptPassage(d: Db, passageId: string, level: Level, adapt: AdaptFn = adaptWithModel): Promise<LibraryResult> {
+  const [original] = await d.select().from(passages).where(eq(passages.id, passageId));
+  if (!original) throw new Error("unknown passage");
+  const ref = `passage:${passageId}#${level}`;
+  const [existing] = await d.select({ id: passages.id, coverage: passages.coverage }).from(passages).where(eq(passages.sourceRef, ref));
+  if (existing) return { id: existing.id, coverage: existing.coverage, reused: true };
+
+  const index = await knownIndex(d);
+  const known = [...index.words.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
+  const chunks = [...index.chunks.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
+  if (known.length < 20) {
+    throw new Error("Learn a few more words first: adapting needs at least 20 known words to work with.");
+  }
+  const adapted = await adapt({ text: original.text, title: original.title ?? undefined, known, chunks, level });
+  const { id } = await createPassage(d, { title: adapted.title, text: adapted.text, origin: "generated", sourceRef: ref });
+  await d.update(passages).set({ genre: original.genre ?? "adapted" }).where(eq(passages.id, id));
+  const [row] = await d.select({ coverage: passages.coverage }).from(passages).where(eq(passages.id, id));
+  return { id, reused: false, coverage: row.coverage };
+}
+
+/** Existing adaptations of a passage, by level. */
+export async function adaptationsOf(d: Db, passageId: string): Promise<Partial<Record<Level, string>>> {
+  const rows = await d
+    .select({ id: passages.id, sourceRef: passages.sourceRef })
+    .from(passages)
+    .where(sql`${passages.sourceRef} like ${`passage:${passageId}#%`}`);
+  const out: Partial<Record<Level, string>> = {};
+  for (const r of rows) {
+    const level = r.sourceRef?.split("#")[1] as Level | undefined;
+    if (level) out[level] = r.id;
+  }
+  return out;
 }

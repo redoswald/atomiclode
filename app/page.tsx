@@ -3,9 +3,11 @@ import { db, hasDatabase } from "@/db";
 import { homeCounts, type HomeCounts } from "@/lib/atoms/stats";
 import { authEnabled } from "@/lib/auth";
 import { hasAnthropicKey } from "@/lib/llm/client";
-import { BUDGETS, DEFAULT_NEW_PER_DAY } from "@/lib/review/session";
 import { listPassages } from "@/lib/reader/passages";
+import { BUDGETS, DEFAULT_NEW_PER_DAY } from "@/lib/review/session";
 import { MODALITY_SECONDS } from "@/lib/scheduler";
+import { Shell } from "./components/shell";
+import { ExploreBox } from "./explore-box";
 import { GlossFiller } from "./gloss-filler";
 
 // Counts change with every review; never prerender this page.
@@ -55,58 +57,59 @@ export default async function Home() {
   const refreshMin = Math.round((counts.dueNow * MODALITY_SECONDS.recall) / 60);
   const learnMin = Math.round((Math.min(newTotal, DEFAULT_NEW_PER_DAY) * MODALITY_SECONDS.recognize * 2) / 60);
   const recommended = recommend(refreshMin + learnMin);
+  const hasKey = hasAnthropicKey();
 
   return (
-    <Shell>
+    <Shell
+      aside={
+        <p className="flex items-baseline justify-between text-sm">
+          <span>
+            French · Day {counts.day} <span className="text-muted">· {counts.reviewsTotal} reviews so far</span>
+          </span>
+        </p>
+      }
+    >
       {!authEnabled() && (
-        <p className="mb-6 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+        <p className="mb-5 rounded-xl border border-tint-sand bg-tint-sand/50 px-3 py-2 text-xs">
           Open to anyone with the URL. Set <code className="font-mono">APP_SECRET</code> in Vercel and redeploy to require a
           sign-in.
         </p>
       )}
 
-      <header className="flex items-baseline justify-between">
-        <h1 className="text-lg font-medium">French · Day {counts.day}</h1>
-        <span className="text-sm text-muted">{counts.reviewsTotal} reviews so far</span>
-      </header>
-
-      <p className="mt-4 flex items-baseline justify-between text-sm">
-        <span>{BUDGETS[recommended]} min recommended</span>
-        <span className="flex gap-2">
+      <section className="card p-5">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-3xl">Today</h2>
+          <span className="text-sm text-muted">{BUDGETS[recommended]} min recommended</span>
+        </div>
+        <div className="mt-3 flex gap-2">
           {(["light", "steady", "push"] as const).map((i) => (
             <Link
               key={i}
               href={`/review?intensity=${i}`}
-              className={`rounded-md border px-2 py-0.5 text-xs ${i === recommended ? "border-foreground" : "border-line text-muted"}`}
+              className={`rounded-full px-3 py-1 text-xs ${i === recommended ? "bg-sage text-sage-ink" : "border border-line text-muted"}`}
             >
               {i}
             </Link>
           ))}
-        </span>
-      </p>
+        </div>
 
-      <Section title="Refresh" note={counts.dueNow === 0 ? "nothing due" : `~${Math.max(1, refreshMin)} min`} href="/review?intensity=steady">
-        {counts.dueNow} {plural(counts.dueNow, "concept")} ready
-      </Section>
+        <Row href="/review?intensity=steady" title="Refresh" note={counts.dueNow === 0 ? "nothing due" : `~${Math.max(1, refreshMin)} min`}>
+          {counts.dueNow} {plural(counts.dueNow, "concept")} ready
+        </Row>
+        <Row href="/review?intensity=steady" title="Learn" note={newTotal === 0 ? "all introduced" : `~${Math.max(1, learnMin)} min`}>
+          {glossedNew} new {plural(glossedNew, "word")} · {counts.newAvailable.chunk} {plural(counts.newAvailable.chunk, "phrase")} ·{" "}
+          {counts.newAvailable.grammar} grammar {plural(counts.newAvailable.grammar, "idea")}
+        </Row>
+        <Row href={latest ? `/read/${latest.id}` : "/read"} title="Read" note={latest ? `${Math.round(latest.coverage * 100)}% known` : undefined}>
+          {latest ? latest.title ?? "Untitled" : <span className="text-muted">Paste a text or an article URL.</span>}
+        </Row>
+      </section>
 
-      <Section title="Learn" note={newTotal === 0 ? "all introduced" : `~${Math.max(1, learnMin)} min`} href="/review?intensity=steady">
-        {glossedNew} new {plural(glossedNew, "word")} · {counts.newAvailable.chunk} {plural(counts.newAvailable.chunk, "phrase")} ·{" "}
-        {counts.newAvailable.grammar} grammar {plural(counts.newAvailable.grammar, "idea")}
-      </Section>
+      <GlossFiller remaining={counts.unglossed} hasKey={hasKey} />
 
-      <Section title="Read" href="/read" note={latest ? `${Math.round(latest.coverage * 100)}% known` : undefined}>
-        {latest ? (
-          <Link href={`/read/${latest.id}`} className="underline underline-offset-4">
-            {latest.title ?? "Untitled"}
-          </Link>
-        ) : (
-          <span className="text-muted">Paste a text or an article URL.</span>
-        )}
-      </Section>
+      <ExploreBox enabled={hasKey} />
 
-      <GlossFiller remaining={counts.unglossed} hasKey={hasAnthropicKey()} />
-
-      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line pt-6 text-sm sm:grid-cols-4">
+      <dl className="mt-8 grid grid-cols-4 gap-3 text-sm">
         <Stat label="Atoms" value={counts.total} />
         <Stat label="Learning" value={counts.byStatus.learning} />
         <Stat label="Review" value={counts.byStatus.review} />
@@ -126,42 +129,31 @@ function recommend(minutes: number): "light" | "steady" | "push" {
   return "push";
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
-  return <main className="mx-auto w-full max-w-xl flex-1 px-5 py-10 sm:py-16">{children}</main>;
-}
-
-function Section({ title, note, href, children }: { title: string; note?: string; href?: string; children: React.ReactNode }) {
-  const heading = href ? (
-    <Link href={href} className="font-medium underline-offset-4 hover:underline">
-      {title} →
-    </Link>
-  ) : (
-    <h2 className="font-medium">{title}</h2>
-  );
+function Row({ href, title, note, children }: { href: string; title: string; note?: string; children: React.ReactNode }) {
   return (
-    <section className="mt-8">
-      <div className="flex items-baseline justify-between">
-        {heading}
-        {note && <span className="text-xs text-muted">{note}</span>}
-      </div>
-      <p className="mt-1 text-sm">{children}</p>
-    </section>
+    <Link href={href} className="mt-4 flex items-baseline justify-between gap-4 border-t border-line pt-4">
+      <span>
+        <span className="block font-medium">{title}</span>
+        <span className="mt-0.5 block text-sm">{children}</span>
+      </span>
+      <span className="shrink-0 text-xs text-muted">{note ?? "→"}</span>
+    </Link>
   );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-xl tabular-nums">{value}</dd>
+      <dt className="eyebrow">{label}</dt>
+      <dd className="font-display text-2xl tabular-nums">{value}</dd>
     </div>
   );
 }
 
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-md border border-line p-5">
-      <h1 className="font-medium">{title}</h1>
+    <section className="card p-5">
+      <h1 className="font-display text-2xl">{title}</h1>
       <p className="mt-2 text-sm leading-6 text-muted">{children}</p>
     </section>
   );

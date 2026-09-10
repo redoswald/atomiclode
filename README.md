@@ -4,7 +4,7 @@ A language-learning app for adults: honest spaced repetition, a reader that turn
 
 ## Status
 
-Milestone 4: "Why?" explanations and passage generation. Every word in the reader and every review card has a *Why?* that explains it in 3–6 sentences using the sentence at hand, cached per atom and per sentence; when the explanation names a grammar concept the app offers to add it as a grammar atom. *Read something new* serves a passage from your library whose coverage fits what you know today, or generates one (genre, topic, stretch slider, due words worked in). Earlier milestones: reader with import, coverage, tap-to-mine and cloze cards; scheduler and review screen; append-only review log with replay (`npm run db:replay`). Next: triage, intensity polish, exposure signals, stats, PWA (milestone 5).
+Milestone 5 (polish): a visual system (warm paper, serif display type, sage accent, bottom tabs), *Adapt this text* at three levels, sentence translations in the tap sheet, a Stats screen with coverage over time, exposure signals from reading feeding the scheduler, an Explore box, and a PWA manifest so the app installs to the home screen. Milestone 4: "Why?" explanations and passage generation. Every word in the reader and every review card has a *Why?* that explains it in 3–6 sentences using the sentence at hand, cached per atom and per sentence; when the explanation names a grammar concept the app offers to add it as a grammar atom. *Read something new* serves a passage from your library whose coverage fits what you know today, or generates one (genre, topic, stretch slider, due words worked in). Earlier milestones: reader with import, coverage, tap-to-mine and cloze cards; scheduler and review screen; append-only review log with replay (`npm run db:replay`). Next: triage, intensity polish, exposure signals, stats, PWA (milestone 5).
 
 ## Stack
 
@@ -28,7 +28,7 @@ npm run dev                    # http://localhost:3000
 
 `npm run build` runs `db:prepare` first, so a Vercel build with `DATABASE_URL` set migrates and seeds on its own. Without `DATABASE_URL` the step is skipped and the build still succeeds.
 
-For `DATABASE_URL`, create a free Neon project and use its connection string. A Neon branch per developer avoids running Postgres locally.
+For `DATABASE_URL`, create a free Neon project and use its connection string. Or skip Neon entirely for local work: `DATABASE_URL=pglite://./.pglite` runs an embedded Postgres in that folder (dev only; the folder is gitignored).
 
 ### Glosses
 
@@ -50,6 +50,10 @@ Passages are tokenized and lemmatized inside the app with a Lexique-derived tabl
 ### Generation and the library
 
 Before generating, the app looks for an existing passage (imported or generated) whose coverage against today's atoms is within −4/+2 points of the stretch target, that contains some of the due words if asked, and that hasn't been read in the last 7 days. Otherwise it generates one 150–300 word passage constrained to your known lemmas and stores it. One unread generated passage at a time.
+
+### Stats and exposure signals
+
+Stats buckets known atoms into strong (stability ≥ 21 days), developing, and fragile (lapsed this week, or tapped 3+ times in 7 days in the reader). Coverage is the frequency-weighted share of the top-3000 list you know; the line uses the review log (a word counts from its first review or from when you marked it known). Reading also feeds the scheduler: an untapped encounter with a known word bumps its stability a little (capped, never skipping a review); a word you keep tapping is pulled forward. `db:replay` honours both.
 
 ### Sign-in
 
@@ -91,7 +95,7 @@ python db/seed/build-frequency.py
 ## Layout
 
 ```
-app/            Next.js routes: home, /review, /read, /login, server actions
+app/            Next.js routes: home, /review, /read, /stats, /login, server actions, shell + tab bar
 lib/atoms/      types, seed-row builders, home-screen counts
 lib/auth.ts     APP_SECRET cookie auth (proxy.ts enforces it)
 lib/scheduler/  planSession, applyReview, replay, FSRS wrapper + tests

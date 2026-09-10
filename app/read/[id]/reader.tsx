@@ -12,6 +12,7 @@ interface Selection {
   token: ViewToken;
   gloss?: string;
   lemmaGloss?: string;
+  translation?: string;
   loading: boolean;
   error?: string;
 }
@@ -49,7 +50,9 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
     if (!canGloss) return;
     const r = await tapWord({ passageId: view.id, atomId: token.atomId, lemma: token.lemma, surface: token.surface, sentence });
     setSel((s) =>
-      s && s.index === index ? { ...s, loading: false, gloss: r.gloss ?? s.gloss, lemmaGloss: r.lemmaGloss, error: r.error } : s,
+      s && s.index === index
+        ? { ...s, loading: false, gloss: r.gloss ?? s.gloss, lemmaGloss: r.lemmaGloss, translation: r.translation, error: r.error }
+        : s,
     );
   }
 
@@ -89,10 +92,11 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
 
   const selState = sel ? stateOf(sel.token) : "known";
   const selUnknowns = sel ? (unknownInSentence.get(sel.token.sentenceIdx)?.size ?? 0) : 0;
+  const sentence = sel ? (view.sentences[sel.token.sentenceIdx] ?? "") : "";
 
   return (
     <>
-      <article className="mt-6 whitespace-pre-wrap text-lg leading-8" lang="fr">
+      <article className="font-display mt-6 whitespace-pre-wrap text-[1.35rem] leading-9" lang="fr">
         {view.tokens.map((t, i) => {
           if (!t.isWord) {
             return (
@@ -106,18 +110,14 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
           const active = sel?.index === i;
           const cls =
             state === "unknown"
-              ? "underline decoration-dotted decoration-1 underline-offset-4"
+              ? "underline decoration-dotted decoration-1 underline-offset-[5px] decoration-muted"
               : state === "queued"
-                ? "underline decoration-1 underline-offset-4 decoration-foreground/40"
+                ? "rounded-sm bg-tint-sage"
                 : "";
           return (
             <Fragment key={i}>
               {t.pre}
-              <button
-                type="button"
-                onClick={() => select(i)}
-                className={`rounded-sm ${cls} ${active ? "bg-foreground/10" : ""}`}
-              >
+              <button type="button" onClick={() => select(i)} className={`rounded-sm ${cls} ${active ? "bg-tint-moss" : ""}`}>
                 {t.surface}
               </button>
             </Fragment>
@@ -126,56 +126,59 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
       </article>
 
       {sel && (
-        <div className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-background p-5 shadow-lg" role="dialog">
+        <div className="fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-line bg-card p-5 pb-[max(env(safe-area-inset-bottom),1.25rem)] shadow-2xl" role="dialog">
           <div className="mx-auto max-w-xl">
-            <div className="flex items-baseline justify-between gap-4">
-              <p className="text-2xl">
-                {sel.token.surface}
-                {sel.token.lemma !== sel.token.surface.toLowerCase() && (
-                  <span className="ml-2 text-base text-muted">{sel.token.lemma}</span>
-                )}
-              </p>
-              <button onClick={() => setSel(null)} className="text-sm text-muted underline">
-                Close
-              </button>
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line" />
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="font-display text-3xl leading-none">{sel.token.surface}</p>
+                <p className="mt-1 text-sm text-muted">
+                  {sel.token.lemma !== sel.token.surface.toLowerCase() ? `form of ${sel.token.lemma}` : sel.token.lemma}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {sel.token.pos && <span className="rounded-full bg-tint-sage px-2.5 py-1 text-xs">{sel.token.pos.toLowerCase()}</span>}
+                <button onClick={() => setSel(null)} className="text-sm text-muted underline">
+                  Close
+                </button>
+              </div>
             </div>
-            <p className="mt-1 min-h-6 text-base">
+            <p className="mt-2 min-h-6 text-lg">
               {sel.gloss ?? (sel.loading ? <span className="text-muted">…</span> : <span className="text-muted">no meaning yet</span>)}
               {sel.lemmaGloss && sel.lemmaGloss !== sel.gloss && <span className="ml-2 text-sm text-muted">({sel.lemmaGloss})</span>}
             </p>
             {sel.error && <p className="mt-1 text-xs text-muted">{sel.error}</p>}
-            <p className="mt-3 text-sm text-muted" lang="fr">
-              <SentenceWithMark sentence={view.sentences[sel.token.sentenceIdx] ?? ""} surface={sel.token.surface} />
-            </p>
-            {selState === "unknown" && selUnknowns >= 3 && (
-              <p className="mt-2 text-xs text-muted">
-                This sentence has {selUnknowns} new words; the cloze card will be harder.
+
+            <div className="mt-3 border-t border-line pt-3">
+              <p className="text-sm" lang="fr">
+                <SentenceWithMark sentence={sentence} surface={sel.token.surface} />
               </p>
-            )}
+              {sel.translation && <p className="mt-1 text-sm italic text-muted">{sel.translation}</p>}
+              {selState === "unknown" && selUnknowns >= 3 && (
+                <p className="mt-2 text-xs text-muted">This sentence has {selUnknowns} new words; the cloze card will be harder.</p>
+              )}
+            </div>
+
             <WhyPanel
               key={sel.index}
-              request={{
-                atomId: sel.token.atomId,
-                lemma: sel.token.lemma,
-                surface: sel.token.surface,
-                sentence: view.sentences[sel.token.sentenceIdx] ?? "",
-              }}
+              request={{ atomId: sel.token.atomId, lemma: sel.token.lemma, surface: sel.token.surface, sentence }}
               canWhy={canGloss}
               className="mt-3"
             />
-            <div className="mt-4 flex gap-2 text-sm">
-              {selState === "unknown" && (
+
+            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+              {selState === "unknown" ? (
                 <>
-                  <button onClick={doMine} disabled={busy} className="rounded-md bg-foreground px-3 py-2 text-background disabled:opacity-50">
+                  <button onClick={doMine} disabled={busy} className="btn-primary">
                     Mine
                   </button>
-                  <button onClick={doKnow} disabled={busy} className="rounded-md border border-line px-3 py-2 disabled:opacity-50">
+                  <button onClick={doKnow} disabled={busy} className="btn-secondary">
                     Already know
                   </button>
                 </>
+              ) : (
+                <p className="col-span-2 py-2 text-muted">{selState === "queued" ? "Queued for review." : "In your reviews."}</p>
               )}
-              {selState === "queued" && <span className="py-2 text-muted">Queued for review.</span>}
-              {selState === "known" && sel.token.isWord && <span className="py-2 text-muted">In your reviews.</span>}
             </div>
           </div>
         </div>
@@ -190,7 +193,7 @@ function SentenceWithMark({ sentence, surface }: { sentence: string; surface: st
   return (
     <>
       {sentence.slice(0, i)}
-      <mark className="rounded-sm bg-foreground/10 px-0.5 text-foreground">{surface}</mark>
+      <mark className="rounded-sm bg-tint-sage px-0.5 text-ink">{surface}</mark>
       {sentence.slice(i + surface.length)}
     </>
   );

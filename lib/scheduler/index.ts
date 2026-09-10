@@ -1,4 +1,5 @@
 export { applyReview, LEECH_LAPSES, RECOGNIZE_ONLY_CEILING_DAYS } from "./applyReview";
+export { applyExposure, FRAGILE_TAPS, FRAGILE_WINDOW_DAYS, isFragile } from "./exposure";
 export { MODALITY_ORDER, MODALITY_SECONDS } from "./modality";
 export {
   chooseModality,

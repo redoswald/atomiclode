@@ -17,6 +17,7 @@ export interface ViewToken extends PassageToken {
   atomId?: string;
   status?: MemoryStatus;
   gloss?: string;
+  pos?: string;
   known: boolean;
 }
 
@@ -53,7 +54,7 @@ interface AtomIndex {
 
 async function loadAtomIndex(d: Db): Promise<AtomIndex> {
   const rows = await d
-    .select({ id: atoms.id, key: atoms.key, type: atoms.type, status: atoms.status, gloss: atoms.gloss })
+    .select({ id: atoms.id, key: atoms.key, type: atoms.type, status: atoms.status, gloss: atoms.gloss, pos: atoms.pos })
     .from(atoms)
     .where(inArray(atoms.type, ["word", "chunk"]));
   const words = new Map<string, AtomLite>();
@@ -143,7 +144,7 @@ export async function openPassage(d: Db, id: string, now = new Date()): Promise<
     }
     const atom = index.words.get(t.lemma);
     return atom
-      ? { ...t, atomId: atom.id, status: atom.status, gloss: atom.gloss, known: isKnownStatus(atom.status) }
+      ? { ...t, atomId: atom.id, status: atom.status, gloss: atom.gloss, pos: atom.pos ?? undefined, known: isKnownStatus(atom.status) }
       : { ...t, known: false };
   });
 

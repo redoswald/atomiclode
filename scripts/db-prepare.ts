@@ -12,7 +12,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import { migrate } from "drizzle-orm/neon-http/migrator";
+import { migrate as migrateNeon } from "drizzle-orm/neon-http/migrator";
+import { db, isPglite } from "@/db";
 import * as schema from "@/db/schema";
 import { seedAtoms } from "@/db/seed/run";
 import type { ChunkEntry, FrequencyEntry, GrammarEntry } from "@/lib/atoms/seed";
@@ -29,13 +30,21 @@ async function main() {
     return;
   }
 
-  const db = drizzle(neon(url), { schema });
-
+  const migrationsFolder = path.join(root, "drizzle");
   console.log("db:prepare — applying migrations…");
-  await migrate(db, { migrationsFolder: path.join(root, "drizzle") });
+  let target;
+  if (isPglite(url)) {
+    const { migrate } = await import("drizzle-orm/pglite/migrator");
+    target = db();
+    await migrate(target as unknown as Parameters<typeof migrate>[0], { migrationsFolder });
+  } else {
+    const neonDb = drizzle(neon(url), { schema });
+    await migrateNeon(neonDb, { migrationsFolder });
+    target = neonDb;
+  }
 
   console.log("db:prepare — seeding atoms…");
-  const result = await seedAtoms(db, {
+  const result = await seedAtoms(target, {
     freq: load<FrequencyEntry[]>("frequency-fr.json"),
     chunks: load<ChunkEntry[]>("chunks-fr.json"),
     grammar: load<GrammarEntry[]>("grammar-fr.json"),
