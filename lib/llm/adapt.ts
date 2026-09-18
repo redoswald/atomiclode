@@ -4,6 +4,7 @@ import { anthropic, DEFAULT_MODEL } from "./client";
 
 /** "Adapt this text": same meaning, a clearer path. */
 export const LEVELS = {
+  gist: { targetCoverage: 0.98, label: "Gist", blurb: "A short summary in French you can read. Not the text itself." },
   comfortable: { targetCoverage: 0.98, label: "Comfortable", blurb: "Simpler words and shorter sentences." },
   balanced: { targetCoverage: 0.95, label: "Balanced", blurb: "Keeps the meaning, simplifies the wording." },
   challenging: { targetCoverage: 0.9, label: "Challenging", blurb: "Closer to the original with richer vocabulary." },
@@ -26,8 +27,14 @@ Aim for the requested share of words from the known list. Words outside it shoul
 Natural adult French; no explanations, no glossary, no English. Keep the length within about 60–120% of the original, at most 300 words. Paragraphs separated by blank lines.
 Return a short French title (keep the original title if given) and the text.`;
 
+const GIST_SYSTEM = `You summarise a French text for an adult learner who cannot read it yet, in French they can read.
+The learner's known vocabulary is a list of dictionary forms (lemmas); you may use any inflection of them, plus names, numbers, and the fixed phrases listed. Stay inside that vocabulary almost entirely; a word outside it must be essential to the meaning.
+Write 5–8 short sentences in the present or passé composé that say who and what the text is about and what happens, in the order it happens. Keep every name and date. Natural French; no explanations, no English.
+Return a short French title (keep the original title if given) and the summary.`;
+
 export async function adaptText(input: AdaptInput): Promise<{ title: string; text: string }> {
   const { targetCoverage } = LEVELS[input.level];
+  const gist = input.level === "gist";
   const pct = Math.round(targetCoverage * 100);
   const user = [
     `Target: about ${pct}% of the words from the known list.`,
@@ -42,13 +49,13 @@ export async function adaptText(input: AdaptInput): Promise<{ title: string; tex
   const response = await anthropic().messages.parse({
     model: DEFAULT_MODEL,
     max_tokens: 4096,
-    system: SYSTEM,
+    system: gist ? GIST_SYSTEM : SYSTEM,
     messages: [{ role: "user", content: user }],
     output_config: { format: zodOutputFormat(Output), effort: "low" },
   });
   const parsed = response.parsed_output;
   if (!parsed) throw new Error(`No parseable adaptation (stop_reason=${response.stop_reason}).`);
   const text = parsed.text.trim();
-  if (text.split(/\s+/).length < 30) throw new Error("The model returned too short a text; try again.");
+  if (text.split(/\s+/).length < (gist ? 15 : 30)) throw new Error("The model returned too short a text; try again.");
   return { title: parsed.title.trim() || input.title || "Sans titre", text };
 }

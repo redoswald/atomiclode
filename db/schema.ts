@@ -25,6 +25,8 @@ export const atomSourceEnum = pgEnum("atom_source", [
   "mined",
   "conversation",
   "manual",
+  "scenario",
+  "goal",
 ]);
 export const memoryStatusEnum = pgEnum("memory_status", [
   "new",
@@ -43,10 +45,12 @@ export const sentenceOriginEnum = pgEnum("sentence_origin", [
   "generated",
   "imported",
   "conversation",
+  "scenario",
 ]);
 export const passageOriginEnum = pgEnum("passage_origin", [
   "imported",
   "generated",
+  "scenario",
 ]);
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true, mode: "string" });
@@ -68,6 +72,8 @@ export const passages = pgTable("passages", {
   coverage: real("coverage").notNull().default(0),
   coverageAtGeneration: real("coverage_at_generation").notNull().default(0),
   unknownAtoms: uuid("unknown_atoms").array().notNull().default([]),
+  /** Known word atoms when an adaptation was written; a rung goes stale as this grows (SPEC §11). */
+  knownAtGeneration: integer("known_at_generation"),
   reads: integer("reads").notNull().default(0),
   lastReadAt: timestamptz("last_read_at"),
   createdAt: timestamptz("created_at").notNull().defaultNow(),
@@ -101,6 +107,8 @@ export const atoms = pgTable(
     frequencyRank: integer("frequency_rank"),
     domains: text("domains").array().notNull().default([]),
     relatedAtoms: uuid("related_atoms").array().notNull().default([]),
+    /** Read it, never say it (passé simple): recognize and cloze only. */
+    receptiveOnly: boolean("receptive_only").notNull().default(false),
 
     // MemoryState, flattened so the scheduler can query on due/status.
     stability: real("stability").notNull().default(0),
@@ -223,8 +231,90 @@ export const sentenceTranslations = pgTable("sentence_translations", {
   createdAt: timestamptz("created_at").notNull().defaultNow(),
 });
 
+// ---- goal texts (SPEC §11) -----------------------------------------------------
+
+export const goals = pgTable("goals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  status: text("status").$type<"active" | "waiting" | "reached">().notNull().default("active"),
+  /** Section passages in reading order; each is an ordinary imported passage. */
+  passageIds: uuid("passage_ids").array().notNull().default([]),
+  /** Grammar the text leans on, found by the survey; they join the goal's new-atom order. */
+  grammarAtomIds: uuid("grammar_atom_ids").array().notNull().default([]),
+  /** Situations the survey suggested spinning out as goal scenarios (SPEC §10). */
+  sceneIdeas: jsonb("scene_ideas").$type<string[]>().notNull().default([]),
+  pinnedAt: timestamptz("pinned_at").notNull().defaultNow(),
+  surveyedAt: timestamptz("surveyed_at"),
+  reachedAt: timestamptz("reached_at"),
+});
+
+/** One row per goal per day, so the stats chart can draw goal coverage over time. */
+export const goalCoverage = pgTable(
+  "goal_coverage",
+  {
+    goalId: uuid("goal_id")
+      .notNull()
+      .references(() => goals.id, { onDelete: "cascade" }),
+    day: text("day").notNull(), // YYYY-MM-DD (UTC)
+    coverage: real("coverage").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.goalId, t.day] })],
+);
+
+// ---- scenarios (SPEC §10) ------------------------------------------------------
+
+export const scenarios = pgTable(
+  "scenarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    brief: text("brief").notNull(),
+    domains: text("domains").array().notNull().default([]),
+    origin: text("origin").$type<"seed" | "goal" | "custom">().notNull(),
+    goalId: uuid("goal_id").references(() => goals.id, { onDelete: "set null" }),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("scenarios_slug_idx").on(t.slug)],
+);
+
+export const scenarioVisits = pgTable(
+  "scenario_visits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scenarioId: uuid("scenario_id")
+      .notNull()
+      .references(() => scenarios.id, { onDelete: "cascade" }),
+    n: integer("n").notNull(),
+    brief: text("brief").notNull(),
+    /** One line on what happened, fed to the generator of later visits. */
+    summary: text("summary").notNull().default(""),
+    passageId: uuid("passage_id").references(() => passages.id, { onDelete: "set null" }),
+    /** The whole dialogue in English, behind a toggle: readable on day one with no model. */
+    translation: text("translation").notNull().default(""),
+    /** Atoms new to the learner when the visit was made, in teaching order. */
+    bundle: uuid("bundle").array().notNull().default([]),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    startedAt: timestamptz("started_at"),
+  },
+  (t) => [uniqueIndex("scenario_visits_scenario_n_idx").on(t.scenarioId, t.n)],
+);
+
+export const producePrompts = pgTable("produce_prompts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  visitId: uuid("visit_id").references(() => scenarioVisits.id, { onDelete: "cascade" }),
+  situation: text("situation").notNull(),
+  targetAtomIds: uuid("target_atom_ids").array().notNull().default([]),
+  exampleAnswer: text("example_answer").notNull(),
+  createdAt: timestamptz("created_at").notNull().defaultNow(),
+});
+
 export type AtomRow = typeof atoms.$inferSelect;
 export type NewAtomRow = typeof atoms.$inferInsert;
 export type SentenceRow = typeof sentences.$inferSelect;
 export type ReviewEventRow = typeof reviewEvents.$inferSelect;
 export type PassageRow = typeof passages.$inferSelect;
+export type GoalRow = typeof goals.$inferSelect;
+export type ScenarioRow = typeof scenarios.$inferSelect;
+export type ScenarioVisitRow = typeof scenarioVisits.$inferSelect;
+export type ProducePromptRow = typeof producePrompts.$inferSelect;

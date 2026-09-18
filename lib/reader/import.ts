@@ -17,7 +17,7 @@ const TIMEOUT_MS = 10_000;
 export async function fetchArticle(rawUrl: string): Promise<FetchedArticle> {
   const url = validateUrl(rawUrl);
   const res = await fetch(url, {
-    headers: { "user-agent": "Lode/0.1 (+https://github.com/redoswald/atomiclode)", accept: "text/html,*/*;q=0.8" },
+    headers: { "user-agent": "Dolomite/0.1 (+https://github.com/redoswald/atomiclode)", accept: "text/html,*/*;q=0.8" },
     redirect: "follow",
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });

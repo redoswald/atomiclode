@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { submitReview } from "@/app/actions/review";
+import { checkProduceAnswer, submitProduce, submitReview } from "@/app/actions/review";
 import { WhyPanel } from "@/app/why-panel";
 import type { Grade } from "@/lib/atoms/types";
 import { lenientMatch } from "@/lib/review/match";
+import type { ProduceCheck } from "@/lib/review/produce";
 import type { BuiltSession, SessionCard } from "@/lib/review/session";
 
-type Phase = "prompt" | "revealed";
+type Phase = "prompt" | "checking" | "revealed";
 
 interface Outcome {
   card: SessionCard;
@@ -30,11 +31,15 @@ export function ReviewSession({ session, canWhy }: { session: BuiltSession; canW
 
   const card = cards[index];
 
-  async function onGrade(grade: Grade, responseMs: number) {
+  async function onGrade(grade: Grade, responseMs: number, usedAtomIds: string[] = []) {
     setOutcomes((o) => [...o, { card, grade }]);
     setIndex((i) => i + 1);
     try {
-      await submitReview({ atomId: card.atomId, modality: card.modality, grade, responseMs, sentenceId: card.sentence?.id });
+      if (card.modality === "produce" && card.produce) {
+        await submitProduce({ atomId: card.atomId, promptId: card.produce.promptId, grade, responseMs, usedAtomIds });
+      } else {
+        await submitReview({ atomId: card.atomId, modality: card.modality, grade, responseMs, sentenceId: card.sentence?.id });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -86,10 +91,11 @@ export function ReviewSession({ session, canWhy }: { session: BuiltSession; canW
   );
 }
 
-function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grade: Grade, responseMs: number) => void; canWhy: boolean }) {
+function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grade: Grade, responseMs: number, usedAtomIds?: string[]) => void; canWhy: boolean }) {
   const [phase, setPhase] = useState<Phase>("prompt");
   const [typed, setTyped] = useState("");
   const [correct, setCorrect] = useState<boolean | undefined>();
+  const [check, setCheck] = useState<ProduceCheck | { error: string } | undefined>();
   const startedAt = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -98,10 +104,21 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
   }, []);
 
   const typedModality = card.modality === "recall" || card.modality === "cloze";
-  const suggested: Grade = typedModality ? (correct ? 3 : 1) : 3;
+  const isProduce = card.modality === "produce" && card.produce !== undefined;
+  const verdict = check && !("error" in check) ? check : undefined;
+  const usedIt = verdict?.usedAtomIds.includes(card.atomId) ?? false;
+  // Produce: understood and used the word is Good; one without the other is Hard; neither is Again.
+  const suggested: Grade = isProduce ? (verdict ? (verdict.ok && usedIt ? 3 : verdict.ok || usedIt ? 2 : 1) : 3) : typedModality ? (correct ? 3 : 1) : 3;
 
-  function reveal() {
+  async function reveal() {
     if (phase !== "prompt") return;
+    if (isProduce) {
+      if (!typed.trim()) return;
+      setPhase("checking");
+      setCheck(await checkProduceAnswer({ promptId: card.produce!.promptId, answer: typed }));
+      setPhase("revealed");
+      return;
+    }
     if (card.modality === "recall") setCorrect(lenientMatch(typed, [card.key, ...card.forms]));
     if (card.modality === "cloze") setCorrect(lenientMatch(typed, [card.cloze?.answer ?? card.key, ...card.forms]));
     setPhase("revealed");
@@ -109,13 +126,15 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
 
   function grade(g: Grade) {
     if (phase !== "revealed") return;
-    onGrade(g, Date.now() - (startedAt.current ?? Date.now()));
+    onGrade(g, Date.now() - (startedAt.current ?? Date.now()), verdict?.usedAtomIds);
   }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      const typing = document.activeElement === inputRef.current;
+      const typing = document.activeElement === inputRef.current || document.activeElement instanceof HTMLTextAreaElement;
+      if (phase === "checking") return;
       if (phase === "prompt") {
+        if (e.key === "Enter" && e.shiftKey) return; // newline in a produce answer
         if (e.key === "Enter" || (e.key === " " && !typing)) {
           e.preventDefault();
           reveal();
@@ -136,7 +155,9 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
   });
 
   const label =
-    card.modality === "recall"
+    isProduce
+      ? "What do you say?"
+      : card.modality === "recall"
       ? "Translate to French"
       : card.modality === "cloze"
         ? "Fill the gap"
@@ -150,7 +171,9 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
     <>
       <section className="card mt-5 min-h-64 p-5 text-center">
         <p className="text-sm text-muted">{label}</p>
-        {card.modality === "recall" ? (
+        {isProduce ? (
+          <ProducePrompt card={card} phase={phase} typed={typed} setTyped={setTyped} check={check} onSubmit={reveal} />
+        ) : card.modality === "recall" ? (
           <RecallPrompt card={card} phase={phase} typed={typed} setTyped={setTyped} correct={correct} inputRef={inputRef} onSubmit={reveal} />
         ) : card.modality === "cloze" && card.cloze ? (
           <ClozePrompt card={card} phase={phase} typed={typed} setTyped={setTyped} correct={correct} inputRef={inputRef} onSubmit={reveal} />
@@ -163,9 +186,9 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
       </section>
 
       <div className="mt-4">
-        {phase === "prompt" ? (
-          <button onClick={reveal} className="btn-primary w-full">
-            {typedModality ? "Check" : "Show"}
+        {phase !== "revealed" ? (
+          <button onClick={reveal} className="btn-primary w-full" disabled={phase === "checking" || (isProduce && !typed.trim())}>
+            {phase === "checking" ? "Checking…" : typedModality || isProduce ? "Check" : "Show"}
           </button>
         ) : (
           <div className="grid grid-cols-4 gap-2">
@@ -311,6 +334,80 @@ function ClozePrompt(props: TypedProps) {
           <p className="mt-1 text-sm text-muted">
             {card.key}
             {card.gloss ? ` · ${card.gloss}` : ""}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProducePrompt({
+  card,
+  phase,
+  typed,
+  setTyped,
+  check,
+  onSubmit,
+}: {
+  card: SessionCard;
+  phase: Phase;
+  typed: string;
+  setTyped: (s: string) => void;
+  check?: ProduceCheck | { error: string };
+  onSubmit: () => void;
+}) {
+  const p = card.produce!;
+  const verdict = check && !("error" in check) ? check : undefined;
+  return (
+    <div>
+      <p className="font-display mt-3 text-2xl leading-8">{p.situation}</p>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}
+        className="mt-6"
+      >
+        <textarea
+          autoFocus
+          rows={3}
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          disabled={phase !== "prompt"}
+          placeholder="En français…"
+          autoCapitalize="sentences"
+          autoCorrect="off"
+          spellCheck={false}
+          lang="fr"
+          className="field w-full resize-none text-lg disabled:opacity-70"
+        />
+      </form>
+      {phase === "revealed" && (
+        <div className="mt-6 border-t border-line pt-5 text-left">
+          {verdict ? (
+            <>
+              <p className={`text-sm ${verdict.ok ? "text-ok" : "text-bad"}`}>{verdict.ok ? "That works" : "Not quite"}</p>
+              {verdict.natural && verdict.natural !== typed.trim() && (
+                <p className="font-display mt-1 text-2xl leading-8" lang="fr">
+                  {verdict.natural}
+                </p>
+              )}
+              {verdict.note && <p className="mt-2 text-sm text-muted">{verdict.note}</p>}
+            </>
+          ) : (
+            <p className="text-sm text-bad">{check && "error" in check ? check.error : "Couldn't check that."} Grade yourself against the example.</p>
+          )}
+          <p className="eyebrow mt-4">One way to say it</p>
+          <p className="mt-1 text-base" lang="fr">
+            {p.exampleAnswer}
+          </p>
+          <p className="mt-3 text-xs text-muted">
+            {p.targets.map((t) => (
+              <span key={t.atomId} className={`mr-3 ${verdict?.usedAtomIds.includes(t.atomId) ? "text-ok" : ""}`}>
+                {verdict?.usedAtomIds.includes(t.atomId) ? "✓ " : ""}
+                {t.key}
+              </span>
+            ))}
           </p>
         </div>
       )}

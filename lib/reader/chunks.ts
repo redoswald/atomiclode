@@ -1,12 +1,21 @@
 import { normalizeForm } from "./lexicon";
-import type { Token } from "./tokenize";
+import { analyzeLocal, type Token } from "./tokenize";
 
-/** Words of a chunk key, split the same way the tokenizer splits elisions. */
+const patternCache = new Map<string, string[]>();
+
+/**
+ * Words of a chunk key, split exactly the way the tokenizer splits running text
+ * (elisions, "excusez-moi", "est-ce", punctuation dropped), so the two can match.
+ */
 export function chunkPattern(key: string): string[] {
-  return normalizeForm(key)
-    .split(/\s+/)
-    .flatMap((w) => (w.includes("'") && !w.endsWith("'") ? w.split(/(?<=')/) : [w]))
-    .filter(Boolean);
+  let pattern = patternCache.get(key);
+  if (!pattern) {
+    pattern = analyzeLocal(key.toLowerCase())
+      .tokens.filter((t) => t.isWord)
+      .map((t) => normalizeForm(t.surface));
+    patternCache.set(key, pattern);
+  }
+  return pattern;
 }
 
 /**

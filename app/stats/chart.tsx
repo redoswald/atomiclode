@@ -5,14 +5,15 @@ import { useId, useState } from "react";
 interface Point {
   date: string;
   coverage: number;
-  known: number;
+  /** Known words that day; absent for series where it means nothing (a goal text's coverage). */
+  known?: number;
 }
 
 /**
  * Coverage over time: a single-series line (no legend needed), 2px stroke,
  * recessive grid, crosshair + tooltip on hover/touch, and a table view.
  */
-export function CoverageChart({ series }: { series: Point[] }) {
+export function CoverageChart({ series, title = "Estimated coverage over time", empty = "The line starts with your first review." }: { series: Point[]; title?: string; empty?: string }) {
   const id = useId();
   const [hover, setHover] = useState<number | null>(null);
   const [table, setTable] = useState(false);
@@ -39,10 +40,11 @@ export function CoverageChart({ series }: { series: Point[] }) {
   }
 
   const h = hover !== null ? pts[hover] : null;
+  const withWords = series.some((p) => p.known !== undefined);
   const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   if (series.length === 0 || (series.length === 1 && series[0].known === 0)) {
-    return <p className="mt-4 text-sm text-muted">The line starts with your first review.</p>;
+    return <p className="mt-4 text-sm text-muted">{empty}</p>;
   }
 
   return (
@@ -55,7 +57,7 @@ export function CoverageChart({ series }: { series: Point[] }) {
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
       >
-        <title id={`${id}-title`}>Estimated coverage over time</title>
+        <title id={`${id}-title`}>{title}</title>
         {ticks.map((v) => (
           <g key={v}>
             <line x1={pad.l} x2={W - pad.r} y1={Y(v)} y2={Y(v)} stroke="var(--line)" strokeWidth={1} />
@@ -79,7 +81,7 @@ export function CoverageChart({ series }: { series: Point[] }) {
         )}
       </svg>
       <div className="mt-1 flex min-h-5 items-baseline justify-between text-xs text-muted">
-        <span>{h ? `${fmt(h.date)} · ${Math.round(h.coverage * 100)}% · ${h.known} words` : "Hover or touch the line for details."}</span>
+        <span>{h ? `${fmt(h.date)} · ${Math.round(h.coverage * 100)}%${h.known === undefined ? "" : ` · ${h.known} words`}` : "Hover or touch the line for details."}</span>
         <button onClick={() => setTable((t) => !t)} className="underline">
           {table ? "Hide table" : "Table"}
         </button>
@@ -91,7 +93,7 @@ export function CoverageChart({ series }: { series: Point[] }) {
               <tr>
                 <th className="py-1 font-normal">Date</th>
                 <th className="py-1 font-normal">Coverage</th>
-                <th className="py-1 font-normal">Words</th>
+                {withWords && <th className="py-1 font-normal">Words</th>}
               </tr>
             </thead>
             <tbody>
@@ -99,7 +101,7 @@ export function CoverageChart({ series }: { series: Point[] }) {
                 <tr key={p.date} className="border-t border-line">
                   <td className="py-1">{p.date}</td>
                   <td className="py-1 tabular-nums">{Math.round(p.coverage * 100)}%</td>
-                  <td className="py-1 tabular-nums">{p.known}</td>
+                  {withWords && <td className="py-1 tabular-nums">{p.known}</td>}
                 </tr>
               ))}
             </tbody>

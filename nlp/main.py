@@ -1,4 +1,4 @@
-"""Lode NLP service: French tokenization + lemmatization with spaCy.
+"""Dolomite NLP service: French tokenization + lemmatization with spaCy.
 
 Optional. The web app analyses passages with a built-in lookup lemmatizer; set
 NLP_SERVICE_URL (and NLP_SERVICE_TOKEN) on the app to use this instead for

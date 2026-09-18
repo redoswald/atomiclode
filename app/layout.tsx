@@ -7,11 +7,11 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"], axes: ["opsz", "SOFT"] });
 
 export const metadata: Metadata = {
-  title: "Lode",
+  title: "Dolomite",
   description: "Languages for a richer life. Spaced repetition and real reading for adults learning French.",
-  applicationName: "Lode",
+  applicationName: "Dolomite",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Lode", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Dolomite", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 

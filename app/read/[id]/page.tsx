@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { adapt } from "@/app/actions/adapt";
+import { pin } from "@/app/actions/goal";
 import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
 import { LEVELS, type Level } from "@/lib/llm/adapt";
@@ -49,13 +50,21 @@ export default async function PassagePage({ params, searchParams }: PageProps<"/
 
       <Reader view={view} canGloss={hasKey} />
 
-      {!isAdaptation && (
-        <section className="card mt-10 p-5">
+      {view.origin === "imported" && (
+        <form action={pin} className="mt-10">
+          <input type="hidden" name="passageId" value={id} />
+          <button className="btn-secondary w-full text-sm">Make this my goal</button>
+          <p className="mt-2 text-xs text-muted">Can&apos;t read it yet? Pin it. It will steer what you learn, and you can watch it become readable.</p>
+        </form>
+      )}
+
+      {!isAdaptation && view.origin !== "scenario" && (
+        <section className="card mt-4 p-5">
           <h2 className="font-display text-2xl">Adapt this text</h2>
           <p className="eyebrow mt-1">Same meaning. A clearer path.</p>
           <form action={adapt} className="mt-4 grid grid-cols-3 gap-2">
             <input type="hidden" name="passageId" value={id} />
-            {(Object.keys(LEVELS) as Level[]).map((level) => {
+            {(Object.keys(LEVELS) as Level[]).filter((level) => level !== "gist").map((level) => {
               const l = LEVELS[level];
               const existing = adaptations[level];
               return existing ? (

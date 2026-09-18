@@ -38,7 +38,8 @@ const ELISIONS: Record<string, string> = {
 };
 /** Lexicon entries that are really verb–pronoun joins and should still split. */
 const FORCE_SPLIT = new Set(["est-ce", "pas-je"]);
-const SENTENCE_END = /([.!?…]+["»”’)]*)\s+(?=["«“(]?[A-ZÀ-ÖØ-Þ0-9])/g;
+// The next sentence may open with a dialogue dash ("— Depuis hier.") or a quote.
+const SENTENCE_END = /([.!?…]+["»”’)]*)\s+(?=(?:[—–-]\s*)?["«“(]?\s*[A-ZÀ-ÖØ-Þ0-9])/g;
 const SPLIT_MARK = "\u0000"; // never occurs in real text
 
 /** Split text into sentences, keeping paragraph breaks as their own boundary. */

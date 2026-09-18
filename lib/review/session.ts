@@ -3,12 +3,17 @@ import type { Db } from "@/db";
 import { atoms, encounters, reviewEvents, sentences } from "@/db/schema";
 import { rowToAtom } from "@/lib/atoms/rows";
 import type { Atom, AtomType, Encounter, Modality, Sentence } from "@/lib/atoms/types";
+import { hasAnthropicKey } from "@/lib/llm/client";
 import { applyExposure } from "@/lib/scheduler/exposure";
 import { normalizeForm } from "@/lib/reader/lexicon";
 import { planSession, type Intensity, type SessionPlan, type SessionReason } from "@/lib/scheduler";
+import { newAtomOrder } from "./newOrder";
+import { promptsFor, writePrompts, type WritePromptFn } from "./produce";
 
 export const BUDGETS: Record<Intensity, number> = { light: 5, steady: 12, push: 20 };
 export const DEFAULT_NEW_PER_DAY = 10;
+/** Produce cards per session. They cost a model call each, and forty seconds of the learner. */
+export const PRODUCE_MAX: Record<Intensity, number> = { light: 0, steady: 3, push: 5 };
 
 /** Everything the client needs to render one item. Never includes memory state. */
 export interface SessionCard {
@@ -25,6 +30,8 @@ export interface SessionCard {
   sentence?: { id: string; text: string; translation?: string };
   /** For cloze: the sentence split around the gap. */
   cloze?: { before: string; answer: string; after: string };
+  /** For produce: the situation to answer and what it is fishing for. */
+  produce?: { promptId: string; situation: string; exampleAnswer: string; targets: Array<{ atomId: string; key: string; gloss: string }> };
   /** One line on how the modalities compare, e.g. "Recognition is strong, production needs work." */
   insight?: string;
 }
@@ -40,9 +47,17 @@ export function parseIntensity(v: unknown): Intensity {
   return v === "light" || v === "push" ? v : "steady";
 }
 
-export async function buildSession(d: Db, intensity: Intensity, now = new Date()): Promise<BuiltSession> {
+export interface BuildOptions {
+  /** Produce needs a model to grade it; defaults to whether an API key is set. */
+  produce?: boolean;
+  writePrompt?: WritePromptFn;
+}
+
+export async function buildSession(d: Db, intensity: Intensity, now = new Date(), opts: BuildOptions = {}): Promise<BuiltSession> {
+  const produce = opts.produce ?? hasAnthropicKey();
   const timeBudgetMin = BUDGETS[intensity];
-  const [rows, sentenceRows, introduced, recentEncounters] = await Promise.all([
+  const [order, rows, sentenceRows, introduced, recentEncounters] = await Promise.all([
+    newAtomOrder(d, produce),
     d.select().from(atoms).where(sql`${atoms.status} <> 'suspended'`),
     d.select().from(sentences),
     newAtomsIntroducedToday(d, now),
@@ -83,6 +98,9 @@ export async function buildSession(d: Db, intensity: Intensity, now = new Date()
     newAtomsPerDay: DEFAULT_NEW_PER_DAY,
     newAtomsIntroducedToday: introduced,
     intensity,
+    produceMax: produce ? PRODUCE_MAX[intensity] : 0,
+    newOrder: order.newOrder,
+    noFrequencyFallback: order.noFrequencyFallback,
   });
 
   // Triage: persist the bulk deferrals so the next plan sees them.
@@ -91,16 +109,33 @@ export async function buildSession(d: Db, intensity: Intensity, now = new Date()
   }
 
   const byId = new Map(all.map((a) => [a.id, a]));
+
+  // Produce cards need a situation: a stored one, or one written now (a few per session at most).
+  const wantProduce = plan.items.filter((i) => i.modality === "produce").map((i) => byId.get(i.atomId)!);
+  const prompts = await promptsFor(d, wantProduce);
+  const unprompted = wantProduce.filter((a) => !prompts.has(a.id));
+  for (const [id, row] of await writePrompts(d, unprompted, opts.writePrompt)) prompts.set(id, row);
+
   const sentenceById = new Map(sentenceList.map((s) => [s.id, s]));
   const cards: SessionCard[] = plan.items.map((item) => {
     const a = byId.get(item.atomId)!;
     const s = item.sentenceId ? sentenceById.get(item.sentenceId) : undefined;
     const cloze = item.modality === "cloze" && s ? findGap(s.text, [a.key, ...a.forms]) : undefined;
+    const prompt = item.modality === "produce" ? prompts.get(a.id) : undefined;
     return {
       atomId: a.id,
-      // A cloze with no findable gap degrades to recognize-in-context.
-      modality: item.modality === "cloze" && !cloze ? "recognize" : item.modality,
+      // A cloze with no findable gap degrades to recognize-in-context; a produce with no situation, to recall.
+      modality: item.modality === "cloze" && !cloze ? "recognize" : item.modality === "produce" && !prompt ? "recall" : item.modality,
       cloze,
+      produce: prompt && {
+        promptId: prompt.id,
+        situation: prompt.situation,
+        exampleAnswer: prompt.exampleAnswer,
+        targets: prompt.targetAtomIds.flatMap((id) => {
+          const t = byId.get(id);
+          return t ? [{ atomId: id, key: t.key, gloss: t.gloss }] : [];
+        }),
+      },
       insight: insightFor(a),
       reason: item.reason,
       type: a.type,
