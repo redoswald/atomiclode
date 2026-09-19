@@ -1,6 +1,8 @@
 import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
+import Link from "next/link";
 import { vocabStats } from "@/lib/atoms/vocab-stats";
+import { activeGoal, goalCoverageSeries, goalView } from "@/lib/goals/goals";
 import { CoverageChart } from "./chart";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +16,10 @@ export default async function StatsPage() {
     );
   }
   const s = await vocabStats(db());
+  const goal = await activeGoal(db());
+  // Opening the view logs today's point, so the line is never a day behind.
+  const goalNow = goal ? await goalView(db(), goal.id) : undefined;
+  const goalSeries = goal ? await goalCoverageSeries(db(), goal.id) : [];
   const pct = (x: number) => `${Math.round(x * 100)}%`;
 
   return (
@@ -41,6 +47,19 @@ export default async function StatsPage() {
         <p className="mt-1 text-xs text-muted">Estimated share of everyday French text made of words you know, from the frequency list.</p>
         <CoverageChart series={s.series} />
       </section>
+
+      {goal && goalNow && (
+        <section className="card mt-4 p-5">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="font-display text-2xl">
+              <Link href={`/goal/${goal.id}`}>{goal.title}</Link>
+            </h2>
+            <span className="font-display text-3xl tabular-nums">{pct(goalNow.coverage)}</span>
+          </div>
+          <p className="mt-1 text-xs text-muted">Share of your goal text&apos;s words you know. Names don&apos;t count.</p>
+          <CoverageChart series={goalSeries} title="Goal text coverage over time" empty="The line starts today." />
+        </section>
+      )}
 
       <section className="card mt-4 p-5">
         <div className="flex items-baseline justify-between">

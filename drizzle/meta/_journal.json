@@ -43,6 +43,13 @@
       "when": 1789071904087,
       "tag": "0005_sentence_translations",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789772083276,
+      "tag": "0006_v2_scenarios_goals",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,21 @@ export interface SessionRequest {
   newAtomsPerDay: number; // default 10
   newAtomsIntroducedToday: number;
   intensity: Intensity;
+  /**
+   * Most produce items the session may hold. Defaults to 0: produce needs a model to
+   * grade it, so the caller opts in only when one is available (SPEC §4, §6).
+   */
+  produceMax?: number;
+  /**
+   * New atoms to introduce first, in order: the bundles of scenario visits in progress and
+   * the active goal text's unknowns (SPEC §10, §11). Hand-mined atoms still come before these.
+   */
+  newOrder?: string[];
+  /**
+   * Foundation phase with a scenario visit on offer: new atoms come only from `newOrder`
+   * and mining, never from the bare frequency list.
+   */
+  noFrequencyFallback?: boolean;
 }
 
 export type SessionReason = "due" | "overdue" | "new" | "weak-modality" | "relearn";
@@ -76,9 +91,11 @@ export function planSession(atoms: Atom[], sentences: Sentence[], req: SessionRe
 
   const multiplier = req.intensity === "light" ? 0 : req.intensity === "push" ? 2 : 1;
   const newCap = Math.max(0, multiplier * req.newAtomsPerDay - req.newAtomsIntroducedToday);
+  const orderIndex = new Map((req.newOrder ?? []).map((id, i) => [id, i]));
   const fresh = atoms
     .filter((a) => a.memory.status === "new" && a.gloss.trim() !== "") // nothing to learn from a bare word
-    .sort(compareNew)
+    .filter((a) => newTier(a, orderIndex) < (req.noFrequencyFallback ? 2 : 3))
+    .sort((a, b) => compareNew(a, b, orderIndex))
     .slice(0, newCap);
 
   // ---- modality + budget --------------------------------------------------
@@ -86,16 +103,18 @@ export function planSession(atoms: Atom[], sentences: Sentence[], req: SessionRe
   let seconds = 0;
   let skipped = 0;
   let dueFit = 0;
+  let produceLeft = req.produceMax ?? 0;
   const notFit: Atom[] = [];
 
   for (const { atom, reason } of due) {
     const sentence = sentenceFor.get(atom.id)?.[0];
-    const modality = chooseModality(atom, sentence !== undefined, req.intensity);
+    const modality = chooseModality(atom, sentence !== undefined, req.intensity, produceLeft > 0);
     const cost = MODALITY_SECONDS[modality];
     if (seconds + cost <= budgetSec) {
       items.push({ atomId: atom.id, modality, sentenceId: modality === "cloze" ? sentence?.id : undefined, reason });
       seconds += cost;
       dueFit++;
+      if (modality === "produce") produceLeft--;
     } else {
       notFit.push(atom);
       skipped++;
@@ -132,11 +151,24 @@ export function planSession(atoms: Atom[], sentences: Sentence[], req: SessionRe
   };
 }
 
-/** Mined atoms before frequency-list ones, then by frequency rank, then oldest first. */
-function compareNew(a: Atom, b: Atom): number {
-  const minedA = a.source === "frequency" ? 1 : 0;
-  const minedB = b.source === "frequency" ? 1 : 0;
-  if (minedA !== minedB) return minedA - minedB;
+/**
+ * Where a new atom comes from decides how soon it is introduced (SPEC §4.2):
+ * mined by hand, then the caller's order (scenario bundles, goal text), then the
+ * bare frequency list. A scenario or goal atom the caller didn't list belongs to
+ * a visit that hasn't been opened yet: it waits there (tier 3, never introduced).
+ */
+function newTier(a: Atom, orderIndex: Map<string, number>): number {
+  if (a.source === "mined" || a.source === "manual" || a.source === "conversation") return 0;
+  if (orderIndex.has(a.id)) return 1;
+  return a.source === "frequency" ? 2 : 3;
+}
+
+/** By tier, then the caller's order, then frequency rank, then oldest first. */
+function compareNew(a: Atom, b: Atom, orderIndex: Map<string, number>): number {
+  const tierA = newTier(a, orderIndex);
+  const tierB = newTier(b, orderIndex);
+  if (tierA !== tierB) return tierA - tierB;
+  if (tierA === 1) return orderIndex.get(a.id)! - orderIndex.get(b.id)!;
   const rankA = a.frequencyRank ?? Number.MAX_SAFE_INTEGER;
   const rankB = b.frequencyRank ?? Number.MAX_SAFE_INTEGER;
   if (rankA !== rankB) return rankA - rankB;
@@ -146,19 +178,23 @@ function compareNew(a: Atom, b: Atom): number {
 /**
  * SPEC §4.3. Recognize is the floor; recall when under-tested; cloze when a mined
  * sentence exists and cloze wasn't the most recent rep (approximates "not in the
- * last 3 reps", which the counters can't tell); produce once stability > 7 days.
+ * last 3 reps", which the counters can't tell); produce once stability > 7 days
+ * and only while the session has produce slots left.
  * light picks the easiest eligible modality, push the hardest, steady the cascade.
+ * Grammar atoms are ideas, not strings to type: always recognize. Receptive-only
+ * atoms (SPEC §11) are never asked for in French: recognize or cloze.
  */
-export function chooseModality(atom: Atom, hasSentence: boolean, intensity: Intensity): Modality {
+export function chooseModality(atom: Atom, hasSentence: boolean, intensity: Intensity, produceAllowed = false): Modality {
   const s = atom.modality;
   const m = atom.memory;
-  if (m.status === "new") return "recognize";
+  if (m.status === "new" || atom.type === "grammar") return "recognize";
 
   const recallWanted = s.recall.attempts < 0.6 * s.recognize.attempts;
   const clozeOk = hasSentence && (s.cloze.lastAt === undefined || (m.lastReview !== undefined && s.cloze.lastAt < m.lastReview));
-  const produceOk = m.stability > PRODUCE_MIN_STABILITY_DAYS;
+  const produceOk = produceAllowed && !atom.receptiveOnly && m.stability > PRODUCE_MIN_STABILITY_DAYS;
 
   if (intensity === "light") return "recognize";
+  if (atom.receptiveOnly) return clozeOk ? "cloze" : "recognize";
   if (intensity === "push") {
     if (produceOk) return "produce";
     if (clozeOk) return "cloze";

@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Lode",
-    short_name: "Lode",
+    name: "Dolomite",
+    short_name: "Dolomite",
     description: "Languages for a richer life.",
     start_url: "/",
     display: "standalone",

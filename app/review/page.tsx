@@ -6,6 +6,8 @@ import { buildSession, parseIntensity } from "@/lib/review/session";
 import { ReviewSession } from "./session";
 
 export const dynamic = "force-dynamic";
+// Building a session may write a few produce prompts with the model.
+export const maxDuration = 60;
 
 export default async function ReviewPage({ searchParams }: PageProps<"/review">) {
   const params = await searchParams;

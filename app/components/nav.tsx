@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/", label: "Home", icon: HomeIcon },
+  { href: "/scenario", label: "Scenes", icon: SceneIcon },
   { href: "/read", label: "Read", icon: BookIcon },
   { href: "/review", label: "Review", icon: RefreshIcon },
   { href: "/stats", label: "Stats", icon: ChartIcon },
@@ -22,7 +23,7 @@ export function Nav() {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex w-16 flex-col items-center gap-1 text-[11px] ${active ? "text-ink" : "text-muted"}`}
+                className={`flex w-14 flex-col items-center gap-1 text-[11px] ${active ? "text-ink" : "text-muted"}`}
               >
                 <Icon />
                 {label}
@@ -42,6 +43,15 @@ function HomeIcon() {
     <svg {...svg} aria-hidden>
       <path d="M3 11.5 12 4l9 7.5" />
       <path d="M5.5 10.5V20h13v-9.5" />
+    </svg>
+  );
+}
+function SceneIcon() {
+  return (
+    <svg {...svg} aria-hidden>
+      <path d="M4 5.5h16v10.5H11l-4.5 3.5V16H4Z" />
+      <path d="M8 9.5h8" />
+      <path d="M8 12.5h5" />
     </svg>
   );
 }

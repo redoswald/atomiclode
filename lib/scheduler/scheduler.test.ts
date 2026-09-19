@@ -253,10 +253,46 @@ describe("planSession", () => {
     expect(chooseModality(untestedRecall, false, "light")).toBe("recognize");
     expect(chooseModality(untestedRecall, true, "steady")).toBe("recall");
     expect(chooseModality(base, true, "steady")).toBe("cloze");
-    expect(chooseModality(base, false, "steady")).toBe("produce");
-    expect(chooseModality({ ...base, memory: { ...base.memory, stability: 3 } }, false, "steady")).toBe("recognize");
-    expect(chooseModality(base, false, "push")).toBe("produce");
-    expect(chooseModality(atom(), true, "push")).toBe("recognize");
+    expect(chooseModality(base, false, "steady", true)).toBe("produce");
+    expect(chooseModality({ ...base, memory: { ...base.memory, stability: 3 } }, false, "steady", true)).toBe("recognize");
+    expect(chooseModality(base, false, "push", true)).toBe("produce");
+    expect(chooseModality(atom(), true, "push", true)).toBe("recognize");
+  });
+
+  it("never offers produce unless the caller allows it, and caps it per session", () => {
+    const base: Atom = reviewAtom({ due: at(9.9), stability: 10 });
+    expect(chooseModality(base, false, "steady")).toBe("recognize");
+    expect(chooseModality(base, false, "push")).toBe("recall");
+
+    const pile = Array.from({ length: 6 }, (_, i) => reviewAtom({ id: `p${i}`, due: at(9.9), stability: 10 }));
+    const none = planSession(pile, [], req({ intensity: "push", timeBudgetMin: 20 }));
+    expect(none.items.filter((i) => i.modality === "produce")).toHaveLength(0);
+    const capped = planSession(pile, [], req({ intensity: "push", timeBudgetMin: 20, produceMax: 2 }));
+    expect(capped.items.filter((i) => i.modality === "produce")).toHaveLength(2);
+  });
+
+  it("keeps grammar atoms on recognize and receptive-only atoms off recall and produce", () => {
+    const tested = { ...emptyModalityStats(), recognize: { attempts: 5, correct: 5 } };
+    const grammar: Atom = { ...reviewAtom({ due: at(9.9), stability: 10 }), type: "grammar", modality: tested };
+    expect(chooseModality(grammar, true, "steady", true)).toBe("recognize");
+    expect(chooseModality(grammar, true, "push", true)).toBe("recognize");
+    const receptive: Atom = { ...reviewAtom({ due: at(9.9), stability: 10 }), receptiveOnly: true, modality: tested };
+    expect(chooseModality(receptive, false, "steady", true)).toBe("recognize");
+    expect(chooseModality(receptive, true, "push", true)).toBe("cloze");
+  });
+
+  it("introduces new atoms mined first, then the caller's order, then frequency", () => {
+    const freqA = atom({ id: "freq-a", frequencyRank: 1 });
+    const freqB = atom({ id: "freq-b", frequencyRank: 2 });
+    const bundle1 = atom({ id: "bundle-1", source: "scenario", frequencyRank: 900 });
+    const bundle2 = atom({ id: "bundle-2", source: "frequency", frequencyRank: 1500 });
+    const unopened = atom({ id: "unopened-visit", source: "scenario", frequencyRank: 2000 });
+    const mined = atom({ id: "mined", source: "mined", frequencyRank: undefined });
+    const all = [freqA, freqB, bundle1, bundle2, unopened, mined];
+    const order = (r: Partial<SessionRequest>) => planSession(all, [], req(r)).items.map((i) => i.atomId);
+    // An atom of a visit nobody has opened waits for that visit, whatever else happens.
+    expect(order({ newOrder: ["bundle-2", "bundle-1"] })).toEqual(["mined", "bundle-2", "bundle-1", "freq-a", "freq-b"]);
+    expect(order({ newOrder: ["bundle-2", "bundle-1"], noFrequencyFallback: true })).toEqual(["mined", "bundle-2", "bundle-1"]);
   });
 
   it("attaches a mined sentence to cloze items", () => {

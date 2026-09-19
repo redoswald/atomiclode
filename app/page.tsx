@@ -2,9 +2,11 @@ import Link from "next/link";
 import { db, hasDatabase } from "@/db";
 import { homeCounts, type HomeCounts } from "@/lib/atoms/stats";
 import { authEnabled } from "@/lib/auth";
+import { activeGoal, goalCoverageWeekAgo, goalView, type GoalView } from "@/lib/goals/goals";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { listPassages } from "@/lib/reader/passages";
 import { BUDGETS, DEFAULT_NEW_PER_DAY } from "@/lib/review/session";
+import { scenarioStates, suggestVisit, type ScenarioState } from "@/lib/scenarios/visits";
 import { MODALITY_SECONDS } from "@/lib/scheduler";
 import { Shell } from "./components/shell";
 import { ExploreBox } from "./explore-box";
@@ -28,8 +30,18 @@ export default async function Home() {
 
   let counts: HomeCounts;
   let latest: Awaited<ReturnType<typeof listPassages>>[number] | undefined;
+  let scenes: ScenarioState[];
+  let goal: GoalView | undefined;
+  let goalWeekAgo: number | undefined;
   try {
-    [counts, [latest]] = await Promise.all([homeCounts(new Date(), db()), listPassages(db())]);
+    const active = await activeGoal(db());
+    [counts, [latest], scenes, goal] = await Promise.all([
+      homeCounts(new Date(), db()),
+      listPassages(db()),
+      scenarioStates(db()),
+      active ? goalView(db(), active.id) : undefined,
+    ]);
+    if (active) goalWeekAgo = await goalCoverageWeekAgo(db(), active.id);
   } catch (err) {
     return (
       <Shell>
@@ -58,6 +70,10 @@ export default async function Home() {
   const learnMin = Math.round((Math.min(newTotal, DEFAULT_NEW_PER_DAY) * MODALITY_SECONDS.recognize * 2) / 60);
   const recommended = recommend(refreshMin + learnMin);
   const hasKey = hasAnthropicKey();
+  // The Learn row names where the new atoms come from (SPEC §8): a visit under way, or the next one on offer.
+  const underWay = scenes.find((s) => s.state === "learning");
+  const offered = underWay ? undefined : suggestVisit(scenes, hasKey);
+  const goalUp = goal && goalWeekAgo !== undefined ? Math.round((goal.coverage - goalWeekAgo) * 100) : 0;
 
   return (
     <Shell
@@ -96,13 +112,34 @@ export default async function Home() {
         <Row href="/review?intensity=steady" title="Refresh" note={counts.dueNow === 0 ? "nothing due" : `~${Math.max(1, refreshMin)} min`}>
           {counts.dueNow} {plural(counts.dueNow, "concept")} ready
         </Row>
-        <Row href="/review?intensity=steady" title="Learn" note={newTotal === 0 ? "all introduced" : `~${Math.max(1, learnMin)} min`}>
-          {glossedNew} new {plural(glossedNew, "word")} · {counts.newAvailable.chunk} {plural(counts.newAvailable.chunk, "phrase")} ·{" "}
-          {counts.newAvailable.grammar} grammar {plural(counts.newAvailable.grammar, "idea")}
-        </Row>
+        {underWay?.latest ? (
+          <Row href="/review?intensity=steady" title="Learn" note={`~${Math.max(1, learnMin)} min`}>
+            <span lang="fr">{underWay.scenario.title}</span>, visit {underWay.latest.visit.n} · {underWay.latest.visit.bundle.length - underWay.latest.introduced} still to come
+          </Row>
+        ) : offered ? (
+          <Row href={`/scenario/${offered.scenario.id}`} title="Learn" note={offered.visit ? "a new scene" : "to be written"}>
+            <span lang="fr">{offered.scenario.title}</span>, visit {offered.n}
+            {offered.visit && ` · ${offered.visit.bundle.length} new`}
+          </Row>
+        ) : (
+          <Row href="/review?intensity=steady" title="Learn" note={newTotal === 0 ? "all introduced" : `~${Math.max(1, learnMin)} min`}>
+            {glossedNew} new {plural(glossedNew, "word")} · {counts.newAvailable.chunk} {plural(counts.newAvailable.chunk, "phrase")} ·{" "}
+            {counts.newAvailable.grammar} grammar {plural(counts.newAvailable.grammar, "idea")}
+          </Row>
+        )}
         <Row href={latest ? `/read/${latest.id}` : "/read"} title="Read" note={latest ? `${Math.round(latest.coverage * 100)}% known` : undefined}>
           {latest ? latest.title ?? "Untitled" : <span className="text-muted">Paste a text or an article URL.</span>}
         </Row>
+        {goal ? (
+          <Row href={`/goal/${goal.goal.id}`} title="Goal" note={`${Math.round(goal.coverage * 100)}% known`}>
+            {goal.goal.title}
+            {goalUp > 0 && <span className="text-muted"> · up {goalUp} this week</span>}
+          </Row>
+        ) : (
+          <Row href="/goal" title="Goal">
+            <span className="text-muted">Something you want to read one day.</span>
+          </Row>
+        )}
       </section>
 
       <GlossFiller remaining={counts.unglossed} hasKey={hasKey} />

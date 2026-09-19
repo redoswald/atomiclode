@@ -56,7 +56,7 @@ export function Shell({
 export function Wordmark() {
   return (
     <Link href="/" className="block">
-      <span className="font-display text-5xl leading-none">Lode</span>
+      <span className="font-display text-5xl leading-none">Dolomite</span>
       <span className="eyebrow mt-1 block">Languages for a richer life</span>
     </Link>
   );

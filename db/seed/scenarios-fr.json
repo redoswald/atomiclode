@@ -1,0 +1,429 @@
+[
+  {
+    "slug": "arriving",
+    "title": "L'arrivée",
+    "brief": "You've just landed in Paris. You're outside the terminal with a suitcase, and a taxi driver is looking at you.",
+    "domains": ["travel"],
+    "visit": {
+      "brief": "Get in the taxi, say where you're going, and survive a little small talk on the way.",
+      "summary": "Took a taxi from the airport to the hotel; said where you're from.",
+      "dialogue": "— Bonjour ! Taxi ?\n— Bonjour. Oui, s'il vous plaît. Je vais à l'hôtel du Nord, rue de Lyon.\n— D'accord. C'est votre valise ?\n— Oui, merci.\n— Vous venez d'où ?\n— Je viens de Chicago. C'est mon premier jour à Paris.\n— Bienvenue ! Voilà, nous sommes à l'hôtel. Ça fait trente euros.\n— Voilà. Merci, au revoir !\n— Merci. Bonne journée !",
+      "translation": "— Hello! Taxi?\n— Hello. Yes, please. I'm going to the Hôtel du Nord, rue de Lyon.\n— All right. Is this your suitcase?\n— Yes, thank you.\n— Where are you from?\n— I'm from Chicago. It's my first day in Paris.\n— Welcome! Here we are, we're at the hotel. That's thirty euros.\n— Here you go. Thanks, goodbye!\n— Thank you. Have a good day!",
+      "bundle": [
+        { "type": "word", "key": "bonjour", "gloss": "hello" },
+        { "type": "chunk", "key": "s'il vous plaît", "gloss": "please (formal)" },
+        { "type": "word", "key": "merci", "gloss": "thank you" },
+        { "type": "word", "key": "oui", "gloss": "yes" },
+        { "type": "chunk", "key": "je vais à", "gloss": "I'm going to" },
+        { "type": "chunk", "key": "je viens de", "gloss": "I come from" },
+        { "type": "word", "key": "hôtel", "gloss": "hotel" },
+        { "type": "word", "key": "voilà", "gloss": "here you go; there it is" },
+        { "type": "chunk", "key": "au revoir", "gloss": "goodbye" }
+      ],
+      "prompts": [
+        {
+          "situation": "You get into a taxi at the airport. Greet the driver and tell him you're going to the Hôtel du Nord.",
+          "exampleAnswer": "Bonjour ! Je vais à l'hôtel du Nord, s'il vous plaît.",
+          "targets": ["bonjour", "je vais à", "hôtel"]
+        },
+        {
+          "situation": "The driver asks where you're from. Tell him.",
+          "exampleAnswer": "Je viens de Chicago.",
+          "targets": ["je viens de"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "cafe",
+    "title": "Le café",
+    "brief": "It's 7am, you haven't slept, and there's a café on the corner with its lights on.",
+    "domains": ["food"],
+    "visit": {
+      "brief": "Order a coffee at the counter. Then change your mind.",
+      "summary": "Ordered a coffee, switched to a café crème, added a croissant, paid.",
+      "dialogue": "— Bonjour !\n— Bonjour. Je voudrais un café, s'il vous plaît.\n— Un café. Sur place ou à emporter ?\n— Sur place. Euh… en fait, un café crème, s'il vous plaît.\n— Très bien. Et avec ça ? Un croissant ?\n— Oui, un croissant aussi. C'est combien ?\n— Quatre euros cinquante.\n— Voilà. Merci beaucoup.\n— Merci à vous. Bonne journée !",
+      "translation": "— Hello!\n— Hello. I'd like a coffee, please.\n— A coffee. For here or to go?\n— For here. Uh… actually, a coffee with milk, please.\n— Very good. Anything with that? A croissant?\n— Yes, a croissant too. How much is it?\n— Four euros fifty.\n— Here you go. Thanks very much.\n— Thank you. Have a good day!",
+      "bundle": [
+        { "type": "chunk", "key": "je voudrais", "gloss": "I would like" },
+        { "type": "word", "key": "café", "gloss": "coffee; café" },
+        { "type": "chunk", "key": "sur place", "gloss": "for here (to eat in)" },
+        { "type": "chunk", "key": "à emporter", "gloss": "to go, takeaway" },
+        { "type": "chunk", "key": "en fait", "gloss": "actually" },
+        { "type": "chunk", "key": "c'est combien", "gloss": "how much is it" },
+        { "type": "chunk", "key": "merci beaucoup", "gloss": "thanks very much" },
+        { "type": "chunk", "key": "bonne journée", "gloss": "have a good day" },
+        { "type": "word", "key": "aussi", "gloss": "too, also" }
+      ],
+      "prompts": [
+        {
+          "situation": "It's 7am, you've just landed, and you're at the counter of a café. Order a coffee.",
+          "exampleAnswer": "Bonjour, je voudrais un café, s'il vous plaît.",
+          "targets": ["je voudrais", "café"]
+        },
+        {
+          "situation": "You want it to go, and you'd like to know the price.",
+          "exampleAnswer": "À emporter, s'il vous plaît. C'est combien ?",
+          "targets": ["à emporter", "c'est combien"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "introductions",
+    "title": "Les présentations",
+    "brief": "A friend's dinner party. Someone you've never met sits down next to you and smiles.",
+    "domains": ["people"],
+    "visit": {
+      "brief": "Say who you are, where you live, and ask the same back.",
+      "summary": "Met Claire at a dinner; exchanged names, where you live, which languages you speak.",
+      "dialogue": "— Salut ! Je m'appelle Claire. Et toi, comment tu t'appelles ?\n— Bonjour, je m'appelle Sam. Enchanté.\n— Enchantée ! Tu es américain ?\n— Oui, je suis américain. J'habite à Boston. Et toi ?\n— Moi, je suis française. J'habite ici, à Lyon.\n— Tu parles anglais ?\n— Un peu. Et toi, tu parles bien français !\n— Merci, mais je parle un petit peu seulement. J'apprends.",
+      "translation": "— Hi! My name's Claire. And you, what's your name?\n— Hello, my name's Sam. Pleased to meet you.\n— Pleased to meet you! Are you American?\n— Yes, I'm American. I live in Boston. And you?\n— Me, I'm French. I live here, in Lyon.\n— Do you speak English?\n— A little. And you, you speak French well!\n— Thanks, but I only speak a little bit. I'm learning.",
+      "bundle": [
+        { "type": "chunk", "key": "je m'appelle", "gloss": "my name is" },
+        { "type": "chunk", "key": "et toi", "gloss": "and you? (informal)" },
+        { "type": "chunk", "key": "je suis", "gloss": "I am" },
+        { "type": "chunk", "key": "j'habite à", "gloss": "I live in" },
+        { "type": "chunk", "key": "un peu", "gloss": "a little" },
+        { "type": "word", "key": "salut", "gloss": "hi; bye (informal)" },
+        { "type": "word", "key": "parler", "gloss": "to speak" },
+        { "type": "word", "key": "français", "gloss": "French" },
+        { "type": "word", "key": "apprendre", "gloss": "to learn" }
+      ],
+      "prompts": [
+        {
+          "situation": "At a dinner, someone new says hello. Introduce yourself and say where you live.",
+          "exampleAnswer": "Bonjour, je m'appelle Sam. J'habite à Boston.",
+          "targets": ["je m'appelle", "j'habite à"]
+        },
+        {
+          "situation": "Now turn it around: ask about them, and whether they speak English.",
+          "exampleAnswer": "Et toi ? Tu parles anglais ?",
+          "targets": ["et toi", "parler"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "bakery",
+    "title": "La boulangerie",
+    "brief": "The bakery under your building. There is a queue behind you and the baker is fast.",
+    "domains": ["food", "shopping"],
+    "visit": {
+      "brief": "Buy bread. One of the things you want has sold out.",
+      "summary": "Bought a baguette, two croissants and a wholemeal loaf; the seeded bread was sold out.",
+      "dialogue": "— Bonjour madame !\n— Bonjour. Vous désirez ?\n— Je voudrais une baguette et deux croissants, s'il vous plaît.\n— Voilà. Et avec ça ?\n— Vous avez du pain aux céréales ?\n— Non, désolée, il n'y en a plus. Mais il y a du pain complet.\n— D'accord, je prends un pain complet.\n— Ce sera tout ?\n— Oui, c'est tout, merci.\n— Ça fait six euros vingt.",
+      "translation": "— Hello, madam!\n— Hello. What would you like?\n— I'd like a baguette and two croissants, please.\n— Here you are. Anything else?\n— Do you have any seeded bread?\n— No, sorry, there's none left. But there's wholemeal bread.\n— All right, I'll take a wholemeal loaf.\n— Will that be all?\n— Yes, that's all, thanks.\n— That comes to six euros twenty.",
+      "bundle": [
+        { "type": "chunk", "key": "et avec ça", "gloss": "anything else? (lit. and with that?)" },
+        { "type": "chunk", "key": "vous avez", "gloss": "do you have; you have" },
+        { "type": "chunk", "key": "il y a", "gloss": "there is / there are" },
+        { "type": "chunk", "key": "je prends", "gloss": "I'll take" },
+        { "type": "chunk", "key": "c'est tout", "gloss": "that's all" },
+        { "type": "chunk", "key": "ça fait", "gloss": "that comes to (a price)" },
+        { "type": "word", "key": "pain", "gloss": "bread" },
+        { "type": "word", "key": "baguette", "gloss": "baguette" },
+        { "type": "word", "key": "deux", "gloss": "two" },
+        { "type": "grammar", "key": "partitive-articles", "gloss": "du, de la, des: \"some\"" }
+      ],
+      "prompts": [
+        {
+          "situation": "You're at the front of the queue in the bakery. Ask for a baguette and two croissants.",
+          "exampleAnswer": "Bonjour, je voudrais une baguette et deux croissants, s'il vous plaît.",
+          "targets": ["baguette", "deux"]
+        },
+        {
+          "situation": "The baker asks if that will be all. It is. Say so, and thank her.",
+          "exampleAnswer": "Oui, c'est tout, merci.",
+          "targets": ["c'est tout"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "getting-around",
+    "title": "Se déplacer",
+    "brief": "Your phone is dead, you're somewhere in Lyon, and your train leaves in forty minutes.",
+    "domains": ["travel"],
+    "visit": {
+      "brief": "Stop someone and ask the way. They will answer too fast.",
+      "summary": "Asked a passer-by for the station and the metro; had to ask him to repeat.",
+      "dialogue": "— Excusez-moi, monsieur. Où est la gare, s'il vous plaît ?\n— La gare ? C'est tout droit, puis à gauche.\n— C'est loin ?\n— Non, c'est à cinq minutes à pied. Ou vous pouvez prendre le métro.\n— Où est le métro ?\n— Là, à droite, en face de la banque.\n— Je ne comprends pas. Vous pouvez répéter, s'il vous plaît ?\n— Bien sûr. Le métro est à droite, en face de la banque.\n— Ah, d'accord. Merci beaucoup, monsieur !\n— De rien. Bonne journée !",
+      "translation": "— Excuse me, sir. Where is the station, please?\n— The station? It's straight ahead, then left.\n— Is it far?\n— No, it's five minutes on foot. Or you can take the metro.\n— Where is the metro?\n— There, on the right, opposite the bank.\n— I don't understand. Can you repeat that, please?\n— Of course. The metro is on the right, opposite the bank.\n— Ah, okay. Thank you very much, sir!\n— You're welcome. Have a good day!",
+      "bundle": [
+        { "type": "chunk", "key": "excusez-moi", "gloss": "excuse me (formal)" },
+        { "type": "chunk", "key": "où est", "gloss": "where is" },
+        { "type": "chunk", "key": "tout droit", "gloss": "straight ahead" },
+        { "type": "chunk", "key": "à gauche", "gloss": "on / to the left" },
+        { "type": "chunk", "key": "à droite", "gloss": "on / to the right" },
+        { "type": "chunk", "key": "je ne comprends pas", "gloss": "I don't understand" },
+        { "type": "chunk", "key": "vous pouvez répéter", "gloss": "can you repeat that" },
+        { "type": "chunk", "key": "de rien", "gloss": "you're welcome" },
+        { "type": "word", "key": "gare", "gloss": "train station" },
+        { "type": "word", "key": "loin", "gloss": "far" }
+      ],
+      "prompts": [
+        {
+          "situation": "You're lost. Stop a passer-by politely and ask where the train station is.",
+          "exampleAnswer": "Excusez-moi, où est la gare, s'il vous plaît ?",
+          "targets": ["excusez-moi", "où est", "gare"]
+        },
+        {
+          "situation": "He answered much too fast. Tell him you don't understand and ask him to say it again.",
+          "exampleAnswer": "Je ne comprends pas. Vous pouvez répéter, s'il vous plaît ?",
+          "targets": ["je ne comprends pas", "vous pouvez répéter"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "restaurant",
+    "title": "Au restaurant",
+    "brief": "Evening. A small restaurant with a chalkboard menu; you and one other person are hungry.",
+    "domains": ["food"],
+    "visit": {
+      "brief": "Get a table, order for two, and ask for the bill at the end.",
+      "summary": "Dinner for two: water and red wine, chicken and fish, then the bill.",
+      "dialogue": "— Bonsoir ! Une table pour deux personnes ?\n— Oui, s'il vous plaît.\n— Voici la carte. Vous voulez boire quelque chose ?\n— Une carafe d'eau et un verre de vin rouge, s'il vous plaît.\n— Très bien. Vous avez choisi ?\n— Oui. Pour moi, le poulet, et pour elle, le poisson.\n— Parfait.\n\nPlus tard, le serveur revient.\n\n— C'était bon ?\n— Oui, c'était très bon, merci. L'addition, s'il vous plaît.\n— Tout de suite.",
+      "translation": "— Good evening! A table for two?\n— Yes, please.\n— Here's the menu. Would you like something to drink?\n— A carafe of water and a glass of red wine, please.\n— Very good. Have you chosen?\n— Yes. For me, the chicken, and for her, the fish.\n— Perfect.\n\nLater, the waiter comes back.\n\n— Was it good?\n— Yes, it was very good, thanks. The bill, please.\n— Right away.",
+      "bundle": [
+        { "type": "word", "key": "bonsoir", "gloss": "good evening" },
+        { "type": "chunk", "key": "une table pour", "gloss": "a table for" },
+        { "type": "chunk", "key": "pour moi", "gloss": "for me" },
+        { "type": "chunk", "key": "quelque chose", "gloss": "something" },
+        { "type": "chunk", "key": "l'addition, s'il vous plaît", "gloss": "the bill, please" },
+        { "type": "chunk", "key": "tout de suite", "gloss": "right away" },
+        { "type": "word", "key": "carte", "gloss": "menu; card; map" },
+        { "type": "word", "key": "boire", "gloss": "to drink" },
+        { "type": "word", "key": "eau", "gloss": "water" },
+        { "type": "word", "key": "vin", "gloss": "wine" }
+      ],
+      "prompts": [
+        {
+          "situation": "You walk into a restaurant in the evening with one other person. Greet the waiter and ask for a table.",
+          "exampleAnswer": "Bonsoir ! Une table pour deux, s'il vous plaît.",
+          "targets": ["bonsoir", "une table pour"]
+        },
+        {
+          "situation": "The meal is over and you're ready to leave. Ask for the bill.",
+          "exampleAnswer": "L'addition, s'il vous plaît.",
+          "targets": ["l'addition, s'il vous plaît"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "lodging",
+    "title": "Le logement",
+    "brief": "The hotel lobby, late. You have a booking, a passport, and a strong wish to lie down.",
+    "domains": ["travel"],
+    "visit": {
+      "brief": "Check in, find out where your room is and when breakfast happens.",
+      "summary": "Checked in for three nights: room twelve, second floor, breakfast from seven to ten.",
+      "dialogue": "— Bonsoir. J'ai une réservation au nom de Miller.\n— Bonsoir, madame. Oui, une chambre pour trois nuits. Votre passeport, s'il vous plaît.\n— Voilà.\n— Merci. Voici la clé. C'est la chambre douze, au deuxième étage.\n— Il y a un ascenseur ?\n— Oui, à gauche.\n— À quelle heure est le petit déjeuner ?\n— De sept heures à dix heures.\n— Et quel est le code du wifi ?\n— C'est écrit sur la carte. Bonne soirée !",
+      "translation": "— Good evening. I have a reservation under the name Miller.\n— Good evening, madam. Yes, a room for three nights. Your passport, please.\n— Here you go.\n— Thank you. Here's the key. It's room twelve, on the second floor.\n— Is there a lift?\n— Yes, on the left.\n— What time is breakfast?\n— From seven to ten.\n— And what's the wifi code?\n— It's written on the card. Have a good evening!",
+      "bundle": [
+        { "type": "chunk", "key": "j'ai une réservation", "gloss": "I have a reservation" },
+        { "type": "chunk", "key": "à quelle heure", "gloss": "at what time" },
+        { "type": "chunk", "key": "petit déjeuner", "gloss": "breakfast" },
+        { "type": "chunk", "key": "bonne soirée", "gloss": "have a good evening" },
+        { "type": "word", "key": "chambre", "gloss": "room, bedroom" },
+        { "type": "word", "key": "nuit", "gloss": "night" },
+        { "type": "word", "key": "clé", "gloss": "key" },
+        { "type": "word", "key": "étage", "gloss": "floor, storey" },
+        { "type": "word", "key": "heure", "gloss": "hour; o'clock" }
+      ],
+      "prompts": [
+        {
+          "situation": "You arrive at your hotel in the evening. Greet the receptionist and say you have a reservation.",
+          "exampleAnswer": "Bonsoir, j'ai une réservation au nom de Miller.",
+          "targets": ["j'ai une réservation"]
+        },
+        {
+          "situation": "Before you go up, ask what time breakfast is.",
+          "exampleAnswer": "À quelle heure est le petit déjeuner ?",
+          "targets": ["à quelle heure", "petit déjeuner"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "family-dinner",
+    "title": "Dîner en famille",
+    "brief": "Your partner's parents' front door. You are holding flowers. The door opens.",
+    "domains": ["people", "family", "food"],
+    "visit": {
+      "brief": "Meet the parents, hand over the flowers, and say the right thing about the food.",
+      "summary": "Met Michel and Anne, Julie's parents; brought flowers; praised the gratin and took seconds.",
+      "dialogue": "— Bonsoir ! Entrez, entrez. Je suis Michel, le père de Julie.\n— Bonsoir, monsieur. Enchanté. Merci pour l'invitation.\n— Avec plaisir ! Voici ma femme, Anne.\n— Bonsoir, madame. J'ai apporté des fleurs pour vous.\n— Oh, merci, c'est très gentil ! Vous avez faim ?\n— Oui, un peu. Ça sent très bon !\n— À table, tout le monde !\n\nPlus tard, à table.\n\n— C'est délicieux, madame.\n— Merci ! Vous voulez encore un peu de gratin ?\n— Oui, je veux bien, merci.",
+      "translation": "— Good evening! Come in, come in. I'm Michel, Julie's father.\n— Good evening, sir. Pleased to meet you. Thank you for the invitation.\n— With pleasure! This is my wife, Anne.\n— Good evening, madam. I brought flowers for you.\n— Oh, thank you, that's very kind! Are you hungry?\n— Yes, a little. It smells very good!\n— To the table, everyone!\n\nLater, at the table.\n\n— It's delicious, madam.\n— Thank you! Would you like a little more gratin?\n— Yes, I'd love some, thank you.",
+      "bundle": [
+        { "type": "word", "key": "enchanté", "gloss": "pleased to meet you" },
+        { "type": "chunk", "key": "merci pour", "gloss": "thank you for" },
+        { "type": "chunk", "key": "avec plaisir", "gloss": "with pleasure" },
+        { "type": "chunk", "key": "c'est très gentil", "gloss": "that's very kind" },
+        { "type": "chunk", "key": "c'est délicieux", "gloss": "it's delicious" },
+        { "type": "chunk", "key": "je veux bien", "gloss": "yes please, I'd love to" },
+        { "type": "chunk", "key": "tout le monde", "gloss": "everyone" },
+        { "type": "word", "key": "père", "gloss": "father" },
+        { "type": "word", "key": "femme", "gloss": "wife; woman" },
+        { "type": "grammar", "key": "tu-vs-vous", "gloss": "tu or vous: who gets which" }
+      ],
+      "prompts": [
+        {
+          "situation": "Your partner's father opens the door and introduces himself. Greet him politely and thank him for the invitation.",
+          "exampleAnswer": "Bonsoir, monsieur. Enchanté. Merci pour l'invitation.",
+          "targets": ["enchanté", "merci pour"]
+        },
+        {
+          "situation": "Her mother offers you more gratin. Accept warmly, and tell her it's delicious.",
+          "exampleAnswer": "Oui, je veux bien, merci. C'est délicieux !",
+          "targets": ["je veux bien", "c'est délicieux"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "pharmacy",
+    "title": "La pharmacie",
+    "brief": "You woke up feeling terrible. The green cross of a pharmacy is blinking across the street.",
+    "domains": ["health"],
+    "visit": {
+      "brief": "Tell the pharmacist what's wrong and since when.",
+      "summary": "Headache and sore throat since last night; got medicine to take three times a day.",
+      "dialogue": "— Bonjour. Je peux vous aider ?\n— Bonjour. Oui, je ne me sens pas très bien. J'ai mal à la tête et j'ai mal à la gorge.\n— Vous avez de la fièvre ?\n— Je ne sais pas. Peut-être un peu.\n— Depuis quand ?\n— Depuis hier soir.\n— D'accord. Prenez ce médicament trois fois par jour, après les repas.\n— Merci. Ça coûte combien ?\n— Huit euros. Si ça ne va pas mieux dans trois jours, allez voir un médecin.",
+      "translation": "— Hello. Can I help you?\n— Hello. Yes, I don't feel very well. I have a headache and a sore throat.\n— Do you have a fever?\n— I don't know. Maybe a little.\n— Since when?\n— Since last night.\n— All right. Take this medicine three times a day, after meals.\n— Thanks. How much does it cost?\n— Eight euros. If it's no better in three days, go and see a doctor.",
+      "bundle": [
+        { "type": "chunk", "key": "j'ai mal à", "gloss": "my … hurts, I have a pain in" },
+        { "type": "chunk", "key": "je ne sais pas", "gloss": "I don't know" },
+        { "type": "chunk", "key": "fois par jour", "gloss": "times a day" },
+        { "type": "word", "key": "tête", "gloss": "head" },
+        { "type": "word", "key": "gorge", "gloss": "throat" },
+        { "type": "word", "key": "depuis", "gloss": "since; for (a length of time)" },
+        { "type": "word", "key": "hier", "gloss": "yesterday" },
+        { "type": "word", "key": "peut-être", "gloss": "maybe" },
+        { "type": "word", "key": "médecin", "gloss": "doctor" }
+      ],
+      "prompts": [
+        {
+          "situation": "You're ill and standing in a pharmacy. Tell the pharmacist your head hurts.",
+          "exampleAnswer": "Bonjour. J'ai mal à la tête.",
+          "targets": ["j'ai mal à", "tête"]
+        },
+        {
+          "situation": "She asks how long you've felt like this. It started last night.",
+          "exampleAnswer": "Depuis hier soir.",
+          "targets": ["depuis", "hier"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "making-plans",
+    "title": "On se voit ?",
+    "brief": "Your phone buzzes. A French friend is texting you about this week.",
+    "domains": ["people", "time"],
+    "visit": {
+      "brief": "Make a plan by text: when, where, and what after.",
+      "summary": "Agreed by text on the cinema tomorrow at half past seven, and dinner after.",
+      "dialogue": "— Salut ! Tu es libre ce soir ?\n— Salut ! Ce soir, non, je travaille. Mais demain, oui.\n— Super. On va au cinéma demain soir ?\n— Bonne idée ! À quelle heure ?\n— Le film commence à vingt heures. On se retrouve à sept heures et demie devant le cinéma ?\n— Ça marche. Et après, on mange quelque chose ?\n— Oui, avec plaisir. Je connais un bon restaurant à côté.\n— Parfait. À demain !\n— À demain !",
+      "translation": "— Hi! Are you free tonight?\n— Hi! Tonight, no, I'm working. But tomorrow, yes.\n— Great. Shall we go to the cinema tomorrow evening?\n— Good idea! What time?\n— The film starts at eight. Shall we meet at half past seven in front of the cinema?\n— That works. And afterwards, shall we eat something?\n— Yes, with pleasure. I know a good restaurant nearby.\n— Perfect. See you tomorrow!\n— See you tomorrow!",
+      "bundle": [
+        { "type": "chunk", "key": "tu es libre", "gloss": "are you free" },
+        { "type": "chunk", "key": "ce soir", "gloss": "tonight, this evening" },
+        { "type": "chunk", "key": "bonne idée", "gloss": "good idea" },
+        { "type": "chunk", "key": "on se retrouve", "gloss": "let's meet; we'll meet up" },
+        { "type": "chunk", "key": "ça marche", "gloss": "that works, deal" },
+        { "type": "chunk", "key": "à demain", "gloss": "see you tomorrow" },
+        { "type": "word", "key": "demain", "gloss": "tomorrow" },
+        { "type": "word", "key": "travailler", "gloss": "to work" },
+        { "type": "word", "key": "après", "gloss": "after, afterwards" },
+        { "type": "grammar", "key": "on-as-we", "gloss": "on = we, in everyday French" }
+      ],
+      "prompts": [
+        {
+          "situation": "Text a friend (you say tu to each other) and ask if they're free tonight.",
+          "exampleAnswer": "Salut ! Tu es libre ce soir ?",
+          "targets": ["tu es libre", "ce soir"]
+        },
+        {
+          "situation": "They can't tonight but suggest the cinema tomorrow. Say it's a good idea and ask what time.",
+          "exampleAnswer": "Bonne idée ! À quelle heure ?",
+          "targets": ["bonne idée"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "my-day",
+    "title": "Ma journée",
+    "brief": "Evening, back at the flat. Someone you like asks what you got up to today.",
+    "domains": ["people", "time"],
+    "visit": {
+      "brief": "Say what you did today. This is where the past tense comes in.",
+      "summary": "Told her about the museum, lunch by the Seine and a long walk; she worked all day.",
+      "dialogue": "— Alors, qu'est-ce que tu as fait aujourd'hui ?\n— Ce matin, j'ai visité le musée d'Orsay. C'était magnifique.\n— Et cet après-midi ?\n— J'ai mangé au bord de la Seine, puis j'ai marché jusqu'à Notre-Dame.\n— Tu as pris le métro ?\n— Non, je suis allé à pied. J'aime bien marcher ! Et toi, tu as passé une bonne journée ?\n— Moi, j'ai travaillé toute la journée. Je suis fatiguée.\n— Alors ce soir, on reste à la maison ?\n— Oui, bonne idée.",
+      "translation": "— So, what did you do today?\n— This morning, I visited the Musée d'Orsay. It was magnificent.\n— And this afternoon?\n— I ate by the Seine, then I walked to Notre-Dame.\n— Did you take the metro?\n— No, I went on foot. I like walking! And you, did you have a good day?\n— Me, I worked all day. I'm tired.\n— So tonight, shall we stay home?\n— Yes, good idea.",
+      "bundle": [
+        { "type": "chunk", "key": "qu'est-ce que", "gloss": "what (starting a question)" },
+        { "type": "chunk", "key": "ce matin", "gloss": "this morning" },
+        { "type": "chunk", "key": "je suis allé", "gloss": "I went" },
+        { "type": "chunk", "key": "à pied", "gloss": "on foot" },
+        { "type": "word", "key": "aujourd'hui", "gloss": "today" },
+        { "type": "word", "key": "visiter", "gloss": "to visit (a place)" },
+        { "type": "word", "key": "manger", "gloss": "to eat" },
+        { "type": "word", "key": "marcher", "gloss": "to walk" },
+        { "type": "chunk", "key": "toute la journée", "gloss": "all day" },
+        { "type": "grammar", "key": "passe-compose-avoir", "gloss": "the everyday past: j'ai mangé" }
+      ],
+      "prompts": [
+        {
+          "situation": "Your partner asks what you did today. You visited a museum this morning, then ate by the river.",
+          "exampleAnswer": "Ce matin, j'ai visité un musée, puis j'ai mangé au bord de la Seine.",
+          "targets": ["ce matin", "visiter", "manger"]
+        },
+        {
+          "situation": "Now ask her what she did today.",
+          "exampleAnswer": "Et toi, qu'est-ce que tu as fait aujourd'hui ?",
+          "targets": ["qu'est-ce que", "aujourd'hui"]
+        }
+      ]
+    }
+  },
+  {
+    "slug": "opinion",
+    "title": "À mon avis",
+    "brief": "Walking out of the cinema with a friend who always has opinions, and wants yours.",
+    "domains": ["people", "culture"],
+    "visit": {
+      "brief": "Say what you thought, agree a little, disagree a little.",
+      "summary": "Discussed the film: you liked the story, she found it too long; both like the actress.",
+      "dialogue": "— Alors, tu as aimé le film ?\n— Oui, j'ai bien aimé. Je pense que l'histoire est intéressante. Et toi ?\n— Moi, pas vraiment. À mon avis, c'est trop long.\n— C'est vrai, c'est un peu long. Mais j'aime beaucoup l'actrice.\n— Je suis d'accord, elle est excellente. Pourtant, je préfère son premier film.\n— Pourquoi ?\n— Parce que c'est plus drôle.\n— Tu as raison. On regarde ça ce week-end ?",
+      "translation": "— So, did you like the film?\n— Yes, I quite liked it. I think the story is interesting. And you?\n— Me, not really. In my opinion, it's too long.\n— That's true, it's a bit long. But I really like the actress.\n— I agree, she's excellent. Still, I prefer her first film.\n— Why?\n— Because it's funnier.\n— You're right. Shall we watch that this weekend?",
+      "bundle": [
+        { "type": "chunk", "key": "je pense que", "gloss": "I think that" },
+        { "type": "chunk", "key": "à mon avis", "gloss": "in my opinion" },
+        { "type": "chunk", "key": "c'est vrai", "gloss": "that's true" },
+        { "type": "chunk", "key": "je suis d'accord", "gloss": "I agree" },
+        { "type": "chunk", "key": "parce que", "gloss": "because" },
+        { "type": "word", "key": "aimer", "gloss": "to like, to love" },
+        { "type": "word", "key": "trop", "gloss": "too, too much" },
+        { "type": "word", "key": "pourquoi", "gloss": "why" },
+        { "type": "word", "key": "pourtant", "gloss": "yet, still, however" },
+        { "type": "word", "key": "préférer", "gloss": "to prefer" }
+      ],
+      "prompts": [
+        {
+          "situation": "A friend asks if you liked the film. You did: say you think the story is interesting.",
+          "exampleAnswer": "Oui, j'ai bien aimé. Je pense que l'histoire est intéressante.",
+          "targets": ["aimer", "je pense que"]
+        },
+        {
+          "situation": "She says it was too long. Agree that it's true, but add that you really like the actress.",
+          "exampleAnswer": "C'est vrai, c'est un peu long. Mais j'aime beaucoup l'actrice.",
+          "targets": ["c'est vrai", "aimer"]
+        }
+      ]
+    }
+  }
+]

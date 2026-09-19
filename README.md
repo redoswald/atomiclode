@@ -1,10 +1,18 @@
-# Lode
+# Dolomite
 
 A language-learning app for adults: honest spaced repetition, a reader that turns real text into review material, and a "why?" button. French first. See [SPEC.md](./SPEC.md) for the full design.
 
+Named for where it was written: on a phone, on a trail in the Italian Dolomites, to learn French. (It was called Lode for its first week; the repo, the `lode_auth` cookie and the `lode-nlp` conda env keep the old name.)
+
 ## Status
 
-Milestone 5 (polish): a visual system (warm paper, serif display type, sage accent, bottom tabs), *Adapt this text* at three levels, sentence translations in the tap sheet, a Stats screen with coverage over time, exposure signals from reading feeding the scheduler, an Explore box, and a PWA manifest so the app installs to the home screen. Milestone 4: "Why?" explanations and passage generation. Every word in the reader and every review card has a *Why?* that explains it in 3–6 sentences using the sentence at hand, cached per atom and per sentence; when the explanation names a grammar concept the app offers to add it as a grammar atom. *Read something new* serves a passage from your library whose coverage fits what you know today, or generates one (genre, topic, stretch slider, due words worked in). Earlier milestones: reader with import, coverage, tap-to-mine and cloze cards; scheduler and review screen; append-only review log with replay (`npm run db:replay`). Next: triage, intensity polish, exposure signals, stats, PWA (milestone 5).
+All eight milestones of the spec are built. v2 (milestones 6–8) changed what orders new words: a situation or a goal first, the frequency list as the fallback.
+
+- **Scenes** (`/scenario`, SPEC §10): a dozen seed situations (the café at 7am, the bakery, dinner with her parents…) that recur and grow a visit at a time. Each visit is a short dialogue in the reader, a bundle of 6–10 new phrases and words, and a "your turn" rehearsal. Visit 1 of each ships in `db/seed/scenarios-fr.json`, so a fresh install has somewhere to start with no API key; later visits and your own scenes are written by the model.
+- **Goal texts** (`/goal`, SPEC §11): pin an imported text you can't read yet. It is split into ~300-word sections, its coverage is tracked daily, its grammar is surveyed (written-only forms become receptive-only atoms), and a ladder of rungs (gist → comfortable → balanced → challenging → original) opens as you can honestly use them.
+- **Produce cards** (SPEC §6): "7am, a café, you want a coffee. What do you say?" Free text, checked by the model, lenient the way a waiter is. Only scheduled when an API key is set.
+
+Milestone 5 (polish): a visual system (warm paper, serif display type, sage accent, bottom tabs), *Adapt this text* at three levels, sentence translations in the tap sheet, a Stats screen with coverage over time, exposure signals from reading feeding the scheduler, an Explore box, and a PWA manifest so the app installs to the home screen. Milestone 4: "Why?" explanations and passage generation. Every word in the reader and every review card has a *Why?* that explains it in 3–6 sentences using the sentence at hand, cached per atom and per sentence; when the explanation names a grammar concept the app offers to add it as a grammar atom. *Read something new* serves a passage from your library whose coverage fits what you know today, or generates one (genre, topic, stretch slider, due words worked in). Earlier milestones: reader with import, coverage, tap-to-mine and cloze cards; scheduler and review screen; append-only review log with replay (`npm run db:replay`).
 
 ## Stack
 
@@ -78,7 +86,7 @@ python db/seed/build-frequency.py
 | `npm run lint` / `typecheck` | ESLint / `tsc --noEmit` |
 | `npm test` | Vitest: seed-file checks plus an integration test that runs the real migrations and seed against in-memory Postgres (PGlite) |
 | `npm run db:generate` | Generate a migration from `db/schema.ts` |
-| `npm run db:prepare` | Apply migrations, then upsert seed atoms (idempotent; runs automatically before `build`) |
+| `npm run db:prepare` | Apply migrations, then upsert seed atoms and seed scenarios (idempotent; runs automatically before `build`) |
 | `npm run db:migrate` | Apply migrations only |
 | `npm run db:seed` | Upsert seed atoms only (never touches memory state) |
 | `npm run seed:gloss` | Fill empty glosses in the JSON via the Anthropic API |
@@ -95,14 +103,15 @@ python db/seed/build-frequency.py
 ## Layout
 
 ```
-app/            Next.js routes: home, /review, /read, /stats, /login, server actions, shell + tab bar
+app/            Next.js routes: home, /scenario, /read, /review, /goal, /stats, /login, server actions, shell + tab bar
 lib/atoms/      types, seed-row builders, home-screen counts
 lib/auth.ts     APP_SECRET cookie auth (proxy.ts enforces it)
 lib/scheduler/  planSession, applyReview, replay, FSRS wrapper + tests
-lib/review/     session builder, review recording, lenient answer matching
-lib/llm/        Anthropic client and gloss prompt
+lib/review/     session builder, review recording, lenient answer matching, produce cards, new-atom order
+lib/scenarios/  seed validation, visits (store, start, suggest), visit generation
+lib/goals/      sectioning, pinning, goal coverage, ladder, grammar survey
 lib/reader/     tokenizer + lexicon, chunk matching, coverage, passages, URL import
-lib/llm/        prompts and API client (milestone 4)
+lib/llm/        Anthropic client and prompts (gloss, why, generate, adapt, explore)
 db/             Drizzle schema, client, seed data and runner
 drizzle/        generated SQL migrations
 scripts/        one-off tooling (gloss filling)

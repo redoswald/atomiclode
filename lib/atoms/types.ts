@@ -7,7 +7,7 @@
 
 export type AtomType = "word" | "chunk" | "grammar";
 
-export type AtomSource = "frequency" | "mined" | "conversation" | "manual";
+export type AtomSource = "frequency" | "mined" | "conversation" | "manual" | "scenario" | "goal";
 
 /** Free-form topic tag, e.g. "travel", "food". Empty list = general. */
 export type Domain = string;
@@ -16,7 +16,7 @@ export type Modality =
   | "recognize" // FR → EN
   | "recall" // EN → FR, typed
   | "listen" // audio → meaning (v2; field reserved)
-  | "produce" // use in a sentence
+  | "produce" // answer a situation in French, free text
   | "cloze"; // fill the gap in a mined sentence
 
 export const MODALITIES: readonly Modality[] = [
@@ -64,6 +64,7 @@ export interface Atom {
   frequencyRank?: number; // from a frequency list, if known
   domains: Domain[];
   relatedAtoms: string[]; // word → grammar it depends on, chunk → its words
+  receptiveOnly?: boolean; // read it, never say it: recognize and cloze only
 
   memory: MemoryState;
   modality: Record<Modality, ModalityStat>;
@@ -74,7 +75,7 @@ export interface Atom {
   markedKnownAt?: string;
 }
 
-export type SentenceOrigin = "generated" | "imported" | "conversation";
+export type SentenceOrigin = "generated" | "imported" | "conversation" | "scenario";
 
 export interface Sentence {
   id: string;

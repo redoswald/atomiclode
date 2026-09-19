@@ -9,7 +9,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { db, hasDatabase } from "@/db";
 import type { ChunkEntry, FrequencyEntry, GrammarEntry } from "@/lib/atoms/seed";
+import type { ScenarioEntry } from "@/lib/scenarios/seed";
 import { seedAtoms } from "./run";
+import { seedScenarios } from "./scenarios";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const load = <T>(name: string): T => JSON.parse(readFileSync(path.join(here, name), "utf8")) as T;
@@ -28,6 +30,8 @@ async function main() {
   console.log(
     `upserted ${result.upserted} atoms (${files.freq.length} words, ${files.chunks.length} chunks, ${files.grammar.length} grammar); linked ${result.linked} chunks`,
   );
+  const seeded = await seedScenarios(db(), load<ScenarioEntry[]>("scenarios-fr.json"));
+  console.log(`${seeded.scenarios} scenarios, ${seeded.visitsWritten} first visits written`);
   if (result.unglossed) {
     console.warn(`${result.unglossed} words have no gloss yet; run \`npm run seed:gloss\` and re-seed.`);
   }

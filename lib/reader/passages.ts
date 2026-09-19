@@ -21,10 +21,12 @@ export interface ViewToken extends PassageToken {
   known: boolean;
 }
 
+export type PassageOrigin = "imported" | "generated" | "scenario";
+
 export interface PassageView {
   id: string;
   title: string | null;
-  origin: "imported" | "generated";
+  origin: PassageOrigin;
   sourceRef: string | null;
   sentences: string[];
   tokens: ViewToken[];
@@ -38,7 +40,7 @@ export interface PassageView {
 export interface PassageSummary {
   id: string;
   title: string | null;
-  origin: "imported" | "generated";
+  origin: PassageOrigin;
   sourceRef: string | null;
   coverage: number;
   reads: number;
@@ -66,7 +68,7 @@ async function loadAtomIndex(d: Db): Promise<AtomIndex> {
 export interface CreatePassageInput {
   title?: string;
   text: string;
-  origin: "imported" | "generated";
+  origin: PassageOrigin;
   sourceRef?: string;
 }
 
@@ -117,6 +119,8 @@ export async function listPassages(d: Db): Promise<PassageSummary[]> {
       wordCount: sql<number>`(select count(*) from jsonb_array_elements(${passages.tokens}) t where (t->>'isWord')::boolean)::int`,
     })
     .from(passages)
+    // Scenario dialogues live under Scenes, a goal's sections under Goal.
+    .where(sql`${passages.origin} <> 'scenario' and coalesce(${passages.genre}, '') <> 'goal-section'`)
     .orderBy(desc(passages.createdAt));
   return rows;
 }
@@ -220,7 +224,7 @@ export async function mineWord(d: Db, input: MineInput, now = new Date()): Promi
     if (a) atomIds.add(a.id);
   }
 
-  const origin: SentenceOrigin = passage.origin === "generated" ? "generated" : "imported";
+  const origin: SentenceOrigin = passage.origin;
   const [existing] = await d
     .select({ id: sentences.id })
     .from(sentences)

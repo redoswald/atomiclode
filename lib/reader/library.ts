@@ -33,6 +33,8 @@ const DAY_MS = 86_400_000;
 export const BAND_BELOW = 0.04;
 export const BAND_ABOVE = 0.02;
 export const REREAD_AFTER_DAYS = 7;
+/** Genre tag on the section passages of a goal text; they live on the goal page, not in the library list. */
+export const GOAL_SECTION_GENRE = "goal-section";
 
 async function knownIndex(d: Db) {
   const rows = await d
@@ -53,6 +55,7 @@ export async function findReusable(d: Db, req: LibraryRequest, now = new Date())
   let best: { id: string; coverage: number; score: number } | undefined;
 
   for (const p of rows) {
+    if (p.origin === "scenario" || p.genre === GOAL_SECTION_GENRE) continue;
     if (p.lastReadAt && new Date(p.lastReadAt).getTime() > cutoff) continue;
     const report = computeCoverage(p.tokens, (l) => index.words.get(l), (k) => index.chunks.get(k));
     if (report.coverage < req.targetCoverage - BAND_BELOW || report.coverage > req.targetCoverage + BAND_ABOVE) continue;
@@ -138,12 +141,24 @@ export type AdaptFn = (input: AdaptInput) => Promise<{ title: string; text: stri
  * the meaning. The adaptation is a generated passage that points back to the
  * original through sourceRef ("passage:<id>"), and is reused if it already exists.
  */
-export async function adaptPassage(d: Db, passageId: string, level: Level, adapt: AdaptFn = adaptWithModel): Promise<LibraryResult> {
+export async function adaptPassage(
+  d: Db,
+  passageId: string,
+  level: Level,
+  adapt: AdaptFn = adaptWithModel,
+  opts: { refresh?: boolean } = {},
+): Promise<LibraryResult> {
   const [original] = await d.select().from(passages).where(eq(passages.id, passageId));
   if (!original) throw new Error("unknown passage");
   const ref = `passage:${passageId}#${level}`;
-  const [existing] = await d.select({ id: passages.id, coverage: passages.coverage }).from(passages).where(eq(passages.sourceRef, ref));
-  if (existing) return { id: existing.id, coverage: existing.coverage, reused: true };
+  const [existing] = await d
+    .select({ id: passages.id, coverage: passages.coverage })
+    .from(passages)
+    .where(eq(passages.sourceRef, ref))
+    .orderBy(desc(passages.createdAt))
+    .limit(1);
+  // `refresh` rewrites a rung the learner has outgrown; the old one stays in the library.
+  if (existing && !opts.refresh) return { id: existing.id, coverage: existing.coverage, reused: true };
 
   const index = await knownIndex(d);
   const known = [...index.words.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
@@ -153,17 +168,18 @@ export async function adaptPassage(d: Db, passageId: string, level: Level, adapt
   }
   const adapted = await adapt({ text: original.text, title: original.title ?? undefined, known, chunks, level });
   const { id } = await createPassage(d, { title: adapted.title, text: adapted.text, origin: "generated", sourceRef: ref });
-  await d.update(passages).set({ genre: original.genre ?? "adapted" }).where(eq(passages.id, id));
+  await d.update(passages).set({ genre: original.genre && original.genre !== GOAL_SECTION_GENRE ? original.genre : "adapted", knownAtGeneration: known.length }).where(eq(passages.id, id));
   const [row] = await d.select({ coverage: passages.coverage }).from(passages).where(eq(passages.id, id));
   return { id, reused: false, coverage: row.coverage };
 }
 
-/** Existing adaptations of a passage, by level. */
+/** Existing adaptations of a passage, by level (the most recent of each). */
 export async function adaptationsOf(d: Db, passageId: string): Promise<Partial<Record<Level, string>>> {
   const rows = await d
     .select({ id: passages.id, sourceRef: passages.sourceRef })
     .from(passages)
-    .where(sql`${passages.sourceRef} like ${`passage:${passageId}#%`}`);
+    .where(sql`${passages.sourceRef} like ${`passage:${passageId}#%`}`)
+    .orderBy(passages.createdAt);
   const out: Partial<Record<Level, string>> = {};
   for (const r of rows) {
     const level = r.sourceRef?.split("#")[1] as Level | undefined;

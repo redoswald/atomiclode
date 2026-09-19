@@ -16,7 +16,9 @@ import { migrate as migrateNeon } from "drizzle-orm/neon-http/migrator";
 import { db, isPglite } from "@/db";
 import * as schema from "@/db/schema";
 import { seedAtoms } from "@/db/seed/run";
+import { seedScenarios } from "@/db/seed/scenarios";
 import type { ChunkEntry, FrequencyEntry, GrammarEntry } from "@/lib/atoms/seed";
+import type { ScenarioEntry } from "@/lib/scenarios/seed";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
@@ -50,6 +52,8 @@ async function main() {
     grammar: load<GrammarEntry[]>("grammar-fr.json"),
   });
   console.log(`db:prepare — upserted ${result.upserted} atoms, linked ${result.linked} chunks.`);
+  const seeded = await seedScenarios(target, load<ScenarioEntry[]>("scenarios-fr.json"));
+  console.log(`db:prepare — ${seeded.scenarios} scenarios, ${seeded.visitsWritten} first visits written.`);
   if (result.unglossed) {
     console.log(`db:prepare — ${result.unglossed} words still have no gloss (run \`npm run seed:gloss\`).`);
   }
