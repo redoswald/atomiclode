@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
+import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { buildSession, parseIntensity } from "@/lib/review/session";
 import { ReviewSession } from "./session";
@@ -21,7 +22,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
     );
   }
 
-  const session = await buildSession(db(), intensity);
+  const session = await buildSession(db(), intensity, new Date(), { lang: await currentLang() });
   if (session.cards.length === 0) {
     return (
       <Shell title="Review" eyebrow="Real usage. Lasting fluency.">

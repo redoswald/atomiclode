@@ -1,6 +1,7 @@
-import { and, count, lte, min, sql } from "drizzle-orm";
+import { and, count, eq, lte, min, sql } from "drizzle-orm";
 import { db, type Db } from "@/db";
 import { atoms, reviewEvents } from "@/db/schema";
+import type { Lang } from "@/lib/lang";
 import type { AtomType, MemoryStatus } from "./types";
 
 export interface HomeCounts {
@@ -18,26 +19,27 @@ export interface HomeCounts {
   unglossed: number;
 }
 
-export async function homeCounts(now = new Date(), d: Db = db()): Promise<HomeCounts> {
+export async function homeCounts(now = new Date(), d: Db = db(), lang: Lang = "fr"): Promise<HomeCounts> {
+  const inLang = eq(atoms.lang, lang);
   const nowIso = now.toISOString();
 
   const [statusRows, typeRows, dueRows, newRows, reviewRows, unglossedRows] = await Promise.all([
-    d.select({ status: atoms.status, n: count() }).from(atoms).groupBy(atoms.status),
-    d.select({ type: atoms.type, n: count() }).from(atoms).groupBy(atoms.type),
+    d.select({ status: atoms.status, n: count() }).from(atoms).where(inLang).groupBy(atoms.status),
+    d.select({ type: atoms.type, n: count() }).from(atoms).where(inLang).groupBy(atoms.type),
     d
       .select({ n: count() })
       .from(atoms)
-      .where(and(sql`${atoms.status} in ('learning', 'review')`, lte(atoms.due, nowIso))),
+      .where(and(inLang, sql`${atoms.status} in ('learning', 'review')`, lte(atoms.due, nowIso))),
     d
       .select({ type: atoms.type, n: count() })
       .from(atoms)
-      .where(sql`${atoms.status} = 'new'`)
+      .where(and(inLang, sql`${atoms.status} = 'new'`))
       .groupBy(atoms.type),
-    d.select({ n: count(), first: min(reviewEvents.at) }).from(reviewEvents),
+    d.select({ n: count(), first: min(reviewEvents.at) }).from(reviewEvents).innerJoin(atoms, eq(atoms.id, reviewEvents.atomId)).where(inLang),
     d
       .select({ n: count() })
       .from(atoms)
-      .where(sql`${atoms.type} = 'word' and ${atoms.gloss} = ''`),
+      .where(and(inLang, sql`${atoms.type} = 'word' and ${atoms.gloss} = ''`)),
   ]);
 
   const byStatus: Record<MemoryStatus, number> = { new: 0, learning: 0, review: 0, suspended: 0 };

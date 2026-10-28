@@ -3,6 +3,8 @@ import { db, hasDatabase } from "@/db";
 import { homeCounts, type HomeCounts } from "@/lib/atoms/stats";
 import { authEnabled } from "@/lib/auth";
 import { activeGoal, goalCoverageWeekAgo, goalView, type GoalView } from "@/lib/goals/goals";
+import { langName } from "@/lib/lang";
+import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { listPassages } from "@/lib/reader/passages";
 import { BUDGETS, DEFAULT_NEW_PER_DAY } from "@/lib/review/session";
@@ -33,12 +35,13 @@ export default async function Home() {
   let scenes: ScenarioState[];
   let goal: GoalView | undefined;
   let goalWeekAgo: number | undefined;
+  const lang = await currentLang();
   try {
-    const active = await activeGoal(db());
+    const active = await activeGoal(db(), lang);
     [counts, [latest], scenes, goal] = await Promise.all([
-      homeCounts(new Date(), db()),
-      listPassages(db()),
-      scenarioStates(db()),
+      homeCounts(new Date(), db(), lang),
+      listPassages(db(), lang),
+      scenarioStates(db(), lang),
       active ? goalView(db(), active.id) : undefined,
     ]);
     if (active) goalWeekAgo = await goalCoverageWeekAgo(db(), active.id);
@@ -80,7 +83,7 @@ export default async function Home() {
       aside={
         <p className="flex items-baseline justify-between text-sm">
           <span>
-            French · Day {counts.day} <span className="text-muted">· {counts.reviewsTotal} reviews so far</span>
+            {langName(lang)} · Day {counts.day} <span className="text-muted">· {counts.reviewsTotal} reviews so far</span>
           </span>
         </p>
       }
@@ -114,11 +117,11 @@ export default async function Home() {
         </Row>
         {underWay?.latest ? (
           <Row href="/review?intensity=steady" title="Learn" note={`~${Math.max(1, learnMin)} min`}>
-            <span lang="fr">{underWay.scenario.title}</span>, visit {underWay.latest.visit.n} · {underWay.latest.visit.bundle.length - underWay.latest.introduced} still to come
+            <span lang={lang}>{underWay.scenario.title}</span>, visit {underWay.latest.visit.n} · {underWay.latest.visit.bundle.length - underWay.latest.introduced} still to come
           </Row>
         ) : offered ? (
           <Row href={`/scenario/${offered.scenario.id}`} title="Learn" note={offered.visit ? "a new scene" : "to be written"}>
-            <span lang="fr">{offered.scenario.title}</span>, visit {offered.n}
+            <span lang={lang}>{offered.scenario.title}</span>, visit {offered.n}
             {offered.visit && ` · ${offered.visit.bundle.length} new`}
           </Row>
         ) : (
@@ -142,9 +145,9 @@ export default async function Home() {
         )}
       </section>
 
-      <GlossFiller remaining={counts.unglossed} hasKey={hasKey} />
+      {lang === "fr" && <GlossFiller remaining={counts.unglossed} hasKey={hasKey} />}
 
-      <ExploreBox enabled={hasKey} />
+      <ExploreBox enabled={hasKey} lang={lang} />
 
       <dl className="mt-8 grid grid-cols-4 gap-3 text-sm">
         <Stat label="Atoms" value={counts.total} />

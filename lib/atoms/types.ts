@@ -1,3 +1,5 @@
+import type { Gender, Lang } from "@/lib/lang";
+
 /**
  * Core learner-model types. See SPEC.md §3.
  *
@@ -50,7 +52,7 @@ export interface ModalityStat {
 
 export interface Atom {
   id: string;
-  lang: "fr";
+  lang: Lang;
   type: AtomType;
 
   // word: lemma ("vouloir"); chunk: fixed phrase ("je voudrais");
@@ -60,7 +62,8 @@ export interface Atom {
   gloss: string; // short L1 meaning
   explanation?: string; // the "why?" text, cached once generated
   pos?: string; // word/chunk only
-  gender?: "m" | "f"; // nouns only; not in SPEC §3, added for French articles
+  gender?: Gender; // nouns only; not in SPEC §3, added for articles
+  romanization?: string; // Latin-letter rendering, for Greek
   frequencyRank?: number; // from a frequency list, if known
   domains: Domain[];
   relatedAtoms: string[]; // word → grammar it depends on, chunk → its words

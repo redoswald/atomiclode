@@ -1,24 +1,35 @@
 /**
  * Turns the JSON files in db/seed/ into atom rows. Pure: no I/O, no DB.
- * The runner in db/seed/index.ts reads the files and writes the rows.
+ * The runner in db/seed/run.ts reads the files and writes the rows.
+ * French words come from a frequency list; the Greek tourist curriculum is
+ * hand-ordered, carries romanizations, and marks sign words receptive-only.
  */
 import type { NewAtomRow } from "@/db/schema";
+import type { Gender, Lang } from "@/lib/lang";
 
-export interface FrequencyEntry {
+export interface WordEntry {
   rank: number;
   lemma: string;
   pos: string;
-  gender: "m" | "f" | null;
+  gender: Gender | null;
   forms: string[];
-  freqPerMillion: number;
   gloss: string;
+  freqPerMillion?: number;
+  romanization?: string;
+  domains?: string[];
+  /** Read it, never say it: recognize and cloze only (signs, letters). */
+  receptiveOnly?: boolean;
 }
+
+/** @deprecated name kept for the French list; same shape. */
+export type FrequencyEntry = WordEntry;
 
 export interface ChunkEntry {
   key: string;
   gloss: string;
   words: string[]; // lemmas of the component words
   grammar: string[]; // grammar atom keys
+  romanization?: string;
 }
 
 export interface GrammarEntry {
@@ -27,30 +38,33 @@ export interface GrammarEntry {
   explanation: string;
 }
 
-export function frequencyToRows(entries: FrequencyEntry[]): NewAtomRow[] {
+export function frequencyToRows(entries: WordEntry[], lang: Lang = "fr"): NewAtomRow[] {
   return entries.map((e) => ({
-    lang: "fr",
+    lang,
     type: "word",
     key: e.lemma,
     forms: uniq([e.lemma, ...e.forms]),
     gloss: e.gloss ?? "",
     pos: e.pos,
     gender: e.gender ?? null,
+    romanization: e.romanization ?? null,
     frequencyRank: e.rank,
-    domains: [],
+    domains: e.domains ?? [],
     relatedAtoms: [],
+    receptiveOnly: e.receptiveOnly ?? false,
     source: "frequency",
     status: "new",
   }));
 }
 
-export function chunksToRows(entries: ChunkEntry[]): NewAtomRow[] {
+export function chunksToRows(entries: ChunkEntry[], lang: Lang = "fr"): NewAtomRow[] {
   return entries.map((e) => ({
-    lang: "fr",
+    lang,
     type: "chunk",
     key: e.key,
     forms: [e.key],
     gloss: e.gloss,
+    romanization: e.romanization ?? null,
     domains: [],
     relatedAtoms: [], // linked to word/grammar atom ids after insert
     source: "frequency",
@@ -58,9 +72,9 @@ export function chunksToRows(entries: ChunkEntry[]): NewAtomRow[] {
   }));
 }
 
-export function grammarToRows(entries: GrammarEntry[]): NewAtomRow[] {
+export function grammarToRows(entries: GrammarEntry[], lang: Lang = "fr"): NewAtomRow[] {
   return entries.map((e) => ({
-    lang: "fr",
+    lang,
     type: "grammar",
     key: e.key,
     forms: [],
@@ -82,7 +96,7 @@ export function chunkLinks(entries: ChunkEntry[]): Map<string, { words: string[]
 }
 
 /** Basic sanity checks a seed file must pass before it is loaded. */
-export function validateSeed(freq: FrequencyEntry[], chunks: ChunkEntry[], grammar: GrammarEntry[]): string[] {
+export function validateSeed(words: WordEntry[], chunks: ChunkEntry[], grammar: GrammarEntry[]): string[] {
   const problems: string[] = [];
   const dup = (xs: string[], label: string) => {
     const seen = new Set<string>();
@@ -91,18 +105,23 @@ export function validateSeed(freq: FrequencyEntry[], chunks: ChunkEntry[], gramm
       seen.add(x);
     }
   };
-  dup(freq.map((f) => f.lemma), "lemma");
+  dup(words.map((f) => f.lemma), "lemma");
   dup(chunks.map((c) => c.key), "chunk");
   dup(grammar.map((g) => g.key), "grammar key");
 
   const grammarKeys = new Set(grammar.map((g) => g.key));
+  const lemmas = new Set(words.map((w) => w.lemma));
   for (const c of chunks) {
     for (const g of c.grammar) {
       if (!grammarKeys.has(g)) problems.push(`chunk "${c.key}" references unknown grammar "${g}"`);
     }
+    for (const w of c.words) {
+      if (!lemmas.has(w)) problems.push(`chunk "${c.key}" references unknown word "${w}"`);
+    }
   }
-  freq.forEach((f, i) => {
-    if (f.rank !== i + 1) problems.push(`rank out of order at ${f.lemma}: ${f.rank}`);
+  // Ranks must increase (gaps are fine: the Greek list leaves room between groups).
+  words.forEach((f, i) => {
+    if (i > 0 && f.rank <= words[i - 1].rank) problems.push(`rank out of order at ${f.lemma}: ${f.rank}`);
   });
   return problems;
 }

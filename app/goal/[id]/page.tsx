@@ -5,7 +5,7 @@ import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
 import { atoms } from "@/db/schema";
 import { currentPhase } from "@/lib/atoms/phase";
-import { goalView, rungGate, type GoalSection, type Rung } from "@/lib/goals/goals";
+import { goalLang, goalView, rungGate, type GoalSection, type Rung } from "@/lib/goals/goals";
 import { LEVELS, type Level } from "@/lib/llm/adapt";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { inArray } from "drizzle-orm";
@@ -20,9 +20,10 @@ export default async function GoalPage({ params, searchParams }: PageProps<"/goa
   const { error } = await searchParams;
   if (!hasDatabase() || !/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const d = db();
-  const [view, { phase }] = await Promise.all([goalView(d, id), currentPhase(d)]);
+  const view = await goalView(d, id);
   if (!view) notFound();
   const { goal } = view;
+  const { phase } = await currentPhase(d, goalLang(goal));
   const hasKey = hasAnthropicKey();
   const grammar = goal.grammarAtomIds.length
     ? await d.select({ id: atoms.id, gloss: atoms.gloss, status: atoms.status, receptiveOnly: atoms.receptiveOnly }).from(atoms).where(inArray(atoms.id, goal.grammarAtomIds))

@@ -3,6 +3,8 @@ import { db, hasDatabase } from "@/db";
 import Link from "next/link";
 import { vocabStats } from "@/lib/atoms/vocab-stats";
 import { activeGoal, goalCoverageSeries, goalView } from "@/lib/goals/goals";
+import { LANG_SPECS, langName } from "@/lib/lang";
+import { currentLang } from "@/lib/lang-server";
 import { CoverageChart } from "./chart";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +17,9 @@ export default async function StatsPage() {
       </Shell>
     );
   }
-  const s = await vocabStats(db());
-  const goal = await activeGoal(db());
+  const lang = await currentLang();
+  const s = await vocabStats(db(), new Date(), lang);
+  const goal = await activeGoal(db(), lang);
   // Opening the view logs today's point, so the line is never a day behind.
   const goalNow = goal ? await goalView(db(), goal.id) : undefined;
   const goalSeries = goal ? await goalCoverageSeries(db(), goal.id) : [];
@@ -44,7 +47,11 @@ export default async function StatsPage() {
           <h2 className="font-display text-2xl">Coverage</h2>
           <span className="font-display text-3xl tabular-nums">{pct(s.corpusCoverage)}</span>
         </div>
-        <p className="mt-1 text-xs text-muted">Estimated share of everyday French text made of words you know, from the frequency list.</p>
+        <p className="mt-1 text-xs text-muted">
+          {LANG_SPECS[lang].hasFrequencyList
+            ? `Estimated share of everyday ${langName(lang)} text made of words you know, from the frequency list.`
+            : `Share of the ${langName(lang)} tourist curriculum (signs, phrases, core words) you know.`}
+        </p>
         <CoverageChart series={s.series} />
       </section>
 

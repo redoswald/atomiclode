@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createScenario } from "@/app/actions/scenario";
 import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
+import { LANG_SPECS } from "@/lib/lang";
+import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { scenarioStates, suggestVisit, type ScenarioState } from "@/lib/scenarios/visits";
 
@@ -18,7 +20,8 @@ export default async function ScenariosPage({ searchParams }: PageProps<"/scenar
     );
   }
   const hasKey = hasAnthropicKey();
-  const states = await scenarioStates(db());
+  const lang = await currentLang();
+  const states = await scenarioStates(db(), lang);
   const suggestion = suggestVisit(states, hasKey);
 
   return (
@@ -31,8 +34,8 @@ export default async function ScenariosPage({ searchParams }: PageProps<"/scenar
           <li key={s.scenario.id}>
             <Link href={`/scenario/${s.scenario.id}`} className={`card block p-4 ${suggestion?.scenario.id === s.scenario.id ? "border-sage" : ""}`}>
               <span className="flex items-baseline justify-between gap-3">
-                <span className="font-display text-2xl leading-tight" lang="fr">
-                  {s.scenario.title || "Sans titre"}
+                <span className="font-display text-2xl leading-tight" lang={lang}>
+                  {s.scenario.title || LANG_SPECS[lang].untitled}
                 </span>
                 <span className="shrink-0 text-xs text-muted">{statusLine(s, hasKey)}</span>
               </span>
@@ -52,7 +55,7 @@ export default async function ScenariosPage({ searchParams }: PageProps<"/scenar
             required
             minLength={10}
             maxLength={400}
-            placeholder="Meeting her grandmother on Sunday. She speaks no English and loves her garden."
+            placeholder={LANG_SPECS[lang].scenePlaceholder}
             className="field w-full resize-none text-sm"
             disabled={!hasKey}
           />

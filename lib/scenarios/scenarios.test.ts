@@ -68,9 +68,9 @@ const VISIT_2: GeneratedVisit = {
 
 describe("scenarios", () => {
   it("seeds a dozen scenarios with their first visit, idempotently", async () => {
-    const first = await seedScenarios(d, ENTRIES, NOW);
+    const first = await seedScenarios(d, ENTRIES, "fr", NOW);
     expect(first).toEqual({ scenarios: ENTRIES.length, visitsWritten: ENTRIES.length });
-    const again = await seedScenarios(d, ENTRIES, NOW);
+    const again = await seedScenarios(d, ENTRIES, "fr", NOW);
     expect(again.visitsWritten).toBe(0);
 
     const { visit } = await cafe();

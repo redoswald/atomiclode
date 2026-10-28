@@ -6,6 +6,7 @@ import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 import type { Db } from "@/db";
 import { atoms, scenarios, scenarioVisits } from "@/db/schema";
 import { generateVisit as generateWithModel, type GeneratedVisit, type GenerateVisitInput } from "@/lib/llm/scenario";
+import { isLang, type Lang } from "@/lib/lang";
 import { isKnownStatus } from "@/lib/reader/coverage";
 import type { BundleEntry } from "./seed";
 import { storeVisit } from "./visits";
@@ -15,8 +16,11 @@ export type GenerateVisitFn = (input: GenerateVisitInput) => Promise<GeneratedVi
 /** How many unknown frequency-list lemmas the model gets to choose from. */
 export const CANDIDATES = 120;
 
-async function generatorInput(d: Db, extraCandidates: string[]): Promise<Pick<GenerateVisitInput, "known" | "chunks" | "candidates" | "grammar">> {
-  const rows = await d.select({ id: atoms.id, type: atoms.type, key: atoms.key, gloss: atoms.gloss, status: atoms.status, rank: atoms.frequencyRank }).from(atoms);
+async function generatorInput(d: Db, lang: Lang, extraCandidates: string[]): Promise<Pick<GenerateVisitInput, "known" | "chunks" | "candidates" | "grammar">> {
+  const rows = await d
+    .select({ id: atoms.id, type: atoms.type, key: atoms.key, gloss: atoms.gloss, status: atoms.status, rank: atoms.frequencyRank })
+    .from(atoms)
+    .where(eq(atoms.lang, lang));
   // Bundles already handed out count as known here: they are on their way in, and shouldn't be taught twice.
   const started = await d.select({ bundle: scenarioVisits.bundle }).from(scenarioVisits).where(isNotNull(scenarioVisits.startedAt));
   const inFlight = new Set(started.flatMap((v) => v.bundle));
@@ -58,12 +62,14 @@ export async function generateNextVisit(d: Db, scenarioId: string, opts: NextVis
   if (latest && !latest.startedAt) throw new Error("There's a visit here you haven't opened yet.");
   const n = (latest?.n ?? 0) + 1;
 
+  const lang: Lang = isLang(scenario.lang) ? scenario.lang : "fr";
   const generate = opts.generate ?? generateWithModel;
   const g = await generate({
+    lang,
     scenario: { title: scenario.title, brief: scenario.brief },
     n,
     earlier: earlier.map((v) => v.summary || v.brief),
-    ...(await generatorInput(d, opts.goalLemmas ?? [])),
+    ...(await generatorInput(d, lang, opts.goalLemmas ?? [])),
   });
   if (g.dialogue.trim().split(/\s+/).length < 30) throw new Error("The model returned too short a dialogue; try again.");
   const visitId = await storeVisit(
@@ -81,14 +87,14 @@ export async function generateNextVisit(d: Db, scenarioId: string, opts: NextVis
 export async function createCustomScenario(
   d: Db,
   situation: string,
-  opts: NextVisitOptions & { origin?: "custom" | "goal"; goalId?: string } = {},
+  opts: NextVisitOptions & { origin?: "custom" | "goal"; goalId?: string; lang?: Lang } = {},
 ): Promise<{ scenarioId: string; visitId: string }> {
   const brief = situation.trim().replace(/\s+/g, " ");
   if (brief.length < 10) throw new Error("Describe the situation in a sentence.");
   if (brief.length > 400) throw new Error("Keep it to a sentence or two.");
   const [row] = await d
     .insert(scenarios)
-    .values({ slug: `${opts.origin ?? "custom"}-${crypto.randomUUID().slice(0, 8)}`, title: "", brief, origin: opts.origin ?? "custom", goalId: opts.goalId ?? null })
+    .values({ slug: `${opts.origin ?? "custom"}-${crypto.randomUUID().slice(0, 8)}`, lang: opts.lang ?? "fr", title: "", brief, origin: opts.origin ?? "custom", goalId: opts.goalId ?? null })
     .returning({ id: scenarios.id });
   try {
     const { visitId } = await generateNextVisit(d, row.id, opts);

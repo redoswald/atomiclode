@@ -3,9 +3,10 @@ import type { Db } from "@/db";
 import { atoms, encounters, reviewEvents, sentences } from "@/db/schema";
 import { rowToAtom } from "@/lib/atoms/rows";
 import type { Atom, AtomType, Encounter, Modality, Sentence } from "@/lib/atoms/types";
+import type { Gender, Lang } from "@/lib/lang";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { applyExposure } from "@/lib/scheduler/exposure";
-import { normalizeForm } from "@/lib/reader/lexicon";
+import { normalizeFor } from "@/lib/lang";
 import { planSession, type Intensity, type SessionPlan, type SessionReason } from "@/lib/scheduler";
 import { newAtomOrder } from "./newOrder";
 import { promptsFor, writePrompts, type WritePromptFn } from "./produce";
@@ -25,7 +26,11 @@ export interface SessionCard {
   gloss: string;
   forms: string[];
   pos?: string;
-  gender?: "m" | "f";
+  gender?: Gender;
+  romanization?: string;
+  /** Topic tags; "signs" and "alphabet" change how the Greek card is shown. */
+  domains?: string[];
+  lang: Lang;
   explanation?: string;
   sentence?: { id: string; text: string; translation?: string };
   /** For cloze: the sentence split around the gap. */
@@ -48,19 +53,21 @@ export function parseIntensity(v: unknown): Intensity {
 }
 
 export interface BuildOptions {
+  lang?: Lang;
   /** Produce needs a model to grade it; defaults to whether an API key is set. */
   produce?: boolean;
   writePrompt?: WritePromptFn;
 }
 
 export async function buildSession(d: Db, intensity: Intensity, now = new Date(), opts: BuildOptions = {}): Promise<BuiltSession> {
+  const lang: Lang = opts.lang ?? "fr";
   const produce = opts.produce ?? hasAnthropicKey();
   const timeBudgetMin = BUDGETS[intensity];
   const [order, rows, sentenceRows, introduced, recentEncounters] = await Promise.all([
-    newAtomOrder(d, produce),
-    d.select().from(atoms).where(sql`${atoms.status} <> 'suspended'`),
-    d.select().from(sentences),
-    newAtomsIntroducedToday(d, now),
+    newAtomOrder(d, lang, produce),
+    d.select().from(atoms).where(and(eq(atoms.lang, lang), sql`${atoms.status} <> 'suspended'`)),
+    d.select().from(sentences).where(eq(sentences.lang, lang)),
+    newAtomsIntroducedToday(d, now, lang),
     d
       .select()
       .from(encounters)
@@ -120,7 +127,7 @@ export async function buildSession(d: Db, intensity: Intensity, now = new Date()
   const cards: SessionCard[] = plan.items.map((item) => {
     const a = byId.get(item.atomId)!;
     const s = item.sentenceId ? sentenceById.get(item.sentenceId) : undefined;
-    const cloze = item.modality === "cloze" && s ? findGap(s.text, [a.key, ...a.forms]) : undefined;
+    const cloze = item.modality === "cloze" && s ? findGap(s.text, [a.key, ...a.forms], lang) : undefined;
     const prompt = item.modality === "produce" ? prompts.get(a.id) : undefined;
     return {
       atomId: a.id,
@@ -144,6 +151,8 @@ export async function buildSession(d: Db, intensity: Intensity, now = new Date()
       forms: a.forms,
       pos: a.pos,
       gender: a.gender,
+      romanization: a.romanization,
+      lang,
       explanation: a.explanation,
       sentence: s ? { id: s.id, text: s.text, translation: s.translation } : undefined,
     };
@@ -153,11 +162,13 @@ export async function buildSession(d: Db, intensity: Intensity, now = new Date()
 }
 
 /** Atoms whose first-ever review happened since the start of today (UTC). */
-export async function newAtomsIntroducedToday(d: Db, now = new Date()): Promise<number> {
+export async function newAtomsIntroducedToday(d: Db, now = new Date(), lang: Lang = "fr"): Promise<number> {
   const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
   const firsts = d
     .select({ atomId: reviewEvents.atomId, first: min(reviewEvents.at).as("first") })
     .from(reviewEvents)
+    .innerJoin(atoms, eq(atoms.id, reviewEvents.atomId))
+    .where(eq(atoms.lang, lang))
     .groupBy(reviewEvents.atomId)
     .as("firsts");
   const [row] = await d
@@ -185,13 +196,14 @@ export function insightFor(a: Atom): string | undefined {
  * Locate the atom's surface form in a sentence (accent- and case-insensitive,
  * whole word) and split the sentence around it. Longest form first.
  */
-export function findGap(sentence: string, forms: string[]): { before: string; answer: string; after: string } | undefined {
+export function findGap(sentence: string, forms: string[], lang: Lang = "fr"): { before: string; answer: string; after: string } | undefined {
+  const normalize = normalizeFor(lang);
   const norm = (x: string) =>
-    normalizeForm(x)
+    normalize(x)
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
   const target = norm(sentence);
-  const wordChar = /[a-z]/;
+  const wordChar = /[a-z\u03b1-\u03c9]/;
   for (const form of [...new Set(forms)].filter(Boolean).sort((x, y) => y.length - x.length)) {
     const f = norm(form);
     if (!f) continue;

@@ -1,8 +1,10 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { anthropic, DEFAULT_MODEL } from "./client";
+import { LANG_SPECS, langName, type Lang } from "@/lib/lang";
 
 export interface GenerateVisitInput {
+  lang?: Lang;
   scenario: { title: string; brief: string };
   /** 1 for a brand-new custom scenario. */
   n: number;
@@ -39,16 +41,16 @@ const Output = z.object({
   prompts: z.array(z.object({ situation: z.string(), exampleAnswer: z.string(), targets: z.array(z.string()) })),
 });
 
-const SYSTEM = `You write one "visit" to a recurring real-life situation for an adult learning French. Each visit to the same place goes a little further than the last: a complication, a follow-up question, a bit of small talk. The learner is "you" in the scene.
+const system = (lang: Lang) => `You write one "visit" to a recurring real-life situation for an adult learning ${langName(lang)}. ${LANG_SPECS[lang].modelNote} Each visit to the same place goes a little further than the last: a complication, a follow-up question, a bit of small talk. The learner is "you" in the scene.
 
 Return:
-- title: a short French title for the situation (keep the given one unless it is empty).
-- brief: one or two English sentences addressed to "you": what is different this time and what you need to get done. No French.
-- dialogue: 60–120 words of natural, adult, spoken French between you and the other person. Each line starts with "— ". A line of narration between blank lines is fine. Write it from the known vocabulary plus the bundle, and as little else as you can; names and numbers are free.
+- title: a short ${langName(lang)} title for the situation (keep the given one unless it is empty).
+- brief: one or two English sentences addressed to "you": what is different this time and what you need to get done. No ${langName(lang)}.
+- dialogue: 60–120 words of natural, adult, spoken ${langName(lang)} between you and the other person. Each line starts with "— ". A line of narration between blank lines is fine. Write it from the known vocabulary plus the bundle, and as little else as you can; names and numbers are free.
 - translation: the dialogue in English, line for line.
-- bundle: the 6–10 new things this visit teaches, in the order they should be learned: fixed phrases (type "chunk") first, then words (type "word"). Chunks are written exactly as they appear in the dialogue, lowercase. Words are dictionary forms (infinitive, masculine singular) and should come from the candidate list wherever they honestly fit the situation; never force one in. Every bundle item must actually be used in the dialogue. Nothing the learner already knows. Short English gloss for each.
+- bundle: the 6–10 new things this visit teaches, in the order they should be learned: fixed phrases (type "chunk") first, then words (type "word"). Chunks are written exactly as they appear in the dialogue, lowercase. Words are dictionary forms (${lang === "el" ? "first-person singular present for verbs, nominative singular for nouns, with their accents" : "infinitive, masculine singular"}) and should come from the candidate list wherever they honestly fit the situation; never force one in. Every bundle item must actually be used in the dialogue. Nothing the learner already knows. Short English gloss for each.
 - grammarKey: the key of at most one listed grammar idea that this dialogue genuinely leans on, or "".
-- prompts: 1–3 speaking prompts. "situation" is English, addressed to "you", concrete, and never names or translates the French it is fishing for. "exampleAnswer" is one short natural thing to say. "targets" lists the bundle keys the answer uses, copied exactly.
+- prompts: 1–3 speaking prompts. "situation" is English, addressed to "you", concrete, and never names or translates the ${langName(lang)} it is fishing for. "exampleAnswer" is one short natural thing to say. "targets" lists the bundle keys the answer uses, copied exactly.
 - summary: one English line on what happened, for writing the next visit.`;
 
 export async function generateVisit(input: GenerateVisitInput): Promise<GeneratedVisit> {
@@ -67,7 +69,7 @@ export async function generateVisit(input: GenerateVisitInput): Promise<Generate
   const response = await anthropic().messages.parse({
     model: DEFAULT_MODEL,
     max_tokens: 4096,
-    system: SYSTEM,
+    system: system(input.lang ?? "fr"),
     messages: [{ role: "user", content: user }],
     output_config: { format: zodOutputFormat(Output), effort: "low" },
   });

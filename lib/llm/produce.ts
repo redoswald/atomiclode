@@ -1,6 +1,7 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { anthropic, DEFAULT_MODEL } from "./client";
+import { LANG_SPECS, langName, type Lang } from "@/lib/lang";
 
 /** A target the situation is fishing for: a word, phrase, or grammar idea. */
 export interface ProduceTarget {
@@ -9,6 +10,7 @@ export interface ProduceTarget {
 }
 
 export interface GradeProduceInput {
+  lang?: Lang;
   situation: string;
   targets: ProduceTarget[];
   exampleAnswer: string;
@@ -16,11 +18,11 @@ export interface GradeProduceInput {
 }
 
 export interface ProduceVerdict {
-  /** Would a French speaker understand this and find it acceptable in the situation? */
+  /** Would a native speaker understand this and find it acceptable in the situation? */
   ok: boolean;
   /** Keys of the targets the learner used acceptably (any inflection). */
   used: string[];
-  /** The learner's answer, minimally corrected into natural French. */
+  /** The learner's answer, minimally corrected into the natural form. */
   natural: string;
   /** One line: the most useful thing to fix or notice. Empty when there is nothing to say. */
   note: string;
@@ -28,7 +30,7 @@ export interface ProduceVerdict {
 
 const Verdict = z.object({ ok: z.boolean(), used: z.array(z.string()), natural: z.string(), note: z.string() });
 
-const GRADE_SYSTEM = `You check what an adult learner of French typed in answer to a real-life situation. Be lenient the way a waiter is: hesitation, fillers, missing accents, small agreement slips and a second attempt inside the same answer are all fine if a French speaker would understand and not wince. Mark ok=false only when the meaning fails, the register is badly wrong for the situation, or the answer isn't French.
+const gradeSystem = (lang: Lang) => `You check what an adult learner of ${langName(lang)} typed in answer to a real-life situation. ${LANG_SPECS[lang].modelNote} Be lenient the way a waiter is: hesitation, fillers, missing accents, small agreement slips and a second attempt inside the same answer are all fine if a ${langName(lang)} speaker would understand and not wince.${lang === "el" ? " The learner may type Greek in Latin letters (Greeklish, e.g. \"efharisto poli\"); read it as the Greek it stands for and write \"natural\" in the Greek alphabet." : ""} Mark ok=false only when the meaning fails, the register is badly wrong for the situation, or the answer isn't ${langName(lang)}.
 "used" lists which of the given target keys the learner used acceptably, in any inflection; copy the keys exactly as given.
 "natural" is their answer minimally corrected, keeping their wording where it works. If it was already fine, return it unchanged.
 "note" is one short sentence in English on the single most useful thing to fix or notice; empty string if nothing.`;
@@ -43,7 +45,7 @@ export async function gradeProduce(input: GradeProduceInput): Promise<ProduceVer
   const response = await anthropic().messages.parse({
     model: DEFAULT_MODEL,
     max_tokens: 1024,
-    system: GRADE_SYSTEM,
+    system: gradeSystem(input.lang ?? "fr"),
     messages: [{ role: "user", content: user }],
     output_config: { format: zodOutputFormat(Verdict), effort: "low" },
   });
@@ -54,6 +56,7 @@ export async function gradeProduce(input: GradeProduceInput): Promise<ProduceVer
 }
 
 export interface WritePromptInput {
+  lang?: Lang;
   target: ProduceTarget & { type: "word" | "chunk" | "grammar" };
   domains: string[];
   /** A sentence the learner met the atom in, if any, to keep the situation close to home. */
@@ -62,8 +65,8 @@ export interface WritePromptInput {
 
 const Prompt = z.object({ situation: z.string(), exampleAnswer: z.string() });
 
-const WRITE_SYSTEM = `You write one speaking prompt for an adult learner of French. Never "use X in a sentence". Describe, in one or two English sentences addressed to "you", a concrete everyday situation in which a French speaker would naturally say the target: where you are, who you're talking to, what you want. Do not mention the target word or translate it in the situation.
-"exampleAnswer" is one short, natural thing to say in French in that situation that uses the target.`;
+const writeSystem = (lang: Lang) => `You write one speaking prompt for an adult learner of ${langName(lang)}. ${LANG_SPECS[lang].modelNote} Never "use X in a sentence". Describe, in one or two English sentences addressed to "you", a concrete everyday situation in which a ${langName(lang)} speaker would naturally say the target: where you are, who you're talking to, what you want. Do not mention the target word or translate it in the situation.
+"exampleAnswer" is one short, natural thing to say in ${langName(lang)} in that situation that uses the target.`;
 
 /** For atoms that never came from a scenario: a situation made to order, cached by the caller. */
 export async function writeProducePrompt(input: WritePromptInput): Promise<{ situation: string; exampleAnswer: string }> {
@@ -77,7 +80,7 @@ export async function writeProducePrompt(input: WritePromptInput): Promise<{ sit
   const response = await anthropic().messages.parse({
     model: DEFAULT_MODEL,
     max_tokens: 1024,
-    system: WRITE_SYSTEM,
+    system: writeSystem(input.lang ?? "fr"),
     messages: [{ role: "user", content: user }],
     output_config: { format: zodOutputFormat(Prompt), effort: "low" },
   });

@@ -136,8 +136,8 @@ describe("goal texts", () => {
     expect(keys).toContain("village"); // eight times in the text
     expect(keys).not.toContain("saperlipopette"); // once, and rare: glossed in place, never a card
 
-    expect((await newAtomOrder(d, false)).phase).toBe("foundation");
-    expect((await newAtomOrder(d, false)).newOrder).toEqual([]);
+    expect((await newAtomOrder(d, "fr", false)).phase).toBe("foundation");
+    expect((await newAtomOrder(d, "fr", false)).newOrder).toEqual([]);
     expect(await goalLemmasForScenarios(d)).toContain("village");
     expect(phaseFor(0.79)).toBe("foundation");
     expect(phaseFor(0.8)).toBe("reading");

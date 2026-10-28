@@ -5,11 +5,13 @@
  * frequency is its share of running text, so "coverage" is the summed share of
  * known lemmas over the summed share of all 3000.
  */
-import { and, asc, gte, inArray, min, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, min, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { atoms, encounters, passages, reviewEvents } from "@/db/schema";
 import freq from "@/db/seed/frequency-fr.json";
+import wordsEl from "@/db/seed/words-el.json";
 import type { FrequencyEntry } from "@/lib/atoms/seed";
+import type { Lang } from "@/lib/lang";
 import { FRAGILE_TAPS, FRAGILE_WINDOW_DAYS } from "@/lib/scheduler/exposure";
 
 export const STRONG_STABILITY_DAYS = 21;
@@ -32,20 +34,33 @@ export interface VocabStats {
 
 const DAY_MS = 86_400_000;
 const FREQ = freq as FrequencyEntry[];
-const SHARE = new Map(FREQ.map((f) => [f.lemma, f.freqPerMillion]));
-const TOTAL_SHARE = FREQ.reduce((s, f) => s + f.freqPerMillion, 0);
+const SHARE = new Map(FREQ.map((f) => [f.lemma, f.freqPerMillion ?? 0]));
+const TOTAL_SHARE = FREQ.reduce((s, f) => s + (f.freqPerMillion ?? 0), 0);
 
-export function corpusCoverageOf(knownLemmas: Iterable<string>): number {
+/** Greek has no frequency list: every word in the tourist curriculum weighs the same. */
+const EL_WORDS = new Set((wordsEl as Array<{ lemma: string }>).map((w) => w.lemma));
+
+export function corpusCoverageOf(knownLemmas: Iterable<string>, lang: Lang = "fr"): number {
+  if (lang === "el") {
+    let n = 0;
+    for (const l of knownLemmas) if (EL_WORDS.has(l)) n++;
+    return EL_WORDS.size ? n / EL_WORDS.size : 0;
+  }
   let s = 0;
   for (const l of knownLemmas) s += SHARE.get(l) ?? 0;
   return TOTAL_SHARE ? s / TOTAL_SHARE : 0;
 }
 
-export async function vocabStats(d: Db, now = new Date()): Promise<VocabStats> {
+function shareOf(lemma: string, lang: Lang): number {
+  if (lang === "el") return EL_WORDS.has(lemma) ? 1 / EL_WORDS.size : 0;
+  return TOTAL_SHARE ? (SHARE.get(lemma) ?? 0) / TOTAL_SHARE : 0;
+}
+
+export async function vocabStats(d: Db, now = new Date(), lang: Lang = "fr"): Promise<VocabStats> {
   const known = await d
     .select({ id: atoms.id, key: atoms.key, type: atoms.type, stability: atoms.stability, lapses: atoms.lapses, lastReview: atoms.lastReview })
     .from(atoms)
-    .where(inArray(atoms.status, ["learning", "review"]));
+    .where(and(eq(atoms.lang, lang), inArray(atoms.status, ["learning", "review"])));
 
   const windowStart = new Date(now.getTime() - FRAGILE_WINDOW_DAYS * DAY_MS).toISOString();
   const tapRows = await d
@@ -67,7 +82,8 @@ export async function vocabStats(d: Db, now = new Date()): Promise<VocabStats> {
 
   const [pass] = await d
     .select({ total: sql<number>`count(*)::int`, read: sql<number>`count(*) filter (where ${passages.reads} > 0)::int` })
-    .from(passages);
+    .from(passages)
+    .where(eq(passages.lang, lang));
 
   return {
     total: known.length,
@@ -77,10 +93,10 @@ export async function vocabStats(d: Db, now = new Date()): Promise<VocabStats> {
     words: counts.word,
     chunks: counts.chunk,
     grammar: counts.grammar,
-    corpusCoverage: corpusCoverageOf(known.filter((a) => a.type === "word").map((a) => a.key)),
+    corpusCoverage: corpusCoverageOf(known.filter((a) => a.type === "word").map((a) => a.key), lang),
     passagesRead: pass?.read ?? 0,
     passagesTotal: pass?.total ?? 0,
-    series: await coverageSeries(d, now),
+    series: await coverageSeries(d, now, lang),
   };
 }
 
@@ -88,7 +104,7 @@ export async function vocabStats(d: Db, now = new Date()): Promise<VocabStats> {
  * Coverage over time: a word counts as known from the day of its first review
  * (or the day it was marked known). One point per day with a change, plus today.
  */
-export async function coverageSeries(d: Db, now = new Date()): Promise<VocabStats["series"]> {
+export async function coverageSeries(d: Db, now = new Date(), lang: Lang = "fr"): Promise<VocabStats["series"]> {
   const firsts = await d
     .select({ atomId: reviewEvents.atomId, first: min(reviewEvents.at) })
     .from(reviewEvents)
@@ -97,9 +113,9 @@ export async function coverageSeries(d: Db, now = new Date()): Promise<VocabStat
   const marked = await d
     .select({ id: atoms.id, key: atoms.key, at: atoms.markedKnownAt })
     .from(atoms)
-    .where(and(sql`${atoms.type} = 'word'`, sql`${atoms.markedKnownAt} is not null`));
+    .where(and(eq(atoms.lang, lang), sql`${atoms.type} = 'word'`, sql`${atoms.markedKnownAt} is not null`));
   const keys = new Map(
-    (await d.select({ id: atoms.id, key: atoms.key, type: atoms.type }).from(atoms).where(sql`${atoms.type} = 'word'`)).map((a) => [a.id, a.key]),
+    (await d.select({ id: atoms.id, key: atoms.key, type: atoms.type }).from(atoms).where(and(eq(atoms.lang, lang), sql`${atoms.type} = 'word'`))).map((a) => [a.id, a.key]),
   );
 
   const events: Array<{ day: string; key: string }> = [];
@@ -116,8 +132,8 @@ export async function coverageSeries(d: Db, now = new Date()): Promise<VocabStat
   for (const e of events) {
     if (seen.has(e.key)) continue;
     seen.add(e.key);
-    share += SHARE.get(e.key) ?? 0;
-    const coverage = TOTAL_SHARE ? share / TOTAL_SHARE : 0;
+    share += shareOf(e.key, lang);
+    const coverage = share;
     const last = series[series.length - 1];
     if (last && last.date === e.day) {
       last.coverage = coverage;

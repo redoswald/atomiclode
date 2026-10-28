@@ -16,7 +16,7 @@ export interface GlossBatchResult {
 
 const BATCH = 40;
 
-/** Gloss the next batch of unglossed word atoms, most frequent first. */
+/** Gloss the next batch of unglossed French word atoms, most frequent first. The Greek seeds ship glossed. */
 export async function glossNextBatch(): Promise<GlossBatchResult> {
   await requireAuth();
   if (!hasAnthropicKey()) {
@@ -26,7 +26,7 @@ export async function glossNextBatch(): Promise<GlossBatchResult> {
   const todo = await d
     .select({ id: atoms.id, lemma: atoms.key, pos: atoms.pos, gender: atoms.gender })
     .from(atoms)
-    .where(and(eq(atoms.type, "word"), eq(atoms.gloss, "")))
+    .where(and(eq(atoms.lang, "fr"), eq(atoms.type, "word"), eq(atoms.gloss, "")))
     .orderBy(asc(atoms.frequencyRank))
     .limit(BATCH);
   if (todo.length === 0) return { filled: 0, remaining: 0 };
@@ -52,6 +52,6 @@ async function unglossedCount(): Promise<number> {
   const [row] = await db()
     .select({ n: count() })
     .from(atoms)
-    .where(sql`${atoms.type} = 'word' and ${atoms.gloss} = ''`);
+    .where(sql`${atoms.lang} = 'fr' and ${atoms.type} = 'word' and ${atoms.gloss} = ''`);
   return row?.n ?? 0;
 }

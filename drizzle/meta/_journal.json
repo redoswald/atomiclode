@@ -50,6 +50,13 @@
       "when": 1789772083276,
       "tag": "0006_v2_scenarios_goals",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793188068489,
+      "tag": "0007_languages",
+      "breakpoints": true
     }
   ]
 }

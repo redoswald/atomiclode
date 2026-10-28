@@ -7,6 +7,7 @@ import type { Db } from "@/db";
 import { atoms, producePrompts, sentences, type ProducePromptRow } from "@/db/schema";
 import type { Atom, Grade } from "@/lib/atoms/types";
 import { gradeProduce, writeProducePrompt, type GradeProduceInput, type ProduceVerdict, type WritePromptInput } from "@/lib/llm/produce";
+import { isLang, type Lang } from "@/lib/lang";
 import { isKnownStatus } from "@/lib/reader/coverage";
 import { recordReview, type RecordReviewResult } from "./record";
 
@@ -45,7 +46,7 @@ export async function writePrompts(d: Db, wanted: Atom[], write: WritePromptFn =
           .from(sentences)
           .where(sql`${a.id}::uuid = any(${sentences.atomIds})`)
           .limit(1);
-        const written = await write({ target: { key: a.key, gloss: a.gloss, type: a.type }, domains: a.domains, sentence: met?.text });
+        const written = await write({ lang: a.lang, target: { key: a.key, gloss: a.gloss, type: a.type }, domains: a.domains, sentence: met?.text });
         const [row] = await d
           .insert(producePrompts)
           .values({ situation: written.situation, exampleAnswer: written.exampleAnswer, targetAtomIds: [a.id] })
@@ -70,9 +71,10 @@ export async function checkProduce(d: Db, promptId: string, answer: string, grad
   const text = answer.trim().slice(0, 600);
   if (!text) throw new Error("Type something first.");
   const targets = prompt.targetAtomIds.length
-    ? await d.select({ id: atoms.id, key: atoms.key, gloss: atoms.gloss }).from(atoms).where(inArray(atoms.id, prompt.targetAtomIds))
+    ? await d.select({ id: atoms.id, key: atoms.key, gloss: atoms.gloss, lang: atoms.lang }).from(atoms).where(inArray(atoms.id, prompt.targetAtomIds))
     : [];
-  const verdict = await grade({ situation: prompt.situation, targets, exampleAnswer: prompt.exampleAnswer, answer: text });
+  const lang = targets.find((t) => isLang(t.lang))?.lang as Lang | undefined;
+  const verdict = await grade({ lang: lang ?? "fr", situation: prompt.situation, targets: targets.map((t) => ({ key: t.key, gloss: t.gloss })), exampleAnswer: prompt.exampleAnswer, answer: text });
   const idByKey = new Map(targets.map((t) => [t.key, t.id]));
   return { ...verdict, usedAtomIds: verdict.used.map((k) => idByKey.get(k)).filter((x): x is string => Boolean(x)) };
 }

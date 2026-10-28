@@ -7,10 +7,30 @@ import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { atoms, passages, producePrompts, scenarios, scenarioVisits, sentences, type ScenarioRow, type ScenarioVisitRow } from "@/db/schema";
 import type { AtomType, MemoryStatus } from "@/lib/atoms/types";
-import { normalizeForm } from "@/lib/reader/lexicon";
+import { isLang, normalizeFor, type Lang } from "@/lib/lang";
+import { buildLexicon, frLexicon, type Lexicon } from "@/lib/reader/lexicon";
 import { createPassage } from "@/lib/reader/passages";
 import { analyzeLocal } from "@/lib/reader/tokenize";
 import { appearsIn, type BundleEntry, type VisitEntry } from "./seed";
+
+/** The lexicon for a language: the French table, or Greek built from the atoms' own forms. */
+export async function langLexicon(d: Db, lang: Lang): Promise<Lexicon> {
+  if (lang === "fr") return frLexicon;
+  const rows = await d.select({ key: atoms.key, forms: atoms.forms }).from(atoms).where(and(eq(atoms.lang, lang), inArray(atoms.type, ["word", "chunk"])));
+  return buildLexicon(lang, rows, normalizeFor(lang));
+}
+
+/** Find an atom by key, accent-insensitively for Greek (signs drop accents). */
+export async function findAtom(d: Db, lang: Lang, type: AtomType, key: string) {
+  const normalize = normalizeFor(lang);
+  if (lang === "fr" || type === "grammar") {
+    const [row] = await d.select().from(atoms).where(and(eq(atoms.lang, lang), eq(atoms.type, type), eq(atoms.key, type === "grammar" ? key : normalize(key))));
+    return row;
+  }
+  const want = normalize(key);
+  const rows = await d.select().from(atoms).where(and(eq(atoms.lang, lang), eq(atoms.type, type)));
+  return rows.find((r) => normalize(r.key) === want);
+}
 
 /** A bundle counts as absorbed, and the next visit is offered, once this share of it is no longer `new`. */
 export const BUNDLE_ABSORBED = 0.8;
@@ -23,20 +43,21 @@ interface EnsuredAtom {
 }
 
 /** Find or create the atom for a bundle entry. Grammar atoms are only ever linked, never invented here. */
-async function ensureAtom(d: Db, entry: BundleEntry, surfaces: string[]): Promise<EnsuredAtom | undefined> {
-  const key = entry.type === "grammar" ? entry.key : normalizeForm(entry.key);
-  const [existing] = await d.select().from(atoms).where(and(eq(atoms.type, entry.type), eq(atoms.key, key)));
+async function ensureAtom(d: Db, lang: Lang, entry: BundleEntry, surfaces: string[]): Promise<EnsuredAtom | undefined> {
+  // French keys are normalized (accents kept); Greek keys keep their accents for display and match loosely.
+  const key = entry.type === "grammar" ? entry.key : lang === "fr" ? normalizeFor("fr")(entry.key) : entry.key.trim().toLowerCase();
+  const existing = await findAtom(d, lang, entry.type, key);
   if (existing) {
     const forms = Array.from(new Set([...existing.forms, ...surfaces]));
     if (!existing.gloss || forms.length !== existing.forms.length) {
       await d.update(atoms).set({ gloss: existing.gloss || entry.gloss, forms }).where(eq(atoms.id, existing.id));
     }
-    return { id: existing.id, type: existing.type, key, status: existing.status };
+    return { id: existing.id, type: existing.type, key: existing.key, status: existing.status };
   }
   if (entry.type === "grammar") return undefined;
   const [row] = await d
     .insert(atoms)
-    .values({ type: entry.type, key, forms: Array.from(new Set([key, ...surfaces])), gloss: entry.gloss, source: "scenario", status: "new" })
+    .values({ lang, type: entry.type, key, forms: Array.from(new Set([key, ...surfaces])), gloss: entry.gloss, source: "scenario", status: "new" })
     .returning({ id: atoms.id });
   return { id: row.id, type: entry.type, key, status: "new" };
 }
@@ -46,24 +67,27 @@ async function ensureAtom(d: Db, entry: BundleEntry, surfaces: string[]): Promis
  * prompts. Bundle entries the dialogue doesn't actually use are dropped, and
  * only atoms still new to the learner make it into the bundle.
  */
-export async function storeVisit(d: Db, scenario: Pick<ScenarioRow, "id" | "title">, n: number, visit: VisitEntry, now = new Date()): Promise<string> {
-  const { tokens } = analyzeLocal(visit.dialogue);
-  const used = visit.bundle.filter((b) => appearsIn(b, tokens));
+export async function storeVisit(d: Db, scenario: Pick<ScenarioRow, "id" | "title"> & { lang?: string }, n: number, visit: VisitEntry, now = new Date()): Promise<string> {
+  const lang: Lang = isLang(scenario.lang) ? scenario.lang : "fr";
+  const normalize = normalizeFor(lang);
+  const ctx = { lang, lexicon: await langLexicon(d, lang) };
+  const { tokens } = analyzeLocal(visit.dialogue, ctx);
+  const used = visit.bundle.filter((b) => appearsIn(b, tokens, ctx));
   if (used.filter((b) => b.type !== "grammar").length < 3) throw new Error("That visit taught too little; try again.");
 
   const byKey = new Map<string, EnsuredAtom>();
   const bundle: string[] = [];
   for (const entry of used) {
-    const key = normalizeForm(entry.key);
-    const surfaces = entry.type === "word" ? tokens.filter((t) => t.isWord && t.lemma === key).map((t) => normalizeForm(t.surface)) : [];
-    const atom = await ensureAtom(d, entry, surfaces);
+    const key = normalize(entry.key);
+    const surfaces = entry.type === "word" ? tokens.filter((t) => t.isWord && normalize(t.lemma) === key).map((t) => (lang === "fr" ? normalize(t.surface) : t.surface.toLowerCase())) : [];
+    const atom = await ensureAtom(d, lang, entry, surfaces);
     if (!atom) continue;
     byKey.set(entry.key, atom);
     if (atom.status === "new" && !bundle.includes(atom.id)) bundle.push(atom.id);
   }
 
   // Atoms first, passage second: the bundle's chunks must exist for the analysis to mark them.
-  const { id: passageId } = await createPassage(d, { title: n === 1 ? scenario.title : `${scenario.title} · ${n}`, text: visit.dialogue, origin: "scenario" });
+  const { id: passageId } = await createPassage(d, { lang, title: n === 1 ? scenario.title : `${scenario.title} · ${n}`, text: visit.dialogue, origin: "scenario" });
   const [row] = await d
     .insert(scenarioVisits)
     .values({ scenarioId: scenario.id, n, brief: visit.brief, summary: visit.summary, passageId, translation: visit.translation, bundle, createdAt: now.toISOString() })
@@ -72,10 +96,10 @@ export async function storeVisit(d: Db, scenario: Pick<ScenarioRow, "id" | "titl
   for (const p of visit.prompts) {
     const targetAtomIds = p.targets.map((t) => byKey.get(t)?.id).filter((x): x is string => Boolean(x));
     // Seed prompts may reach back to an earlier scenario's atoms.
-    const missing = p.targets.filter((t) => !byKey.has(t)).map(normalizeForm);
-    if (missing.length) {
-      const found = await d.select({ id: atoms.id }).from(atoms).where(and(inArray(atoms.type, ["word", "chunk"]), inArray(atoms.key, missing)));
-      targetAtomIds.push(...found.map((f) => f.id));
+    const missing = p.targets.filter((t) => !byKey.has(t));
+    for (const t of missing) {
+      const found = (await findAtom(d, lang, "word", t)) ?? (await findAtom(d, lang, "chunk", t));
+      if (found) targetAtomIds.push(found.id);
     }
     if (targetAtomIds.length === 0) continue;
     await d.insert(producePrompts).values({ visitId: row.id, situation: p.situation, exampleAnswer: p.exampleAnswer, targetAtomIds });
@@ -101,10 +125,12 @@ export async function startVisit(d: Db, visitId: string, now = new Date()): Prom
 
   const [passage] = await d.select().from(passages).where(eq(passages.id, visit.passageId));
   if (!passage) return;
+  const lang: Lang = isLang(passage.lang) ? passage.lang : "fr";
+  const ctx = { lang, lexicon: await langLexicon(d, lang) };
   const bundleAtoms = await d.select({ id: atoms.id, type: atoms.type, key: atoms.key }).from(atoms).where(inArray(atoms.id, visit.bundle));
   for (let idx = 0; idx < passage.sentenceTexts.length; idx++) {
     const lineTokens = passage.tokens.filter((t) => t.sentenceIdx === idx);
-    const atomIds = bundleAtoms.filter((a) => a.type !== "grammar" && appearsIn({ type: a.type, key: a.key, gloss: "" }, lineTokens)).map((a) => a.id);
+    const atomIds = bundleAtoms.filter((a) => a.type !== "grammar" && appearsIn({ type: a.type, key: a.key, gloss: "" }, lineTokens, ctx)).map((a) => a.id);
     if (atomIds.length === 0) continue;
     const [existing] = await d
       .select({ id: sentences.id, atomIds: sentences.atomIds })
@@ -113,14 +139,19 @@ export async function startVisit(d: Db, visitId: string, now = new Date()): Prom
     if (existing) {
       await d.update(sentences).set({ atomIds: Array.from(new Set([...existing.atomIds, ...atomIds])) }).where(eq(sentences.id, existing.id));
     } else {
-      await d.insert(sentences).values({ text: passage.sentenceTexts[idx], atomIds, origin: "scenario", sourceRef: `visit:${visitId}`, passageId: passage.id, passageIdx: idx });
+      await d.insert(sentences).values({ lang, text: passage.sentenceTexts[idx], atomIds, origin: "scenario", sourceRef: `visit:${visitId}`, passageId: passage.id, passageIdx: idx });
     }
   }
 }
 
 /** Bundles of the visits in progress, oldest first: the scheduler's `newOrder` (SPEC §4.2). */
-export async function scenarioNewOrder(d: Db): Promise<string[]> {
-  const rows = await d.select({ bundle: scenarioVisits.bundle }).from(scenarioVisits).where(isNotNull(scenarioVisits.startedAt)).orderBy(asc(scenarioVisits.startedAt));
+export async function scenarioNewOrder(d: Db, lang: Lang = "fr"): Promise<string[]> {
+  const rows = await d
+    .select({ bundle: scenarioVisits.bundle })
+    .from(scenarioVisits)
+    .innerJoin(scenarios, eq(scenarios.id, scenarioVisits.scenarioId))
+    .where(and(isNotNull(scenarioVisits.startedAt), eq(scenarios.lang, lang)))
+    .orderBy(asc(scenarioVisits.startedAt));
   return Array.from(new Set(rows.flatMap((r) => r.bundle)));
 }
 
@@ -140,9 +171,9 @@ export interface ScenarioState {
   lastStartedAt?: string;
 }
 
-export async function scenarioStates(d: Db): Promise<ScenarioState[]> {
+export async function scenarioStates(d: Db, lang: Lang = "fr"): Promise<ScenarioState[]> {
   const [all, visits] = await Promise.all([
-    d.select().from(scenarios).orderBy(asc(scenarios.createdAt)),
+    d.select().from(scenarios).where(eq(scenarios.lang, lang)).orderBy(asc(scenarios.createdAt)),
     d.select().from(scenarioVisits).orderBy(asc(scenarioVisits.n)),
   ]);
   const bundleIds = Array.from(new Set(visits.flatMap((v) => v.bundle)));
@@ -194,7 +225,11 @@ export function scenariosLead(states: ScenarioState[], canGenerate: boolean): bo
   return states.some((s) => s.state === "learning") || suggestVisit(states, canGenerate) !== undefined;
 }
 
-export async function visitCount(d: Db): Promise<number> {
-  const [row] = await d.select({ n: sql<number>`count(*)::int` }).from(scenarioVisits);
+export async function visitCount(d: Db, lang: Lang = "fr"): Promise<number> {
+  const [row] = await d
+    .select({ n: sql<number>`count(*)::int` })
+    .from(scenarioVisits)
+    .innerJoin(scenarios, eq(scenarios.id, scenarioVisits.scenarioId))
+    .where(eq(scenarios.lang, lang));
   return row?.n ?? 0;
 }

@@ -28,7 +28,9 @@ Target language for v1: French. Base language: English.
 
 **In (v2, milestones 6–8):** situational produce cards, scenarios, goal texts.
 
-**Out for now:** voice/pronunciation, open-ended AI conversation, audio in the reader, native iOS/Android (the PWA is the phone app until offline, audio, or a share sheet justify more), languages other than French, PDF/epub import, per-user FSRS parameter fitting, social features, gamification of any kind.
+**In (v3):** a second track. Greek for travellers: alphabet, signs, phrases, core words and nine scenes, switched from the header; every atom, passage, scene and goal is scoped by `lang`, so the two tracks never mix. Greek lemmas come from the curriculum's own forms (accent- and case-insensitive, so ΕΞΟΔΟΣ reads as έξοδος); answers may be typed in Latin letters against the romanization.
+
+**Out for now:** voice/pronunciation, open-ended AI conversation, audio in the reader, native iOS/Android (the PWA is the phone app until offline, audio, or a share sheet justify more), languages beyond French and Greek, PDF/epub import, per-user FSRS parameter fitting, social features, gamification of any kind.
 
 ---
 

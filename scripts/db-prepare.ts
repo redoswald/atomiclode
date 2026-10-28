@@ -17,7 +17,7 @@ import { db, isPglite } from "@/db";
 import * as schema from "@/db/schema";
 import { seedAtoms } from "@/db/seed/run";
 import { seedScenarios } from "@/db/seed/scenarios";
-import type { ChunkEntry, FrequencyEntry, GrammarEntry } from "@/lib/atoms/seed";
+import type { ChunkEntry, GrammarEntry, WordEntry } from "@/lib/atoms/seed";
 import type { ScenarioEntry } from "@/lib/scenarios/seed";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -47,12 +47,19 @@ async function main() {
 
   console.log("db:prepare — seeding atoms…");
   const result = await seedAtoms(target, {
-    freq: load<FrequencyEntry[]>("frequency-fr.json"),
+    freq: load<WordEntry[]>("frequency-fr.json"),
     chunks: load<ChunkEntry[]>("chunks-fr.json"),
     grammar: load<GrammarEntry[]>("grammar-fr.json"),
   });
   console.log(`db:prepare — upserted ${result.upserted} atoms, linked ${result.linked} chunks.`);
-  const seeded = await seedScenarios(target, load<ScenarioEntry[]>("scenarios-fr.json"));
+  const seeded = await seedScenarios(target, load<ScenarioEntry[]>("scenarios-fr.json"), "fr");
+  const el = await seedAtoms(
+    target,
+    { freq: load<WordEntry[]>("words-el.json"), chunks: load<ChunkEntry[]>("chunks-el.json"), grammar: load<GrammarEntry[]>("grammar-el.json") },
+    "el",
+  );
+  const elSeeded = await seedScenarios(target, load<ScenarioEntry[]>("scenarios-el.json"), "el");
+  console.log(`db:prepare — el: ${el.upserted} atoms, ${elSeeded.scenarios} scenarios, ${elSeeded.visitsWritten} first visits written.`);
   console.log(`db:prepare — ${seeded.scenarios} scenarios, ${seeded.visitsWritten} first visits written.`);
   if (result.unglossed) {
     console.log(`db:prepare — ${result.unglossed} words still have no gloss (run \`npm run seed:gloss\`).`);

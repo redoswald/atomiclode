@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { rehearse } from "@/app/actions/scenario";
+import { LANG_SPECS, type Lang } from "@/lib/lang";
 import type { ProduceCheck } from "@/lib/review/produce";
 
 export interface RehearsalPrompt {
@@ -11,19 +12,19 @@ export interface RehearsalPrompt {
 }
 
 /** "Your turn": say it once now, with nothing at stake. The same prompts come back as graded cards weeks later. */
-export function Rehearsal({ prompts }: { prompts: RehearsalPrompt[] }) {
+export function Rehearsal({ prompts, lang = "fr" }: { prompts: RehearsalPrompt[]; lang?: Lang }) {
   return (
     <ol className="mt-4 space-y-6">
       {prompts.map((p) => (
         <li key={p.id}>
-          <One prompt={p} />
+          <One prompt={p} lang={lang} />
         </li>
       ))}
     </ol>
   );
 }
 
-function One({ prompt }: { prompt: RehearsalPrompt }) {
+function One({ prompt, lang }: { prompt: RehearsalPrompt; lang: Lang }) {
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ProduceCheck | { error: string } | undefined>();
@@ -49,11 +50,11 @@ function One({ prompt }: { prompt: RehearsalPrompt }) {
         <input
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
-          placeholder="En français…"
+          placeholder={LANG_SPECS[lang].typePlaceholder}
           autoCapitalize="sentences"
           autoCorrect="off"
           spellCheck={false}
-          lang="fr"
+          lang={lang}
           className="field min-w-0 flex-1"
         />
         <button className="btn-secondary shrink-0 text-sm" disabled={busy || !typed.trim()}>
@@ -66,7 +67,7 @@ function One({ prompt }: { prompt: RehearsalPrompt }) {
             <>
               <p className={verdict.ok ? "text-ok" : "text-bad"}>{verdict.ok ? "That works" : "Not quite"}</p>
               {verdict.natural && verdict.natural !== typed.trim() && (
-                <p className="font-display mt-1 text-xl" lang="fr">
+                <p className="font-display mt-1 text-xl" lang={lang}>
                   {verdict.natural}
                 </p>
               )}
@@ -77,7 +78,7 @@ function One({ prompt }: { prompt: RehearsalPrompt }) {
           )}
           <p className="mt-2 text-muted">
             One way to say it:{" "}
-            <span className="text-ink" lang="fr">
+            <span className="text-ink" lang={lang}>
               {prompt.exampleAnswer}
             </span>
           </p>

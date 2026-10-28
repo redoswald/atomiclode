@@ -6,6 +6,7 @@
  */
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
+import { isLang, type Lang } from "@/lib/lang";
 import { atoms, goalCoverage, goals, passages, type GoalRow, type PassageRow } from "@/db/schema";
 import type { Level } from "@/lib/llm/adapt";
 import { glossLemmas, type GlossRequest } from "@/lib/llm/gloss";
@@ -33,11 +34,11 @@ interface AtomIndexRow extends AtomLite {
   rank: number | null;
 }
 
-async function atomIndex(d: Db) {
+async function atomIndex(d: Db, lang: Lang = "fr") {
   const rows = await d
     .select({ id: atoms.id, key: atoms.key, type: atoms.type, status: atoms.status, gloss: atoms.gloss, rank: atoms.frequencyRank })
     .from(atoms)
-    .where(inArray(atoms.type, ["word", "chunk"]));
+    .where(and(eq(atoms.lang, lang), inArray(atoms.type, ["word", "chunk"])));
   const words = new Map<string, AtomIndexRow>();
   const chunks = new Map<string, AtomIndexRow>();
   for (const r of rows) (r.type === "chunk" ? chunks : words).set(r.key, r);
@@ -66,12 +67,12 @@ export async function pinGoal(d: Db, passageId: string, now = new Date()): Promi
   if (parts.length > 1) {
     passageIds = [];
     for (const [i, text] of parts.entries()) {
-      const { id } = await createPassage(d, { title: `${title} · ${i + 1}/${parts.length}`, text, origin: "imported", sourceRef: original.sourceRef ?? undefined });
+      const { id } = await createPassage(d, { lang: isLang(original.lang) ? original.lang : "fr", title: `${title} · ${i + 1}/${parts.length}`, text, origin: "imported", sourceRef: original.sourceRef ?? undefined });
       passageIds.push(id);
     }
   }
   await d.update(passages).set({ genre: GOAL_SECTION_GENRE }).where(inArray(passages.id, passageIds));
-  const [row] = await d.insert(goals).values({ title, passageIds, status: "waiting", pinnedAt: now.toISOString() }).returning({ id: goals.id });
+  const [row] = await d.insert(goals).values({ lang: isLang(original.lang) ? original.lang : "fr", title, passageIds, status: "waiting", pinnedAt: now.toISOString() }).returning({ id: goals.id });
   await activate(d, row.id);
   return row.id;
 }
@@ -82,13 +83,17 @@ export async function activate(d: Db, goalId: string): Promise<void> {
   await d.update(goals).set({ status: "active" }).where(and(eq(goals.id, goalId), sql`${goals.status} <> 'reached'`));
 }
 
-export async function activeGoal(d: Db): Promise<GoalRow | undefined> {
-  const [row] = await d.select().from(goals).where(eq(goals.status, "active")).orderBy(desc(goals.pinnedAt)).limit(1);
+export async function activeGoal(d: Db, lang: Lang = "fr"): Promise<GoalRow | undefined> {
+  const [row] = await d.select().from(goals).where(and(eq(goals.status, "active"), eq(goals.lang, lang))).orderBy(desc(goals.pinnedAt)).limit(1);
   return row;
 }
 
-export async function listGoals(d: Db): Promise<GoalRow[]> {
-  return d.select().from(goals).orderBy(desc(goals.pinnedAt));
+export async function listGoals(d: Db, lang: Lang = "fr"): Promise<GoalRow[]> {
+  return d.select().from(goals).where(eq(goals.lang, lang)).orderBy(desc(goals.pinnedAt));
+}
+
+export function goalLang(goal: Pick<GoalRow, "lang">): Lang {
+  return isLang(goal.lang) ? goal.lang : "fr";
 }
 
 // ---- coverage and the ladder ---------------------------------------------------------
@@ -132,7 +137,7 @@ async function sectionRows(d: Db, goal: GoalRow): Promise<PassageRow[]> {
 export async function goalView(d: Db, goalId: string, now = new Date()): Promise<GoalView | undefined> {
   const [goal] = await d.select().from(goals).where(eq(goals.id, goalId));
   if (!goal) return undefined;
-  const [index, rows] = await Promise.all([atomIndex(d), sectionRows(d, goal)]);
+  const [index, rows] = await Promise.all([atomIndex(d, goalLang(goal)), sectionRows(d, goal)]);
   const cover = (p: PassageRow) => computeCoverage(p.tokens, (l) => index.words.get(l), (k) => index.chunks.get(k));
 
   const refs = rows.flatMap((r) => LADDER.map((level) => `passage:${r.id}#${level}`));
@@ -216,10 +221,10 @@ function goalUnknowns(rows: PassageRow[], words: Map<string, AtomIndexRow>): Goa
 }
 
 /** The active goal's contribution to the scheduler's `newOrder`: its grammar, then its words by how often they occur in it. */
-export async function goalNewOrder(d: Db): Promise<string[]> {
-  const goal = await activeGoal(d);
+export async function goalNewOrder(d: Db, lang: Lang = "fr"): Promise<string[]> {
+  const goal = await activeGoal(d, lang);
   if (!goal) return [];
-  const [index, rows] = await Promise.all([atomIndex(d), sectionRows(d, goal)]);
+  const [index, rows] = await Promise.all([atomIndex(d, lang), sectionRows(d, goal)]);
   const wordsInOrder = goalUnknowns(rows, index.words)
     .filter((u) => u.qualifies && u.atom && u.atom.status === "new" && u.atom.gloss.trim() !== "")
     .map((u) => u.atom!.id);
@@ -227,10 +232,10 @@ export async function goalNewOrder(d: Db): Promise<string[]> {
 }
 
 /** Unknown goal lemmas for the scenario generator's candidate list, so the goal reaches back into the foundation. */
-export async function goalLemmasForScenarios(d: Db, limit = 30): Promise<string[]> {
-  const goal = await activeGoal(d);
+export async function goalLemmasForScenarios(d: Db, limit = 30, lang: Lang = "fr"): Promise<string[]> {
+  const goal = await activeGoal(d, lang);
   if (!goal) return [];
-  const [index, rows] = await Promise.all([atomIndex(d), sectionRows(d, goal)]);
+  const [index, rows] = await Promise.all([atomIndex(d, lang), sectionRows(d, goal)]);
   return goalUnknowns(rows, index.words)
     .filter((u) => u.qualifies)
     .slice(0, limit)
@@ -239,7 +244,7 @@ export async function goalLemmasForScenarios(d: Db, limit = 30): Promise<string[
 
 // ---- preparing a goal (needs a model) ---------------------------------------------------
 
-export type GlossFn = (items: GlossRequest[]) => Promise<Map<string, string>>;
+export type GlossFn = (items: GlossRequest[], lang?: Lang) => Promise<Map<string, string>>;
 export type SurveyFn = (input: SurveyInput) => Promise<Survey>;
 
 /** How many goal words are glossed (and so made learnable) per call. */
@@ -259,17 +264,22 @@ export async function prepareGoal(
 ): Promise<{ glossed: number; grammar: number; scenes: number }> {
   const [goal] = await d.select().from(goals).where(eq(goals.id, goalId));
   if (!goal) throw new Error("unknown goal");
-  const [index, rows] = await Promise.all([atomIndex(d), sectionRows(d, goal)]);
+  const lang = goalLang(goal);
+  const [index, rows] = await Promise.all([atomIndex(d, lang), sectionRows(d, goal)]);
   const needGloss = goalUnknowns(rows, index.words)
     .filter((u) => u.qualifies && !(u.atom && u.atom.gloss.trim()))
     .slice(0, GLOSS_BATCH);
-  const grammarRows = await d.select({ id: atoms.id, key: atoms.key, gloss: atoms.gloss, status: atoms.status }).from(atoms).where(eq(atoms.type, "grammar"));
+  const grammarRows = await d
+    .select({ id: atoms.id, key: atoms.key, gloss: atoms.gloss, status: atoms.status })
+    .from(atoms)
+    .where(and(eq(atoms.lang, lang), eq(atoms.type, "grammar")));
 
   const [glosses, survey] = await Promise.all([
-    needGloss.length ? (fns.gloss ?? glossLemmas)(needGloss.map((u) => ({ lemma: u.lemma }))) : new Map<string, string>(),
+    needGloss.length ? (fns.gloss ?? glossLemmas)(needGloss.map((u) => ({ lemma: u.lemma })), lang) : new Map<string, string>(),
     goal.surveyedAt
       ? undefined
       : (fns.survey ?? surveyText)({
+          lang,
           title: goal.title,
           text: rows.map((r) => r.text).join("\n\n").split(/\s+/).slice(0, 1500).join(" "),
           grammar: grammarRows.map((g) => ({ key: g.key, gloss: g.gloss, known: isKnownStatus(g.status) })),
@@ -281,7 +291,7 @@ export async function prepareGoal(
     const gloss = glosses.get(u.lemma);
     if (!gloss) continue;
     if (u.atom) await d.update(atoms).set({ gloss }).where(eq(atoms.id, u.atom.id));
-    else await d.insert(atoms).values({ type: "word", key: u.lemma, forms: [u.lemma], gloss, source: "goal", status: "new" }).onConflictDoNothing();
+    else await d.insert(atoms).values({ lang, type: "word", key: u.lemma, forms: [u.lemma], gloss, source: "goal", status: "new" }).onConflictDoNothing();
     glossed++;
   }
 
@@ -297,7 +307,7 @@ export async function prepareGoal(
     }
     const [row] = await d
       .insert(atoms)
-      .values({ type: "grammar", key, forms: [], gloss: g.gloss.trim(), explanation: g.explanation.trim(), receptiveOnly: g.receptiveOnly, source: "goal", status: "new" })
+      .values({ lang, type: "grammar", key, forms: [], gloss: g.gloss.trim(), explanation: g.explanation.trim(), receptiveOnly: g.receptiveOnly, source: "goal", status: "new" })
       .returning({ id: atoms.id });
     grammarAtomIds.push(row.id);
   }

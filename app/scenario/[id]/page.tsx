@@ -4,7 +4,8 @@ import { nextVisit } from "@/app/actions/scenario";
 import { Shell } from "@/app/components/shell";
 import { Reader } from "@/app/read/[id]/reader";
 import { db, hasDatabase } from "@/db";
-import { atoms, producePrompts } from "@/db/schema";
+import { atoms, producePrompts, scenarios } from "@/db/schema";
+import { isLang, LANG_SPECS } from "@/lib/lang";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { openPassage } from "@/lib/reader/passages";
 import { scenarioStates, startVisit } from "@/lib/scenarios/visits";
@@ -19,7 +20,10 @@ export default async function ScenarioPage({ params, searchParams }: PageProps<"
   const { visit: visitParam, error } = await searchParams;
   if (!hasDatabase() || !/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const d = db();
-  const state = (await scenarioStates(d)).find((s) => s.scenario.id === id);
+  const [row] = await d.select({ lang: scenarios.lang }).from(scenarios).where(eq(scenarios.id, id));
+  if (!row) notFound();
+  const lang = isLang(row.lang) ? row.lang : "fr";
+  const state = (await scenarioStates(d, lang)).find((s) => s.scenario.id === id);
   if (!state) notFound();
   const hasKey = hasAnthropicKey();
   const { scenario, visits } = state;
@@ -30,7 +34,9 @@ export default async function ScenarioPage({ params, searchParams }: PageProps<"
   if (!current) {
     return (
       <Shell back={{ href: "/scenario", label: "Scenes" }}>
-        <h1 className="font-display text-4xl leading-tight">{scenario.title || "Sans titre"}</h1>
+        <h1 className="font-display text-4xl leading-tight" lang={lang}>
+          {scenario.title || LANG_SPECS[lang].untitled}
+        </h1>
         <p className="mt-2 text-sm text-muted">{scenario.brief}</p>
         <NextVisitForm scenarioId={id} label="Write the first visit" hasKey={hasKey} />
       </Shell>
@@ -54,8 +60,8 @@ export default async function ScenarioPage({ params, searchParams }: PageProps<"
         Visit {current.visit.n}
         {visits.length > 1 && ` of ${visits.length}`}
       </p>
-      <h1 className="font-display mt-2 text-4xl leading-tight" lang="fr">
-        {scenario.title || "Sans titre"}
+      <h1 className="font-display mt-2 text-4xl leading-tight" lang={lang}>
+        {scenario.title || LANG_SPECS[lang].untitled}
       </h1>
       <p className="mt-3 text-sm text-muted">{scenario.brief}</p>
       <p className="mt-2 text-base">{current.visit.brief}</p>
@@ -96,7 +102,7 @@ export default async function ScenarioPage({ params, searchParams }: PageProps<"
         <section className="card mt-4 p-5">
           <h2 className="font-display text-2xl">Your turn</h2>
           <p className="eyebrow mt-1">A rehearsal. Nothing is graded.</p>
-          <Rehearsal prompts={prompts.map((p) => ({ id: p.id, situation: p.situation, exampleAnswer: p.exampleAnswer }))} />
+          <Rehearsal lang={lang} prompts={prompts.map((p) => ({ id: p.id, situation: p.situation, exampleAnswer: p.exampleAnswer }))} />
         </section>
       )}
 

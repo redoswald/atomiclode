@@ -5,6 +5,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db, hasDatabase } from "@/db";
 import { isAuthenticated } from "@/lib/auth";
+import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { askWhy, type WhyRequest } from "@/lib/reader/why";
 
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const answer = await askWhy(db(), {
+      lang: await currentLang(),
       atomId: typeof body.atomId === "string" ? body.atomId : undefined,
       lemma: typeof body.lemma === "string" ? body.lemma : undefined,
       surface: typeof body.surface === "string" ? body.surface : undefined,

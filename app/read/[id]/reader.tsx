@@ -3,6 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { alreadyKnow, mine, tapWord } from "@/app/actions/reader";
 import { WhyPanel } from "@/app/why-panel";
+import { normalizeFor } from "@/lib/lang";
 import type { PassageView, ViewToken } from "@/lib/reader/passages";
 
 type LemmaState = "unknown" | "queued" | "known";
@@ -13,6 +14,7 @@ interface Selection {
   gloss?: string;
   lemmaGloss?: string;
   translation?: string;
+  romanization?: string;
   loading: boolean;
   error?: string;
 }
@@ -46,12 +48,12 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
     const token = view.tokens[index];
     if (!token.isWord) return;
     const sentence = view.sentences[token.sentenceIdx] ?? "";
-    setSel({ index, token, gloss: token.gloss || undefined, loading: canGloss, error: undefined });
+    setSel({ index, token, gloss: token.gloss || undefined, romanization: token.romanization, loading: canGloss, error: undefined });
     if (!canGloss) return;
     const r = await tapWord({ passageId: view.id, atomId: token.atomId, lemma: token.lemma, surface: token.surface, sentence });
     setSel((s) =>
       s && s.index === index
-        ? { ...s, loading: false, gloss: r.gloss ?? s.gloss, lemmaGloss: r.lemmaGloss, translation: r.translation, error: r.error }
+        ? { ...s, loading: false, gloss: r.gloss ?? s.gloss, lemmaGloss: r.lemmaGloss, translation: r.translation, romanization: s.romanization ?? r.romanization, error: r.error }
         : s,
     );
   }
@@ -96,7 +98,7 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
 
   return (
     <>
-      <article className="font-display mt-6 whitespace-pre-wrap text-[1.35rem] leading-9" lang="fr">
+      <article className="font-display mt-6 whitespace-pre-wrap text-[1.35rem] leading-9" lang={view.lang}>
         {view.tokens.map((t, i) => {
           if (!t.isWord) {
             return (
@@ -131,9 +133,12 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line" />
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="font-display text-3xl leading-none">{sel.token.surface}</p>
+                <p className="font-display text-3xl leading-none" lang={view.lang}>
+                  {sel.token.surface}
+                </p>
                 <p className="mt-1 text-sm text-muted">
-                  {sel.token.lemma !== sel.token.surface.toLowerCase() ? `form of ${sel.token.lemma}` : sel.token.lemma}
+                  {sel.romanization && <span className="mr-2 text-ink">{sel.romanization}</span>}
+                  <span lang={view.lang}>{baseForm(sel.token, view.lang) ?? ""}</span>
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -150,7 +155,7 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
             {sel.error && <p className="mt-1 text-xs text-muted">{sel.error}</p>}
 
             <div className="mt-3 border-t border-line pt-3">
-              <p className="text-sm" lang="fr">
+              <p className="text-sm" lang={view.lang}>
                 <SentenceWithMark sentence={sentence} surface={sel.token.surface} />
               </p>
               {sel.translation && <p className="mt-1 text-sm italic text-muted">{sel.translation}</p>}
@@ -197,4 +202,11 @@ function SentenceWithMark({ sentence, surface }: { sentence: string; surface: st
       {sentence.slice(i + surface.length)}
     </>
   );
+}
+
+/** "form of καλησπέρα" when the surface is an inflection; nothing when it is the dictionary form itself. */
+function baseForm(token: ViewToken, lang: PassageView["lang"]): string | undefined {
+  const base = token.atomKey ?? token.lemma;
+  const same = normalizeFor(lang)(base) === normalizeFor(lang)(token.surface);
+  return same ? (token.atomKey ? undefined : base) : `form of ${base}`;
 }

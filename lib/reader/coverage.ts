@@ -5,7 +5,9 @@
  */
 import type { PassageToken } from "@/db/schema";
 import type { MemoryStatus } from "@/lib/atoms/types";
+import type { Lang } from "@/lib/lang";
 import { matchChunks } from "./chunks";
+import type { Lexicon } from "./lexicon";
 import type { Token } from "./tokenize";
 
 export interface AtomLite {
@@ -14,6 +16,7 @@ export interface AtomLite {
   status: MemoryStatus;
   gloss: string;
   pos?: string | null;
+  romanization?: string | null;
 }
 
 export interface CoverageReport {
@@ -31,8 +34,8 @@ export function isKnownStatus(status: MemoryStatus | undefined): boolean {
 }
 
 /** Attach chunk keys to analysed tokens so they can be stored on the passage. */
-export function toPassageTokens(tokens: Token[], chunkKeys: string[]): PassageToken[] {
-  const chunks = matchChunks(tokens, chunkKeys);
+export function toPassageTokens(tokens: Token[], chunkKeys: string[], lang: Lang = "fr", lexicon?: Lexicon): PassageToken[] {
+  const chunks = matchChunks(tokens, chunkKeys, lang, lexicon);
   return tokens.map((t, i) => {
     const chunkKey = chunks.get(i);
     return {

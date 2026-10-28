@@ -59,6 +59,7 @@ const timestamptz = (name: string) => timestamp(name, { withTimezone: true, mode
 
 export const passages = pgTable("passages", {
   id: uuid("id").primaryKey().defaultRandom(),
+  lang: text("lang").notNull().default("fr"),
   title: text("title"),
   origin: passageOriginEnum("origin").notNull(),
   sourceRef: text("source_ref"),
@@ -103,7 +104,9 @@ export const atoms = pgTable(
     gloss: text("gloss").notNull().default(""),
     explanation: text("explanation"),
     pos: text("pos"),
-    gender: text("gender").$type<"m" | "f">(),
+    gender: text("gender").$type<"m" | "f" | "n">(),
+    /** Latin-letter rendering for scripts the learner can't read yet (Greek). */
+    romanization: text("romanization"),
     frequencyRank: integer("frequency_rank"),
     domains: text("domains").array().notNull().default([]),
     relatedAtoms: uuid("related_atoms").array().notNull().default([]),
@@ -143,6 +146,7 @@ export const sentences = pgTable(
   "sentences",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    lang: text("lang").notNull().default("fr"),
     text: text("text").notNull(),
     translation: text("translation"),
     audioUrl: text("audio_url"),
@@ -235,6 +239,7 @@ export const sentenceTranslations = pgTable("sentence_translations", {
 
 export const goals = pgTable("goals", {
   id: uuid("id").primaryKey().defaultRandom(),
+  lang: text("lang").notNull().default("fr"),
   title: text("title").notNull(),
   status: text("status").$type<"active" | "waiting" | "reached">().notNull().default("active"),
   /** Section passages in reading order; each is an ordinary imported passage. */
@@ -267,6 +272,7 @@ export const scenarios = pgTable(
   "scenarios",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    lang: text("lang").notNull().default("fr"),
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     brief: text("brief").notNull(),

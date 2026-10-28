@@ -10,14 +10,18 @@ import type { MemoryStatus, SentenceOrigin } from "@/lib/atoms/types";
 import { knownMemoryState } from "@/lib/scheduler";
 import { analyzeText, type AnalysisSource } from "./analyze";
 import { computeCoverage, isKnownStatus, toPassageTokens, type AtomLite } from "./coverage";
-import { normalizeForm } from "./lexicon";
+import { isLang, normalizeFor, type Lang } from "@/lib/lang";
+import { buildLexicon, frLexicon, type Lexicon } from "./lexicon";
 
 export interface ViewToken extends PassageToken {
   /** Present when a word or chunk atom exists for this token. */
   atomId?: string;
+  /** The atom's own key (accented, for Greek), for display. */
+  atomKey?: string;
   status?: MemoryStatus;
   gloss?: string;
   pos?: string;
+  romanization?: string;
   known: boolean;
 }
 
@@ -25,6 +29,7 @@ export type PassageOrigin = "imported" | "generated" | "scenario";
 
 export interface PassageView {
   id: string;
+  lang: Lang;
   title: string | null;
   origin: PassageOrigin;
   sourceRef: string | null;
@@ -50,22 +55,32 @@ export interface PassageSummary {
 }
 
 interface AtomIndex {
+  lang: Lang;
+  /** Word atoms by normalized key (Greek: accents stripped, so ΕΞΟΔΟΣ finds έξοδος). */
   words: Map<string, AtomLite>;
   chunks: Map<string, AtomLite>;
+  lexicon: Lexicon;
 }
 
-async function loadAtomIndex(d: Db): Promise<AtomIndex> {
+async function loadAtomIndex(d: Db, lang: Lang): Promise<AtomIndex> {
+  const normalize = normalizeFor(lang);
   const rows = await d
-    .select({ id: atoms.id, key: atoms.key, type: atoms.type, status: atoms.status, gloss: atoms.gloss, pos: atoms.pos })
+    .select({ id: atoms.id, key: atoms.key, type: atoms.type, status: atoms.status, gloss: atoms.gloss, pos: atoms.pos, romanization: atoms.romanization, forms: atoms.forms })
     .from(atoms)
-    .where(inArray(atoms.type, ["word", "chunk"]));
+    .where(and(eq(atoms.lang, lang), inArray(atoms.type, ["word", "chunk"])));
   const words = new Map<string, AtomLite>();
   const chunks = new Map<string, AtomLite>();
-  for (const r of rows) (r.type === "chunk" ? chunks : words).set(r.key, r);
-  return { words, chunks };
+  for (const r of rows) (r.type === "chunk" ? chunks : words).set(r.type === "chunk" ? r.key : normalize(r.key), r);
+  const lexicon = lang === "fr" ? frLexicon : buildLexicon(lang, rows.filter((r) => r.type === "word"), normalize);
+  return { lang, words, chunks, lexicon };
+}
+
+function passageLang(row: { lang: string }): Lang {
+  return isLang(row.lang) ? row.lang : "fr";
 }
 
 export interface CreatePassageInput {
+  lang?: Lang;
   title?: string;
   text: string;
   origin: PassageOrigin;
@@ -77,15 +92,17 @@ export async function createPassage(d: Db, input: CreatePassageInput): Promise<{
   if (text.length < 20) throw new Error("Paste at least a sentence or two.");
   if (text.length > 20_000) throw new Error("That's too long for one passage (20,000 characters max).");
 
-  const index = await loadAtomIndex(d);
-  const analysis = await analyzeText(text);
-  const tokens = toPassageTokens(analysis.tokens, [...index.chunks.keys()]);
+  const lang = input.lang ?? "fr";
+  const index = await loadAtomIndex(d, lang);
+  const analysis = await analyzeText(text, { lang, lexicon: index.lexicon });
+  const tokens = toPassageTokens(analysis.tokens, [...index.chunks.keys()], lang, index.lexicon);
   const report = computeCoverage(tokens, (l) => index.words.get(l), (k) => index.chunks.get(k));
   const unknownAtomIds = report.unknownLemmas.map((l) => index.words.get(l)?.id).filter((x): x is string => Boolean(x));
 
   const [row] = await d
     .insert(passages)
     .values({
+      lang,
       title: input.title?.trim() || titleFrom(text),
       origin: input.origin,
       sourceRef: input.sourceRef ?? null,
@@ -105,7 +122,7 @@ function titleFrom(text: string): string {
   return first.length > 60 ? first.slice(0, 57).trimEnd() + "…" : first;
 }
 
-export async function listPassages(d: Db): Promise<PassageSummary[]> {
+export async function listPassages(d: Db, lang: Lang = "fr"): Promise<PassageSummary[]> {
   const rows = await d
     .select({
       id: passages.id,
@@ -120,7 +137,7 @@ export async function listPassages(d: Db): Promise<PassageSummary[]> {
     })
     .from(passages)
     // Scenario dialogues live under Scenes, a goal's sections under Goal.
-    .where(sql`${passages.origin} <> 'scenario' and coalesce(${passages.genre}, '') <> 'goal-section'`)
+    .where(sql`${passages.lang} = ${lang} and ${passages.origin} <> 'scenario' and coalesce(${passages.genre}, '') <> 'goal-section'`)
     .orderBy(desc(passages.createdAt));
   return rows;
 }
@@ -129,7 +146,7 @@ export async function listPassages(d: Db): Promise<PassageSummary[]> {
 export async function openPassage(d: Db, id: string, now = new Date()): Promise<PassageView | undefined> {
   const [row] = await d.select().from(passages).where(eq(passages.id, id));
   if (!row) return undefined;
-  const index = await loadAtomIndex(d);
+  const index = await loadAtomIndex(d, passageLang(row));
   const report = computeCoverage(row.tokens, (l) => index.words.get(l), (k) => index.chunks.get(k));
 
   await d
@@ -148,12 +165,13 @@ export async function openPassage(d: Db, id: string, now = new Date()): Promise<
     }
     const atom = index.words.get(t.lemma);
     return atom
-      ? { ...t, atomId: atom.id, status: atom.status, gloss: atom.gloss, pos: atom.pos ?? undefined, known: isKnownStatus(atom.status) }
+      ? { ...t, atomId: atom.id, atomKey: atom.key, status: atom.status, gloss: atom.gloss, pos: atom.pos ?? undefined, romanization: atom.romanization ?? undefined, known: isKnownStatus(atom.status) }
       : { ...t, known: false };
   });
 
   return {
     id: row.id,
+    lang: passageLang(row),
     title: row.title,
     origin: row.origin,
     sourceRef: row.sourceRef,
@@ -170,14 +188,19 @@ export async function openPassage(d: Db, id: string, now = new Date()): Promise<
 /** Find or create the word atom for a lemma. Returns the row id and whether it was created. */
 async function ensureWordAtom(
   d: Db,
+  lang: Lang,
   lemma: string,
   surface: string,
   gloss: string,
   source: "mined" | "manual",
 ): Promise<{ id: string; created: boolean; status: MemoryStatus }> {
-  const key = normalizeForm(lemma);
-  const form = normalizeForm(surface);
-  const [existing] = await d.select().from(atoms).where(and(eq(atoms.type, "word"), eq(atoms.key, key)));
+  const normalize = normalizeFor(lang);
+  // French keys are normalized; Greek keys keep their accents (the lemma came from an accented atom or the text).
+  const key = lang === "fr" ? normalize(lemma) : lemma.trim().toLowerCase();
+  const form = lang === "fr" ? normalize(surface) : surface.trim().toLowerCase();
+  const index = await loadAtomIndex(d, lang);
+  const hit = index.words.get(normalize(key));
+  const existing = hit ? (await d.select().from(atoms).where(eq(atoms.id, hit.id)))[0] : undefined;
   if (existing) {
     const forms = existing.forms.includes(form) ? existing.forms : [...existing.forms, form];
     await d
@@ -193,7 +216,7 @@ async function ensureWordAtom(
   }
   const [row] = await d
     .insert(atoms)
-    .values({ type: "word", key, forms: Array.from(new Set([key, form])), gloss, source, status: "new" })
+    .values({ lang, type: "word", key, forms: Array.from(new Set([key, form])), gloss, source, status: "new" })
     .returning({ id: atoms.id });
   return { id: row.id, created: true, status: "new" };
 }
@@ -213,10 +236,11 @@ export async function mineWord(d: Db, input: MineInput, now = new Date()): Promi
   const text = passage.sentenceTexts[input.sentenceIdx];
   if (!text) throw new Error("unknown sentence");
 
-  const atom = await ensureWordAtom(d, input.lemma, input.surface, input.gloss, "mined");
+  const lang = passageLang(passage);
+  const atom = await ensureWordAtom(d, lang, input.lemma, input.surface, input.gloss, "mined");
 
   // Every atom present in the sentence, known or not, so cloze/produce can use it later.
-  const index = await loadAtomIndex(d);
+  const index = await loadAtomIndex(d, lang);
   const atomIds = new Set<string>([atom.id]);
   for (const t of passage.tokens) {
     if (t.sentenceIdx !== input.sentenceIdx || !t.isWord) continue;
@@ -237,6 +261,7 @@ export async function mineWord(d: Db, input: MineInput, now = new Date()): Promi
     const [row] = await d
       .insert(sentences)
       .values({
+        lang,
         text,
         atomIds: [...atomIds],
         origin,
@@ -253,8 +278,8 @@ export async function mineWord(d: Db, input: MineInput, now = new Date()): Promi
 }
 
 /** SPEC §5 "Already know": the atom starts (or restarts) with a mature memory state. */
-export async function markKnown(d: Db, input: { lemma: string; surface: string; gloss: string }, now = new Date()): Promise<{ atomId: string }> {
-  const atom = await ensureWordAtom(d, input.lemma, input.surface, input.gloss, "manual");
+export async function markKnown(d: Db, input: { lang?: Lang; lemma: string; surface: string; gloss: string }, now = new Date()): Promise<{ atomId: string }> {
+  const atom = await ensureWordAtom(d, input.lang ?? "fr", input.lemma, input.surface, input.gloss, "manual");
   const m = knownMemoryState(now.toISOString());
   await d
     .update(atoms)
