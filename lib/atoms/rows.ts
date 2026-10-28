@@ -1,4 +1,5 @@
 import type { AtomRow, NewAtomRow } from "@/db/schema";
+import type { Lang } from "@/lib/lang";
 import { emptyModalityStats, type Atom, type MemoryState } from "./types";
 
 /** Database row → in-memory Atom (SPEC §3). */
@@ -16,7 +17,7 @@ export function rowToAtom(row: AtomRow): Atom {
   };
   return {
     id: row.id,
-    lang: "fr",
+    lang: row.lang as Lang,
     type: row.type,
     key: row.key,
     forms: row.forms,
@@ -24,6 +25,7 @@ export function rowToAtom(row: AtomRow): Atom {
     explanation: row.explanation ?? undefined,
     pos: row.pos ?? undefined,
     gender: row.gender ?? undefined,
+    romanization: row.romanization ?? undefined,
     frequencyRank: row.frequencyRank ?? undefined,
     domains: row.domains,
     relatedAtoms: row.relatedAtoms,
@@ -48,6 +50,7 @@ export function atomToRow(atom: Atom): NewAtomRow {
     explanation: atom.explanation ?? null,
     pos: atom.pos ?? null,
     gender: atom.gender ?? null,
+    romanization: atom.romanization ?? null,
     frequencyRank: atom.frequencyRank ?? null,
     domains: atom.domains,
     relatedAtoms: atom.relatedAtoms,

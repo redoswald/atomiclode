@@ -3,6 +3,8 @@ import { generateOrReuse } from "@/app/actions/generate";
 import { importPassage } from "@/app/actions/reader";
 import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
+import { LANG_SPECS } from "@/lib/lang";
+import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { GENRES } from "@/lib/llm/generate";
 import { nlpServiceConfigured } from "@/lib/reader/analyze";
@@ -15,7 +17,8 @@ export const maxDuration = 60;
 export default async function ReadPage({ searchParams }: PageProps<"/read">) {
   const params = await searchParams;
   const error = typeof params.error === "string" ? params.error : undefined;
-  const list = hasDatabase() ? await listPassages(db()) : [];
+  const lang = await currentLang();
+  const list = hasDatabase() ? await listPassages(db(), lang) : [];
   const hasKey = hasAnthropicKey();
 
   return (
@@ -24,14 +27,14 @@ export default async function ReadPage({ searchParams }: PageProps<"/read">) {
         <h2 className="font-display text-2xl">Import</h2>
         <input name="url" type="url" inputMode="url" placeholder="Article URL" className="field text-base" />
         <p className="text-center text-xs text-muted">or paste text</p>
-        <textarea name="text" rows={5} lang="fr" placeholder="Collez un texte en français…" className="field text-base" />
+        <textarea name="text" rows={5} lang={lang} placeholder={LANG_SPECS[lang].pastePlaceholder} className="field text-base" />
         <input name="title" placeholder="Title (optional)" className="field text-sm" />
         {error && <p className="text-sm text-bad">{error}</p>}
         <button type="submit" className="btn-primary">
           Create reading passage →
         </button>
         <p className="text-xs text-muted">
-          Analysed with {nlpServiceConfigured() ? "the spaCy service" : "the built-in lemmatizer"}. New words enter your queue
+          Analysed with {lang === "fr" && nlpServiceConfigured() ? "the spaCy service" : "the built-in lemmatizer"}. New words enter your queue
           only if you mine them.
         </p>
       </form>
@@ -51,7 +54,7 @@ export default async function ReadPage({ searchParams }: PageProps<"/read">) {
             ))}
           </select>
         </label>
-        <input name="topic" placeholder="Topic or place (optional): un marché à Lyon, mon trajet en train…" className="field text-sm" />
+        <input name="topic" placeholder={`Topic or place (optional): ${LANG_SPECS[lang].topicExample}`} className="field text-sm" />
         <label className="text-sm">
           <span className="flex justify-between">
             <span>Stretch</span>
@@ -80,7 +83,7 @@ export default async function ReadPage({ searchParams }: PageProps<"/read">) {
             {list.map((p) => (
               <li key={p.id}>
                 <Link href={`/read/${p.id}`} className="flex items-baseline justify-between gap-4 py-3">
-                  <span className="truncate">
+                  <span className="truncate" lang={lang}>
                     {p.title ?? "Untitled"}
                     {p.origin === "generated" && <span className="ml-2 text-xs text-muted">{p.sourceRef?.startsWith("passage:") ? "adapted" : "generated"}</span>}
                   </span>

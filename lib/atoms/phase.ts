@@ -6,6 +6,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { atoms } from "@/db/schema";
+import type { Lang } from "@/lib/lang";
 import { corpusCoverageOf } from "./vocab-stats";
 
 export type Phase = "foundation" | "reading";
@@ -17,11 +18,11 @@ export function phaseFor(corpusCoverage: number): Phase {
   return corpusCoverage >= READING_THRESHOLD ? "reading" : "foundation";
 }
 
-export async function currentPhase(d: Db): Promise<{ phase: Phase; corpusCoverage: number; knownWords: number }> {
+export async function currentPhase(d: Db, lang: Lang = "fr"): Promise<{ phase: Phase; corpusCoverage: number; knownWords: number }> {
   const rows = await d
     .select({ key: atoms.key })
     .from(atoms)
-    .where(and(eq(atoms.type, "word"), inArray(atoms.status, ["learning", "review"])));
-  const corpusCoverage = corpusCoverageOf(rows.map((r) => r.key));
+    .where(and(eq(atoms.lang, lang), eq(atoms.type, "word"), inArray(atoms.status, ["learning", "review"])));
+  const corpusCoverage = corpusCoverageOf(rows.map((r) => r.key), lang);
   return { phase: phaseFor(corpusCoverage), corpusCoverage, knownWords: rows.length };
 }

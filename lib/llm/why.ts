@@ -1,6 +1,7 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { anthropic, DEFAULT_MODEL } from "./client";
+import { LANG_SPECS, langName, type Lang } from "@/lib/lang";
 
 export interface WhyAtom {
   key: string;
@@ -16,6 +17,7 @@ export interface GrammarConcept {
 }
 
 export interface WhyInput {
+  lang?: Lang;
   atom: WhyAtom;
   sentence?: string;
   /** Grammar atoms the learner already has, so the model links rather than duplicates. */
@@ -40,13 +42,13 @@ const Output = z.object({
   grammarExplanation: z.string().nullable(),
 });
 
-const SYSTEM = `You explain French to an adult English speaker who is learning by reading.
+const system = (lang: Lang) => `You explain ${langName(lang)} to an adult English speaker who is learning by reading. ${LANG_SPECS[lang].modelNote}${lang === "el" ? " Whenever you quote Greek, add its pronunciation in Latin letters in brackets the first time." : ""}
 Write 3–6 plain sentences. If a sentence is given, use it as the example and quote the relevant words from it.
 Name the grammar concept at work, if there is one, in ordinary terms. No drills, no exercises, no bullet points, no headings.
 
 You are also given the learner's existing grammar concepts as key: title pairs.
 - If the explanation hinges on one of them, set grammarAtomKey to that key exactly, and grammarTitle/grammarExplanation to null.
-- If it hinges on a concept not in the list, propose a new key as a short kebab-case slug (e.g. "subjunctive-after-il-faut"), a title of at most 6 words, and a 2–3 sentence grammarExplanation that would stand on its own as a flashcard.
+- If it hinges on a concept not in the list, propose a new key as a short kebab-case slug (e.g. ${lang === "el" ? '"accusative-after-se"' : '"subjunctive-after-il-faut"'}), a title of at most 6 words, and a 2–3 sentence grammarExplanation that would stand on its own as a flashcard.
 - If no grammar concept is worth a card (plain vocabulary), set all three to null.`;
 
 export async function explain(input: WhyInput): Promise<WhyResult> {
@@ -62,7 +64,7 @@ export async function explain(input: WhyInput): Promise<WhyResult> {
   const response = await anthropic().messages.parse({
     model: DEFAULT_MODEL,
     max_tokens: 2048,
-    system: SYSTEM,
+    system: system(input.lang ?? "fr"),
     messages: [{ role: "user", content: user }],
     output_config: { format: zodOutputFormat(Output), effort: "low" },
   });

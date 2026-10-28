@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { requireAuth } from "@/lib/auth";
+import { currentLang } from "@/lib/lang-server";
 import { goalLemmasForScenarios } from "@/lib/goals/goals";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { checkProduce, type ProduceCheck } from "@/lib/review/produce";
@@ -19,7 +20,7 @@ export async function nextVisit(formData: FormData): Promise<void> {
   let n: number;
   try {
     const d = db();
-    ({ n } = await generateNextVisit(d, scenarioId, { goalLemmas: await goalLemmasForScenarios(d) }));
+    ({ n } = await generateNextVisit(d, scenarioId, { goalLemmas: await goalLemmasForScenarios(d, 40, await currentLang()) }));
   } catch (err) {
     const message = !hasAnthropicKey() ? NO_KEY : err instanceof Error ? err.message : String(err);
     redirect(`/scenario/${scenarioId}?error=${encodeURIComponent(message)}`);
@@ -35,7 +36,8 @@ export async function createScenario(formData: FormData): Promise<void> {
   let scenarioId: string;
   try {
     const d = db();
-    ({ scenarioId } = await createCustomScenario(d, situation, { goalLemmas: await goalLemmasForScenarios(d) }));
+    const lang = await currentLang();
+    ({ scenarioId } = await createCustomScenario(d, situation, { lang, goalLemmas: await goalLemmasForScenarios(d, 40, lang) }));
   } catch (err) {
     const message = !hasAnthropicKey() ? NO_KEY : err instanceof Error ? err.message : String(err);
     redirect(`/scenario?error=${encodeURIComponent(message)}`);

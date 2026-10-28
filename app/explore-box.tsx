@@ -2,9 +2,15 @@
 
 import { useState } from "react";
 import { ask } from "@/app/actions/explore";
+import { langName, type Lang } from "@/lib/lang";
 
-/** "Explore": ask anything about French. Same model, no memory effect (SPEC §8). */
-export function ExploreBox({ enabled }: { enabled: boolean }) {
+const EXAMPLE: Record<Lang, string> = {
+  fr: "Why is it « du pain » and not « de pain »?",
+  el: "What does ΕΙΣΟΔΟΣ on a door mean?",
+};
+
+/** "Explore": ask anything about the language. Same model, no memory effect (SPEC §8). */
+export function ExploreBox({ enabled, lang = "fr" }: { enabled: boolean; lang?: Lang }) {
   const [q, setQ] = useState("");
   const [answer, setAnswer] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
@@ -25,13 +31,13 @@ export function ExploreBox({ enabled }: { enabled: boolean }) {
     <section className="card mt-6 p-5">
       <div className="flex items-baseline justify-between">
         <h2 className="font-display text-2xl">Explore</h2>
-        <span className="eyebrow">Ask anything about French</span>
+        <span className="eyebrow">Ask anything about {langName(lang)}</span>
       </div>
       <form onSubmit={submit} className="mt-3 flex gap-2">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={enabled ? "Why is it « du pain » and not « de pain »?" : "Set ANTHROPIC_API_KEY to enable"}
+          placeholder={enabled ? EXAMPLE[lang] : "Set ANTHROPIC_API_KEY to enable"}
           disabled={!enabled || busy}
           className="field min-w-0 flex-1 text-sm"
         />

@@ -7,6 +7,7 @@
  */
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
+import { isLang, type Lang } from "@/lib/lang";
 import { atoms, passages } from "@/db/schema";
 import { adaptText as adaptWithModel, type AdaptInput, type Level } from "@/lib/llm/adapt";
 import { generatePassage as generateWithModel, type GenerateInput, type GeneratedPassage, type Genre } from "@/lib/llm/generate";
@@ -14,6 +15,7 @@ import { computeCoverage, isKnownStatus, type AtomLite } from "./coverage";
 import { createPassage } from "./passages";
 
 export interface LibraryRequest {
+  lang?: Lang;
   targetCoverage: number; // 0.90–0.98
   genre: Genre;
   topic?: string;
@@ -36,11 +38,11 @@ export const REREAD_AFTER_DAYS = 7;
 /** Genre tag on the section passages of a goal text; they live on the goal page, not in the library list. */
 export const GOAL_SECTION_GENRE = "goal-section";
 
-async function knownIndex(d: Db) {
+async function knownIndex(d: Db, lang: Lang = "fr") {
   const rows = await d
     .select({ id: atoms.id, key: atoms.key, type: atoms.type, status: atoms.status, gloss: atoms.gloss })
     .from(atoms)
-    .where(inArray(atoms.type, ["word", "chunk"]));
+    .where(and(eq(atoms.lang, lang), inArray(atoms.type, ["word", "chunk"])));
   const words = new Map<string, AtomLite>();
   const chunks = new Map<string, AtomLite>();
   for (const r of rows) (r.type === "chunk" ? chunks : words).set(r.key, r);
@@ -49,8 +51,9 @@ async function knownIndex(d: Db) {
 
 /** Find a passage to serve instead of generating. */
 export async function findReusable(d: Db, req: LibraryRequest, now = new Date()): Promise<LibraryResult | undefined> {
-  const index = await knownIndex(d);
-  const rows = await d.select().from(passages).orderBy(desc(passages.createdAt));
+  const lang = req.lang ?? "fr";
+  const index = await knownIndex(d, lang);
+  const rows = await d.select().from(passages).where(eq(passages.lang, lang)).orderBy(desc(passages.createdAt));
   const cutoff = now.getTime() - REREAD_AFTER_DAYS * DAY_MS;
   let best: { id: string; coverage: number; score: number } | undefined;
 
@@ -70,11 +73,11 @@ export async function findReusable(d: Db, req: LibraryRequest, now = new Date())
 }
 
 /** The one-generation-per-session cap: an unread generated passage blocks a new one. */
-export async function unreadGenerated(d: Db): Promise<{ id: string; title: string | null } | undefined> {
+export async function unreadGenerated(d: Db, lang: Lang = "fr"): Promise<{ id: string; title: string | null } | undefined> {
   const [row] = await d
     .select({ id: passages.id, title: passages.title })
     .from(passages)
-    .where(and(eq(passages.origin, "generated"), eq(passages.reads, 0), sql`coalesce(${passages.sourceRef}, '') not like 'passage:%'`))
+    .where(and(eq(passages.lang, lang), eq(passages.origin, "generated"), eq(passages.reads, 0), sql`coalesce(${passages.sourceRef}, '') not like 'passage:%'`))
     .orderBy(desc(passages.createdAt))
     .limit(1);
   return row;
@@ -90,12 +93,13 @@ export async function reuseOrGenerate(
   const reusable = await findReusable(d, req, now);
   if (reusable) return reusable;
 
-  const pending = await unreadGenerated(d);
+  const lang = req.lang ?? "fr";
+  const pending = await unreadGenerated(d, lang);
   if (pending) {
     throw new Error(`Read "${pending.title ?? "your last generated passage"}" before generating another.`);
   }
 
-  const index = await knownIndex(d);
+  const index = await knownIndex(d, lang);
   const known = [...index.words.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
   const chunks = [...index.chunks.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
   if (known.length < 20) {
@@ -104,11 +108,12 @@ export async function reuseOrGenerate(
   const recent = await d
     .select({ title: passages.title })
     .from(passages)
-    .where(eq(passages.origin, "generated"))
+    .where(and(eq(passages.lang, lang), eq(passages.origin, "generated")))
     .orderBy(desc(passages.createdAt))
     .limit(5);
 
   const generated = await generate({
+    lang,
     known,
     chunks,
     targetCoverage: req.targetCoverage,
@@ -117,18 +122,18 @@ export async function reuseOrGenerate(
     mustInclude: req.mustInclude,
     avoidTitles: recent.map((r) => r.title).filter((t): t is string => Boolean(t)),
   });
-  const { id } = await createPassage(d, { title: generated.title, text: generated.text, origin: "generated" });
+  const { id } = await createPassage(d, { lang, title: generated.title, text: generated.text, origin: "generated" });
   await d.update(passages).set({ genre: req.genre }).where(eq(passages.id, id));
   const [row] = await d.select({ coverage: passages.coverage }).from(passages).where(eq(passages.id, id));
   return { id, reused: false, coverage: row.coverage };
 }
 
 /** Lemmas of atoms due now, for `mustInclude` ("refresh inside reading"). */
-export async function dueLemmas(d: Db, limit = 8, now = new Date()): Promise<string[]> {
+export async function dueLemmas(d: Db, limit = 8, now = new Date(), lang: Lang = "fr"): Promise<string[]> {
   const rows = await d
     .select({ key: atoms.key })
     .from(atoms)
-    .where(and(eq(atoms.type, "word"), inArray(atoms.status, ["learning", "review"]), sql`${atoms.due} <= ${now.toISOString()}`))
+    .where(and(eq(atoms.lang, lang), eq(atoms.type, "word"), inArray(atoms.status, ["learning", "review"]), sql`${atoms.due} <= ${now.toISOString()}`))
     .orderBy(atoms.due)
     .limit(limit);
   return rows.map((r) => r.key);
@@ -160,14 +165,15 @@ export async function adaptPassage(
   // `refresh` rewrites a rung the learner has outgrown; the old one stays in the library.
   if (existing && !opts.refresh) return { id: existing.id, coverage: existing.coverage, reused: true };
 
-  const index = await knownIndex(d);
+  const lang: Lang = isLang(original.lang) ? original.lang : "fr";
+  const index = await knownIndex(d, lang);
   const known = [...index.words.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
   const chunks = [...index.chunks.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
   if (known.length < 20) {
     throw new Error("Learn a few more words first: adapting needs at least 20 known words to work with.");
   }
-  const adapted = await adapt({ text: original.text, title: original.title ?? undefined, known, chunks, level });
-  const { id } = await createPassage(d, { title: adapted.title, text: adapted.text, origin: "generated", sourceRef: ref });
+  const adapted = await adapt({ lang, text: original.text, title: original.title ?? undefined, known, chunks, level });
+  const { id } = await createPassage(d, { lang, title: adapted.title, text: adapted.text, origin: "generated", sourceRef: ref });
   await d.update(passages).set({ genre: original.genre && original.genre !== GOAL_SECTION_GENRE ? original.genre : "adapted", knownAtGeneration: known.length }).where(eq(passages.id, id));
   const [row] = await d.select({ coverage: passages.coverage }).from(passages).where(eq(passages.id, id));
   return { id, reused: false, coverage: row.coverage };

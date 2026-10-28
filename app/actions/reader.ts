@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { contextGlosses, sentenceTranslations } from "@/db/schema";
 import { requireAuth } from "@/lib/auth";
+import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { glossInContext } from "@/lib/llm/contextGloss";
 import { fetchArticle } from "@/lib/reader/import";
@@ -18,13 +19,14 @@ export async function importPassage(formData: FormData): Promise<void> {
   const pasted = String(formData.get("text") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
 
+  const lang = await currentLang();
   let id: string;
   try {
     if (url) {
       const article = await fetchArticle(url);
-      ({ id } = await createPassage(db(), { title: title || article.title, text: article.text, origin: "imported", sourceRef: article.sourceRef }));
+      ({ id } = await createPassage(db(), { lang, title: title || article.title, text: article.text, origin: "imported", sourceRef: article.sourceRef }));
     } else {
-      ({ id } = await createPassage(db(), { title, text: pasted, origin: "imported" }));
+      ({ id } = await createPassage(db(), { lang, title, text: pasted, origin: "imported" }));
     }
   } catch (err) {
     redirect(`/read?error=${encodeURIComponent(err instanceof Error ? err.message : String(err))}`);
@@ -37,6 +39,8 @@ export interface TapResult {
   gloss?: string;
   lemmaGloss?: string;
   translation?: string;
+  /** Greek: the tapped word in Latin letters. */
+  romanization?: string;
   /** Present when the gloss came from the model rather than the atom. */
   fromModel: boolean;
   error?: string;
@@ -55,6 +59,7 @@ export async function tapWord(input: {
 }): Promise<TapResult> {
   await requireAuth();
   const d = db();
+  const lang = await currentLang();
   if (input.atomId) await logTap(d, input.atomId, input.passageId);
 
   const [[cached], [tr]] = await Promise.all([
@@ -68,12 +73,12 @@ export async function tapWord(input: {
   if (!hasAnthropicKey()) return { gloss: cached?.gloss, translation: tr?.translation, fromModel: false, error: "Set ANTHROPIC_API_KEY for in-context meanings." };
 
   try {
-    const g = await glossInContext(input.lemma, input.surface, input.sentence);
+    const g = await glossInContext(input.lemma, input.surface, input.sentence, lang);
     await Promise.all([
       d.insert(contextGlosses).values({ lemma: input.lemma, sentence: input.sentence, gloss: g.gloss }).onConflictDoNothing(),
       d.insert(sentenceTranslations).values({ sentence: input.sentence, translation: g.sentenceTranslation }).onConflictDoNothing(),
     ]);
-    return { gloss: cached?.gloss ?? g.gloss, lemmaGloss: g.lemmaGloss, translation: tr?.translation ?? g.sentenceTranslation, fromModel: true };
+    return { gloss: cached?.gloss ?? g.gloss, lemmaGloss: g.lemmaGloss, translation: tr?.translation ?? g.sentenceTranslation, romanization: g.romanization, fromModel: true };
   } catch (err) {
     return { fromModel: false, error: err instanceof Error ? err.message : String(err) };
   }
@@ -88,7 +93,7 @@ export async function mine(input: { passageId: string; sentenceIdx: number; lemm
 
 export async function alreadyKnow(input: { lemma: string; surface: string; gloss: string }) {
   await requireAuth();
-  const result = await markKnown(db(), input);
+  const result = await markKnown(db(), { ...input, lang: await currentLang() });
   revalidatePath("/");
   return result;
 }

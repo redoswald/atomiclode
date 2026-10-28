@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { currentPhase } from "@/lib/atoms/phase";
 import { requireAuth } from "@/lib/auth";
+import { isLang } from "@/lib/lang";
+import { currentLang } from "@/lib/lang-server";
 import { activate, goalLemmasForScenarios, pinGoal, prepareGoal, rungGate } from "@/lib/goals/goals";
 import { LEVELS, type Level } from "@/lib/llm/adapt";
 import { hasAnthropicKey } from "@/lib/llm/client";
@@ -67,7 +69,7 @@ export async function writeRung(formData: FormData): Promise<void> {
   let id: string;
   try {
     const d = db();
-    const { phase, knownWords } = await currentPhase(d);
+    const { phase, knownWords } = await currentPhase(d, await currentLang());
     const gate = rungGate(level, knownWords, phase);
     if (gate) throw new Error(gate);
     ({ id } = await adaptPassage(d, passageId, level, undefined, { refresh }));
@@ -89,7 +91,8 @@ export async function sceneFromGoal(formData: FormData): Promise<void> {
     const [goal] = await d.select().from(goals).where(eq(goals.id, goalId));
     const idea = goal?.sceneIdeas[idx];
     if (!idea) throw new Error("That scene idea is gone.");
-    ({ scenarioId } = await createCustomScenario(d, idea, { origin: "goal", goalId, goalLemmas: await goalLemmasForScenarios(d) }));
+    const lang = isLang(goal.lang) ? goal.lang : "fr";
+    ({ scenarioId } = await createCustomScenario(d, idea, { lang, origin: "goal", goalId, goalLemmas: await goalLemmasForScenarios(d, 40, lang) }));
     await d.update(goals).set({ sceneIdeas: goal.sceneIdeas.filter((_, i) => i !== idx) }).where(eq(goals.id, goalId));
   } catch (err) {
     redirect(`/goal/${goalId}?error=${encodeURIComponent(message(err))}`);

@@ -65,7 +65,10 @@ describe("row builders", () => {
 
   it("validateSeed reports problems", () => {
     const problems = validateSeed(
-      [{ rank: 2, lemma: "a", pos: "NOUN", gender: "m", forms: [], freqPerMillion: 1, gloss: "" }],
+      [
+        { rank: 2, lemma: "a", pos: "NOUN", gender: "m", forms: [], freqPerMillion: 1, gloss: "" },
+        { rank: 2, lemma: "b", pos: "NOUN", gender: "f", forms: [], freqPerMillion: 1, gloss: "" },
+      ],
       [{ key: "c", gloss: "", words: [], grammar: ["nope"] }],
       [],
     );

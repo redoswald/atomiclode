@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
 import { listGoals } from "@/lib/goals/goals";
+import { langName } from "@/lib/lang";
+import { currentLang } from "@/lib/lang-server";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +16,8 @@ export default async function GoalsPage() {
       </Shell>
     );
   }
-  const all = await listGoals(db());
+  const lang = await currentLang();
+  const all = await listGoals(db(), lang);
   const active = all.find((g) => g.status === "active");
   if (active && all.length === 1) redirect(`/goal/${active.id}`);
 
@@ -23,7 +26,7 @@ export default async function GoalsPage() {
       {all.length === 0 ? (
         <section className="card p-5 text-sm leading-6">
           <p>
-            Is there something in French you can&apos;t read yet and wish you could? A letter, a family history, a chapter of a book.
+            Is there something in {langName(lang)} you can&apos;t read yet and wish you could? A letter, a family history, a chapter of a book.
           </p>
           <p className="mt-3 text-muted">
             Paste it into the <Link href="/read" className="underline">reader</Link>, open it, and press <em>Make this my goal</em>. From then on it decides which words you

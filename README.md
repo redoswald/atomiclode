@@ -1,6 +1,6 @@
 # Dolomite
 
-A language-learning app for adults: honest spaced repetition, a reader that turns real text into review material, and a "why?" button. French first. See [SPEC.md](./SPEC.md) for the full design.
+A language-learning app for adults: honest spaced repetition, a reader that turns real text into review material, and a "why?" button. French first, and a Greek track for travellers. See [SPEC.md](./SPEC.md) for the full design.
 
 Named for where it was written: on a phone, on a trail in the Italian Dolomites, to learn French. (It was called Lode for its first week; the repo, the `lode_auth` cookie and the `lode-nlp` conda env keep the old name.)
 
@@ -14,12 +14,19 @@ All eight milestones of the spec are built. v2 (milestones 6–8) changed what o
 
 Milestone 5 (polish): a visual system (warm paper, serif display type, sage accent, bottom tabs), *Adapt this text* at three levels, sentence translations in the tap sheet, a Stats screen with coverage over time, exposure signals from reading feeding the scheduler, an Explore box, and a PWA manifest so the app installs to the home screen. Milestone 4: "Why?" explanations and passage generation. Every word in the reader and every review card has a *Why?* that explains it in 3–6 sentences using the sentence at hand, cached per atom and per sentence; when the explanation names a grammar concept the app offers to add it as a grammar atom. *Read something new* serves a passage from your library whose coverage fits what you know today, or generates one (genre, topic, stretch slider, due words worked in). Earlier milestones: reader with import, coverage, tap-to-mine and cloze cards; scheduler and review screen; append-only review log with replay (`npm run db:replay`).
 
+### Greek (tourist track)
+
+The header toggle (Français / Ελληνικά) switches tracks; the choice is a cookie, and every atom, passage, scene and goal carries a `lang`, so progress in one language never touches the other. The Greek track is an intro for a visitor: the alphabet with its sounds (introduced first, recognition only), about 60 sign words shown in capitals the way they are met (ΕΞΟΔΟΣ, ΑΠΑΓΟΡΕΥΕΤΑΙ, ΦΑΡΜΑΚΕΙΟ), 80 phrases, a few hundred core words with gender and a Latin-letter reading, 20 grammar notes, and nine scenes (taxi, café, taverna, directions, ferry, hotel, pharmacy, market, reading signs). It ships fully glossed in `db/seed/{words,chunks,grammar,scenarios}-el.json`, so nothing needs filling.
+
+Greek has no Lexique-quality table, so its lemmatizer is built from the curriculum's own forms, matched with accents first and accent-folded second: lowercase text keeps ή (or) apart from η (the), while a sign in capitals still finds its word. Typed answers may be Greek with or without accents, or Latin letters checked against the romanization (`efcharisto` for ευχαριστώ). The model prompts take the language as a parameter; the spaCy service is French-only.
+
 ## Stack
 
 - Next.js 16 (App Router) · TypeScript · Tailwind 4, deployed on Vercel
 - Postgres on Neon via Drizzle (`db/schema.ts`, migrations in `drizzle/`)
 - Anthropic API for glosses, explanations, and generation (`@anthropic-ai/sdk`)
-- Built-in French tokenizer and lookup lemmatizer (`lib/reader`, table from Lexique 3.83), with an optional spaCy service (`nlp/`) for context-aware lemmas
+- Built-in tokenizer and lookup lemmatizer (`lib/reader`; French table from Lexique 3.83, Greek built from the curriculum), with an optional spaCy service (`nlp/`) for context-aware French lemmas
+- Language registry in `lib/lang.ts` (articles, normalization, placeholders, model notes); the current track is the `lode_lang` cookie
 
 ## Local setup (macOS)
 
@@ -112,7 +119,7 @@ lib/scenarios/  seed validation, visits (store, start, suggest), visit generatio
 lib/goals/      sectioning, pinning, goal coverage, ladder, grammar survey
 lib/reader/     tokenizer + lexicon, chunk matching, coverage, passages, URL import
 lib/llm/        Anthropic client and prompts (gloss, why, generate, adapt, explore)
-db/             Drizzle schema, client, seed data and runner
+db/             Drizzle schema, client, seed data (French and Greek) and runner
 drizzle/        generated SQL migrations
 scripts/        one-off tooling (gloss filling)
 nlp/            optional Python spaCy service (FastAPI, Dockerfile)

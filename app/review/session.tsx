@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { checkProduceAnswer, submitProduce, submitReview } from "@/app/actions/review";
 import { WhyPanel } from "@/app/why-panel";
 import type { Grade } from "@/lib/atoms/types";
+import { LANG_SPECS, langName, type Lang } from "@/lib/lang";
 import { lenientMatch } from "@/lib/review/match";
 import type { ProduceCheck } from "@/lib/review/produce";
 import type { BuiltSession, SessionCard } from "@/lib/review/session";
@@ -119,8 +120,9 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
       setPhase("revealed");
       return;
     }
-    if (card.modality === "recall") setCorrect(lenientMatch(typed, [card.key, ...card.forms]));
-    if (card.modality === "cloze") setCorrect(lenientMatch(typed, [card.cloze?.answer ?? card.key, ...card.forms]));
+    const opts = { lang: card.lang, romanizations: card.romanization ? [card.romanization] : [] };
+    if (card.modality === "recall") setCorrect(lenientMatch(typed, [card.key, ...card.forms], opts));
+    if (card.modality === "cloze") setCorrect(lenientMatch(typed, [card.cloze?.answer ?? card.key, ...card.forms], opts));
     setPhase("revealed");
   }
 
@@ -158,7 +160,7 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
     isProduce
       ? "What do you say?"
       : card.modality === "recall"
-      ? "Translate to French"
+      ? `Translate to ${langName(card.lang)}`
       : card.modality === "cloze"
         ? "Fill the gap"
         : card.type === "grammar"
@@ -213,26 +215,52 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
   );
 }
 
+/**
+ * How the atom is shown: nouns with their article (le marché, η έξοδος); a Greek
+ * letter as both cases ("Α α"); a sign word in capitals, the way it is met.
+ */
 function displayKey(card: SessionCard): string {
-  if (card.type === "word" && card.pos === "NOUN" && card.gender) {
-    const vowel = /^[aeiouyâàéèêëîïôöûüœ]/i.test(card.key);
-    return `${vowel ? "l'" : card.gender === "m" ? "le " : "la "}${card.key}`;
+  if (card.pos === "LETTER") {
+    const letters = card.forms.filter((f) => f !== card.key);
+    const upper = letters.filter((f) => f === f.toUpperCase());
+    const lower = letters.filter((f) => f !== f.toUpperCase());
+    return [...upper, ...lower].join(" ") || card.key.replace(/^letter:/, "");
   }
+  if (card.type === "word" && card.domains?.includes("signs")) {
+    const caps = card.forms.find((f) => f === f.toUpperCase() && f !== f.toLowerCase());
+    if (caps) return caps;
+  }
+  if (card.type === "word" && card.pos === "NOUN" && card.gender) return `${LANG_SPECS[card.lang].article(card.key, card.gender)}${card.key}`;
   return card.key;
 }
 
-function OtherForms({ card }: { card: SessionCard }) {
-  const others = card.forms.filter((f) => f !== card.key).slice(0, 6);
-  return others.length ? <p className="mt-2 text-sm text-muted">{others.join(" · ")}</p> : null;
+/** The Latin-letter reading under a Greek card. */
+function Romanized({ card }: { card: SessionCard }) {
+  return card.romanization ? <p className="mt-1 text-base text-muted">{card.romanization}</p> : null;
 }
+
+function OtherForms({ card }: { card: SessionCard }) {
+  const shown = displayKey(card);
+  const others = card.forms.filter((f) => f !== card.key && !shown.includes(f)).slice(0, 6);
+  return others.length ? (
+    <p className="mt-2 text-sm text-muted" lang={card.lang}>
+      {others.join(" · ")}
+    </p>
+  ) : null;
+}
+
+const CLOZE_PLACEHOLDER: Record<Lang, string> = { fr: "le mot manquant", el: "η λέξη που λείπει" };
 
 function RecognizePrompt({ card, phase }: { card: SessionCard; phase: Phase }) {
   return (
     <div>
-      <p className="font-display mt-3 text-4xl leading-tight">{card.type === "grammar" ? card.gloss : displayKey(card)}</p>
+      <p className="font-display mt-3 text-4xl leading-tight" lang={card.type === "grammar" ? undefined : card.lang}>
+        {card.type === "grammar" ? card.gloss : displayKey(card)}
+      </p>
+      {card.pos === "LETTER" && <Romanized card={card} />}
       {card.pos && card.type === "word" && <p className="mt-1 text-xs uppercase tracking-wide text-muted">{card.pos.toLowerCase()}</p>}
       {card.sentence && (
-        <p className="mt-4 text-base text-muted" lang="fr">
+        <p className="mt-4 text-base text-muted" lang={card.lang}>
           {card.sentence.text}
         </p>
       )}
@@ -243,6 +271,7 @@ function RecognizePrompt({ card, phase }: { card: SessionCard; phase: Phase }) {
           ) : (
             <>
               <p className="text-2xl">{card.gloss || <span className="text-muted">no gloss yet</span>}</p>
+              {card.pos !== "LETTER" && <Romanized card={card} />}
               <OtherForms card={card} />
             </>
           )}
@@ -262,7 +291,7 @@ interface TypedProps {
   onSubmit: () => void;
 }
 
-function AnswerInput({ phase, typed, setTyped, inputRef, onSubmit, placeholder }: TypedProps & { placeholder: string }) {
+function AnswerInput({ card, phase, typed, setTyped, inputRef, onSubmit, placeholder }: TypedProps & { placeholder: string }) {
   return (
     <form
       onSubmit={(e) => {
@@ -281,7 +310,7 @@ function AnswerInput({ phase, typed, setTyped, inputRef, onSubmit, placeholder }
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
-        lang="fr"
+        lang={card.lang}
         className="field w-full text-center text-xl disabled:opacity-70"
       />
     </form>
@@ -303,11 +332,14 @@ function RecallPrompt(props: TypedProps) {
           {card.gender ? ` · ${card.gender}` : ""}
         </p>
       )}
-      <AnswerInput {...props} placeholder="Type your answer in French…" />
+      <AnswerInput {...props} placeholder={LANG_SPECS[card.lang].typePlaceholder} />
       {phase === "revealed" && (
         <div className="mt-6 border-t border-line pt-5">
           <Verdict correct={correct} />
-          <p className="font-display mt-1 text-3xl">{displayKey(card)}</p>
+          <p className="font-display mt-1 text-3xl" lang={card.lang}>
+            {displayKey(card)}
+          </p>
+          <Romanized card={card} />
           <OtherForms card={card} />
         </div>
       )}
@@ -320,19 +352,22 @@ function ClozePrompt(props: TypedProps) {
   const c = card.cloze!;
   return (
     <div>
-      <p className="font-display mt-3 text-2xl leading-9" lang="fr">
+      <p className="font-display mt-3 text-2xl leading-9" lang={card.lang}>
         {c.before}
         <span className="mx-1 inline-block min-w-16 border-b-2 border-sage text-center">{phase === "revealed" ? c.answer : " "}</span>
         {c.after}
       </p>
       {card.gloss && <p className="mt-2 text-sm text-muted">{card.gloss}</p>}
-      <AnswerInput {...props} placeholder="le mot manquant" />
+      <AnswerInput {...props} placeholder={CLOZE_PLACEHOLDER[card.lang]} />
       {phase === "revealed" && (
         <div className="mt-6 border-t border-line pt-5">
           <Verdict correct={correct} />
-          <p className="font-display mt-1 text-3xl">{c.answer}</p>
+          <p className="font-display mt-1 text-3xl" lang={card.lang}>
+            {c.answer}
+          </p>
+          <Romanized card={card} />
           <p className="mt-1 text-sm text-muted">
-            {card.key}
+            <span lang={card.lang}>{card.key}</span>
             {card.gloss ? ` · ${card.gloss}` : ""}
           </p>
         </div>
@@ -374,11 +409,11 @@ function ProducePrompt({
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           disabled={phase !== "prompt"}
-          placeholder="En français…"
+          placeholder={LANG_SPECS[card.lang].typePlaceholder}
           autoCapitalize="sentences"
           autoCorrect="off"
           spellCheck={false}
-          lang="fr"
+          lang={card.lang}
           className="field w-full resize-none text-lg disabled:opacity-70"
         />
       </form>
@@ -388,7 +423,7 @@ function ProducePrompt({
             <>
               <p className={`text-sm ${verdict.ok ? "text-ok" : "text-bad"}`}>{verdict.ok ? "That works" : "Not quite"}</p>
               {verdict.natural && verdict.natural !== typed.trim() && (
-                <p className="font-display mt-1 text-2xl leading-8" lang="fr">
+                <p className="font-display mt-1 text-2xl leading-8" lang={card.lang}>
                   {verdict.natural}
                 </p>
               )}
@@ -398,7 +433,7 @@ function ProducePrompt({
             <p className="text-sm text-bad">{check && "error" in check ? check.error : "Couldn't check that."} Grade yourself against the example.</p>
           )}
           <p className="eyebrow mt-4">One way to say it</p>
-          <p className="mt-1 text-base" lang="fr">
+          <p className="mt-1 text-base" lang={card.lang}>
             {p.exampleAnswer}
           </p>
           <p className="mt-3 text-xs text-muted">

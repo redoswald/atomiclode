@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LangSwitch } from "./lang-switch";
 import { Nav } from "./nav";
 
 /**
@@ -33,7 +34,10 @@ export function Shell({
               ← {back.label}
             </Link>
           ) : (
-            <Wordmark />
+            <div className="flex items-start justify-between gap-4">
+              <Wordmark />
+              <LangSwitch />
+            </div>
           )}
           {title && (
             <div className="mt-3 flex items-end justify-between gap-4">

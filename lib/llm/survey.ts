@@ -1,8 +1,10 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { anthropic, DEFAULT_MODEL } from "./client";
+import { LANG_SPECS, langName, type Lang } from "@/lib/lang";
 
 export interface SurveyInput {
+  lang?: Lang;
   title: string;
   /** The opening of the goal text; enough to see how it is written. */
   text: string;
@@ -29,8 +31,8 @@ const Output = z.object({
   scenes: z.array(z.string()),
 });
 
-const SYSTEM = `An adult learner of French wants to read a particular text one day. Survey it.
-"grammar": the 2–5 grammar ideas this text leans on most that the learner doesn't know yet, most important first. Reuse a key from the given list when one fits; otherwise invent a short lowercase slug (e.g. "passe-simple", "relative-clauses-dont"). "gloss" is a short English name for the idea. "explanation" is 3–5 sentences for an adult, quoting one short example from this text. Set receptiveOnly=true for forms met only in writing (passé simple, literary subjunctive), which the learner must recognise but will never say.
+const system = (lang: Lang) => `An adult learner of ${langName(lang)} wants to read a particular text one day. ${LANG_SPECS[lang].modelNote} Survey it.
+"grammar": the 2–5 grammar ideas this text leans on most that the learner doesn't know yet, most important first. Reuse a key from the given list when one fits; otherwise invent a short lowercase slug (e.g. ${lang === "el" ? '"genitive-plural", "subjunctive-na"' : '"passe-simple", "relative-clauses-dont"'}). "gloss" is a short English name for the idea. "explanation" is 3–5 sentences for an adult, quoting one short example from this text. Set receptiveOnly=true for forms met only in writing (${lang === "el" ? "katharevousa forms, polytonic spellings" : "passé simple, literary subjunctive"}), which the learner must recognise but will never say.
 "scenes": one or two everyday spoken situations, each one English sentence addressed to "you", in which the people and subject of this text would naturally come up (e.g. "Your father-in-law is showing you old family photographs and telling you who everyone is."). They will be turned into practice dialogues.`;
 
 export async function surveyText(input: SurveyInput): Promise<Survey> {
@@ -42,7 +44,7 @@ export async function surveyText(input: SurveyInput): Promise<Survey> {
   const response = await anthropic().messages.parse({
     model: DEFAULT_MODEL,
     max_tokens: 4096,
-    system: SYSTEM,
+    system: system(input.lang ?? "fr"),
     messages: [{ role: "user", content: user }],
     output_config: { format: zodOutputFormat(Output), effort: "low" },
   });

@@ -1,0 +1,250 @@
+[
+{
+  "slug": "el-taxi",
+  "title": "Στο ταξί",
+  "brief": "You've just landed in Athens. You're outside the terminal with a suitcase, and a taxi driver is looking at you.",
+  "domains": ["travel", "transport"],
+  "visit": {
+    "brief": "Get yourself and your suitcase to the Hotel Akropoli, and find out what it costs.",
+    "summary": "Took a taxi from the airport to the hotel; the driver was friendly and it cost twenty euros.",
+    "dialogue": "— Καλησπέρα! Ταξί;\n— Καλησπέρα. Ναι, παρακαλώ. Θα ήθελα να πάω στο ξενοδοχείο Ακρόπολη.\n— Εντάξει. Αυτή είναι η βαλίτσα σας;\n— Ναι, ευχαριστώ. Είναι μακριά;\n— Όχι, είκοσι λεπτά. Από πού είστε;\n— Από την Αμερική. Μιλάτε αγγλικά;\n— Λίγο. Εσείς μιλάτε ελληνικά!\n— Λίγο ελληνικά. Πόσο κάνει;\n— Είκοσι ευρώ.\n— Ορίστε. Ευχαριστώ πολύ!\n— Παρακαλώ. Καλή διαμονή!",
+    "translation": "— Good evening! Taxi?\n— Good evening. Yes, please. I'd like to go to the Hotel Akropoli.\n— Okay. Is this your suitcase?\n— Yes, thank you. Is it far?\n— No, twenty minutes. Where are you from?\n— From America. Do you speak English?\n— A little. You speak Greek!\n— A little Greek. How much is it?\n— Twenty euros.\n— Here you are. Thank you very much!\n— You're welcome. Enjoy your stay!",
+    "bundle": [
+      {"type": "chunk", "key": "θα ήθελα", "gloss": "I would like"},
+      {"type": "word", "key": "ξενοδοχείο", "gloss": "hotel"},
+      {"type": "chunk", "key": "μιλάτε αγγλικά;", "gloss": "do you speak English?"},
+      {"type": "chunk", "key": "λίγο ελληνικά", "gloss": "a little Greek"},
+      {"type": "chunk", "key": "πόσο κάνει;", "gloss": "how much is it?"},
+      {"type": "word", "key": "ευρώ", "gloss": "euro"},
+      {"type": "word", "key": "ορίστε", "gloss": "here you are"},
+      {"type": "chunk", "key": "καλή διαμονή", "gloss": "enjoy your stay"},
+      {"type": "grammar", "key": "polite-plural", "gloss": "εσείς / -ετε: the polite you"}
+    ],
+    "prompts": [
+      {"situation": "You're in the taxi. Tell the driver, politely, that you'd like to go to the Hotel Akropoli.", "exampleAnswer": "Θα ήθελα να πάω στο ξενοδοχείο Ακρόπολη, παρακαλώ.", "targets": ["θα ήθελα", "ξενοδοχείο"]},
+      {"situation": "The ride is over. Ask how much it is.", "exampleAnswer": "Πόσο κάνει;", "targets": ["πόσο κάνει;"]}
+    ]
+  }
+},
+{
+  "slug": "el-cafe",
+  "title": "Στο καφέ",
+  "brief": "A café on a square, 9am, already warm. The waiter comes over with a notepad.",
+  "domains": ["food"],
+  "visit": {
+    "brief": "Order a coffee the Greek way, say how you take it, and ask for the bill.",
+    "summary": "Ordered an iced coffee with a little sugar and a water; the bill was three euros.",
+    "dialogue": "— Καλημέρα! Τι θα πάρετε;\n— Καλημέρα. Έναν καφέ, παρακαλώ. Και ένα νερό.\n— Ζεστό ή κρύο τον καφέ;\n— Κρύο, παρακαλώ. Ένα φραπέ.\n— Με ζάχαρη; Με γάλα;\n— Με λίγη ζάχαρη, χωρίς γάλα.\n— Εντάξει. Τίποτα άλλο;\n— Όχι, ευχαριστώ. Αυτό είναι όλο.\n— Ορίστε, ο καφές σας και το νερό.\n— Ευχαριστώ πολύ. Τον λογαριασμό, παρακαλώ.\n— Τρία ευρώ.",
+    "translation": "— Good morning! What will you have?\n— Good morning. A coffee, please. And a water.\n— Hot or cold, the coffee?\n— Cold, please. A frappé.\n— With sugar? With milk?\n— With a little sugar, no milk.\n— Okay. Anything else?\n— No, thank you. That's all.\n— Here you are, your coffee and the water.\n— Thank you very much. The bill, please.\n— Three euros.",
+    "bundle": [
+      {"type": "chunk", "key": "τι θα πάρετε;", "gloss": "what will you have?"},
+      {"type": "chunk", "key": "έναν καφέ, παρακαλώ", "gloss": "a coffee, please"},
+      {"type": "word", "key": "νερό", "gloss": "water"},
+      {"type": "word", "key": "ζάχαρη", "gloss": "sugar"},
+      {"type": "word", "key": "γάλα", "gloss": "milk"},
+      {"type": "chunk", "key": "τίποτα άλλο;", "gloss": "anything else?"},
+      {"type": "chunk", "key": "αυτό είναι όλο", "gloss": "that's all"},
+      {"type": "chunk", "key": "τον λογαριασμό, παρακαλώ", "gloss": "the bill, please"},
+      {"type": "grammar", "key": "accusative-object", "gloss": "The object changes: ο → τον, η → την"}
+    ],
+    "prompts": [
+      {"situation": "The waiter asks what you'll have. Order a coffee and a water.", "exampleAnswer": "Έναν καφέ, παρακαλώ. Και ένα νερό.", "targets": ["έναν καφέ, παρακαλώ", "νερό"]},
+      {"situation": "You're done. Ask for the bill.", "exampleAnswer": "Τον λογαριασμό, παρακαλώ.", "targets": ["τον λογαριασμό, παρακαλώ"]}
+    ]
+  }
+},
+{
+  "slug": "el-taverna",
+  "title": "Στην ταβέρνα",
+  "brief": "A seaside taverna at dusk, paper tablecloths, a cat under the next table. The owner greets you at the door.",
+  "domains": ["food"],
+  "visit": {
+    "brief": "Get a table for two, ask what's fresh, and order a proper dinner with something to drink.",
+    "summary": "Dinner for two by the window: fish from the island, a Greek salad, bread and half a kilo of wine.",
+    "dialogue": "— Καλησπέρα σας! Πόσα άτομα;\n— Καλησπέρα. Ένα τραπέζι για δύο, παρακαλώ.\n— Βεβαίως. Εδώ, δίπλα στο παράθυρο.\n— Τον κατάλογο, παρακαλώ. Έχετε ψάρι σήμερα;\n— Ναι, φρέσκο ψάρι από το νησί. Και η χωριάτικη είναι πολύ καλή.\n— Ωραία. Μια χωριάτικη, ψάρι για δύο, και ψωμί.\n— Και να πιείτε; Κρασί, μπίρα;\n— Μισό κιλό κρασί, παρακαλώ. Και ένα μπουκάλι νερό.\n— Αμέσως. Καλή όρεξη!\n— Ευχαριστούμε. Στην υγειά μας!",
+    "translation": "— Good evening! How many people?\n— Good evening. A table for two, please.\n— Of course. Here, by the window.\n— The menu, please. Do you have fish today?\n— Yes, fresh fish from the island. And the Greek salad is very good.\n— Lovely. A Greek salad, fish for two, and bread.\n— And to drink? Wine, beer?\n— Half a kilo of wine, please. And a bottle of water.\n— Right away. Enjoy your meal!\n— Thank you. Cheers!",
+    "bundle": [
+      {"type": "chunk", "key": "ένα τραπέζι για δύο", "gloss": "a table for two"},
+      {"type": "chunk", "key": "τον κατάλογο, παρακαλώ", "gloss": "the menu, please"},
+      {"type": "word", "key": "ψάρι", "gloss": "fish"},
+      {"type": "word", "key": "χωριάτικη", "gloss": "village-style (the Greek salad)"},
+      {"type": "word", "key": "ψωμί", "gloss": "bread"},
+      {"type": "word", "key": "κρασί", "gloss": "wine"},
+      {"type": "chunk", "key": "καλή όρεξη", "gloss": "enjoy your meal"},
+      {"type": "chunk", "key": "στην υγειά μας", "gloss": "cheers!"},
+      {"type": "grammar", "key": "numbers-agreement", "gloss": "One, three and four change with gender"}
+    ],
+    "prompts": [
+      {"situation": "You walk into a taverna with a friend. Ask for a table for two.", "exampleAnswer": "Ένα τραπέζι για δύο, παρακαλώ.", "targets": ["ένα τραπέζι για δύο"]},
+      {"situation": "Order a Greek salad, bread and wine.", "exampleAnswer": "Μια χωριάτικη, ψωμί και κρασί, παρακαλώ.", "targets": ["χωριάτικη", "ψωμί", "κρασί"]}
+    ]
+  }
+},
+{
+  "slug": "el-directions",
+  "title": "Στον δρόμο",
+  "brief": "A hot afternoon in a town you don't know. You want the beach, and a cash machine on the way.",
+  "domains": ["places"],
+  "visit": {
+    "brief": "Stop someone, ask the way to the beach, and find out where there's a bank.",
+    "summary": "A passer-by sent you straight on and left for the beach, and pointed out a bank on the square by the pharmacy.",
+    "dialogue": "— Με συγχωρείτε! Πού είναι η παραλία;\n— Η παραλία; Όλο ευθεία, και μετά στα αριστερά.\n— Είναι μακριά;\n— Όχι, είναι εδώ κοντά. Δέκα λεπτά.\n— Και πού είναι μια τράπεζα;\n— Υπάρχει μια τράπεζα στην πλατεία, δίπλα στο φαρμακείο.\n— Στα δεξιά ή στα αριστερά;\n— Στα δεξιά, απέναντι από την εκκλησία.\n— Ευχαριστώ πολύ!\n— Τίποτα. Καλή συνέχεια!",
+    "translation": "— Excuse me! Where is the beach?\n— The beach? Straight on, then on the left.\n— Is it far?\n— No, it's near here. Ten minutes.\n— And where is there a bank?\n— There's a bank on the square, next to the pharmacy.\n— On the right or on the left?\n— On the right, opposite the church.\n— Thank you very much!\n— Don't mention it. Have a good one!",
+    "bundle": [
+      {"type": "chunk", "key": "με συγχωρείτε", "gloss": "excuse me"},
+      {"type": "chunk", "key": "πού είναι…;", "gloss": "where is…?"},
+      {"type": "chunk", "key": "όλο ευθεία", "gloss": "straight on"},
+      {"type": "chunk", "key": "στα αριστερά", "gloss": "on the left"},
+      {"type": "chunk", "key": "στα δεξιά", "gloss": "on the right"},
+      {"type": "chunk", "key": "εδώ κοντά", "gloss": "near here"},
+      {"type": "word", "key": "παραλία", "gloss": "beach"},
+      {"type": "word", "key": "πλατεία", "gloss": "square"},
+      {"type": "word", "key": "τράπεζα", "gloss": "bank"},
+      {"type": "grammar", "key": "se-plus-article", "gloss": "σε + article = στο, στη, στον, στα"}
+    ],
+    "prompts": [
+      {"situation": "Stop someone in the street and ask where the beach is.", "exampleAnswer": "Με συγχωρείτε, πού είναι η παραλία;", "targets": ["με συγχωρείτε", "πού είναι…;"]},
+      {"situation": "A lost tourist asks you for the square. Tell them: straight on, then on the right.", "exampleAnswer": "Όλο ευθεία, και μετά στα δεξιά.", "targets": ["όλο ευθεία", "στα δεξιά"]}
+    ]
+  }
+},
+{
+  "slug": "el-ferry",
+  "title": "Στο λιμάνι",
+  "brief": "The ticket window at the port of Piraeus. Ferries, gulls, a queue behind you.",
+  "domains": ["transport", "travel"],
+  "visit": {
+    "brief": "Buy a return ticket to Naxos for tomorrow morning and find out when the boat leaves.",
+    "summary": "Bought a return ticket to Naxos for the 7:30 ferry tomorrow, paid by card, platform three.",
+    "dialogue": "— Καλημέρα. Θα ήθελα ένα εισιτήριο για τη Νάξο.\n— Για σήμερα ή για αύριο;\n— Για αύριο το πρωί. Τι ώρα φεύγει το πλοίο;\n— Στις επτά και μισή. Απλή διαδρομή ή με επιστροφή;\n— Με επιστροφή, παρακαλώ. Πόσο κάνει;\n— Εβδομήντα ευρώ. Με κάρτα ή μετρητά;\n— Με κάρτα, παρακαλώ.\n— Ορίστε το εισιτήριο και η απόδειξη. Αποβάθρα τρία.\n— Ευχαριστώ. Καλή μέρα!",
+    "translation": "— Good morning. I'd like a ticket to Naxos.\n— For today or for tomorrow?\n— For tomorrow morning. What time does the boat leave?\n— At half past seven. One way or return?\n— Return, please. How much is it?\n— Seventy euros. Card or cash?\n— By card, please.\n— Here's the ticket and the receipt. Platform three.\n— Thank you. Have a good day!",
+    "bundle": [
+      {"type": "word", "key": "εισιτήριο", "gloss": "ticket"},
+      {"type": "word", "key": "αύριο", "gloss": "tomorrow"},
+      {"type": "word", "key": "πρωί", "gloss": "morning"},
+      {"type": "chunk", "key": "τι ώρα φεύγει;", "gloss": "what time does it leave?"},
+      {"type": "word", "key": "πλοίο", "gloss": "ship, ferry"},
+      {"type": "chunk", "key": "με επιστροφή", "gloss": "return (ticket)"},
+      {"type": "chunk", "key": "με κάρτα ή μετρητά;", "gloss": "card or cash?"},
+      {"type": "word", "key": "απόδειξη", "gloss": "receipt"},
+      {"type": "word", "key": "αποβάθρα", "gloss": "platform, quay"},
+      {"type": "grammar", "key": "question-mark", "gloss": "The Greek question mark is a semicolon ;"}
+    ],
+    "prompts": [
+      {"situation": "At the port ticket window: say you'd like a return ticket to Naxos for tomorrow morning.", "exampleAnswer": "Θα ήθελα ένα εισιτήριο για τη Νάξο, για αύριο το πρωί, με επιστροφή.", "targets": ["εισιτήριο", "αύριο", "με επιστροφή"]},
+      {"situation": "Ask what time the ferry leaves.", "exampleAnswer": "Τι ώρα φεύγει το πλοίο;", "targets": ["τι ώρα φεύγει;", "πλοίο"]}
+    ]
+  }
+},
+{
+  "slug": "el-hotel",
+  "title": "Στο ξενοδοχείο",
+  "brief": "Reception of a small hotel, late evening. A bell, a bowl of sweets, a tired receptionist who brightens up.",
+  "domains": ["lodging"],
+  "visit": {
+    "brief": "Check in: say you have a reservation, give your name, and find out about the room and breakfast.",
+    "summary": "Checked in for three nights; room on the third floor with a sea view, breakfast from seven to ten.",
+    "dialogue": "— Καλησπέρα. Έχω κράτηση. Με λένε Μαρία Σμιθ.\n— Καλώς ήρθατε! Ένα λεπτό… Ναι, ένα δωμάτιο για δύο άτομα, τρεις νύχτες.\n— Σωστά. Έχει θέα στη θάλασσα;\n— Ναι, στον τρίτο όροφο. Το διαβατήριό σας, παρακαλώ.\n— Ορίστε.\n— Ευχαριστώ. Το κλειδί σας. Το πρωινό είναι από τις επτά μέχρι τις δέκα.\n— Υπάρχει ασανσέρ;\n— Ναι, εκεί δεξιά. Καλή διαμονή!\n— Ευχαριστώ πολύ. Καληνύχτα!",
+    "translation": "— Good evening. I have a reservation. My name is Maria Smith.\n— Welcome! One moment… Yes, a room for two people, three nights.\n— That's right. Does it have a sea view?\n— Yes, on the third floor. Your passport, please.\n— Here you are.\n— Thank you. Your key. Breakfast is from seven until ten.\n— Is there a lift?\n— Yes, over there on the right. Enjoy your stay!\n— Thank you very much. Good night!",
+    "bundle": [
+      {"type": "chunk", "key": "έχω κράτηση", "gloss": "I have a reservation"},
+      {"type": "chunk", "key": "με λένε", "gloss": "my name is"},
+      {"type": "word", "key": "δωμάτιο", "gloss": "room"},
+      {"type": "chunk", "key": "για δύο άτομα", "gloss": "for two people"},
+      {"type": "word", "key": "θέα", "gloss": "view"},
+      {"type": "word", "key": "διαβατήριο", "gloss": "passport"},
+      {"type": "word", "key": "κλειδί", "gloss": "key"},
+      {"type": "word", "key": "πρωινό", "gloss": "breakfast"},
+      {"type": "word", "key": "ανελκυστήρας", "gloss": "lift, elevator"},
+      {"type": "grammar", "key": "me-lene", "gloss": "Με λένε: my name is"}
+    ],
+    "prompts": [
+      {"situation": "At reception: say you have a reservation and give your name.", "exampleAnswer": "Έχω κράτηση. Με λένε Άννα.", "targets": ["έχω κράτηση", "με λένε"]},
+      {"situation": "Ask whether the room has a sea view.", "exampleAnswer": "Έχει θέα στη θάλασσα το δωμάτιο;", "targets": ["θέα", "δωμάτιο"]}
+    ]
+  }
+},
+{
+  "slug": "el-pharmacy",
+  "title": "Στο φαρμακείο",
+  "brief": "Too much sun yesterday. A green cross, a cool shop, a pharmacist in a white coat.",
+  "domains": ["health"],
+  "visit": {
+    "brief": "Explain that your head hurts, understand how to take what you're given, and buy sunscreen.",
+    "summary": "Got pills for a headache from the sun, one morning and one evening with water, and a small sunscreen.",
+    "dialogue": "— Καλημέρα. Χρειάζομαι βοήθεια. Πονάει εδώ, το κεφάλι.\n— Έχετε πυρετό;\n— Όχι, δεν νομίζω. Είμαι λίγο κουρασμένη από τον ήλιο.\n— Κατάλαβα. Πάρτε αυτά τα χάπια, ένα το πρωί και ένα το βράδυ.\n— Δύο φορές την ημέρα;\n— Ναι. Με νερό, μετά το φαγητό. Θέλετε και αντηλιακό;\n— Ναι, παρακαλώ. Ένα μικρό.\n— Ορίστε. Δώδεκα ευρώ.\n— Ευχαριστώ πολύ. Καλή μέρα!",
+    "translation": "— Good morning. I need help. It hurts here, my head.\n— Do you have a fever?\n— No, I don't think so. I'm a bit worn out from the sun.\n— I see. Take these pills, one in the morning and one in the evening.\n— Twice a day?\n— Yes. With water, after food. Would you like sunscreen too?\n— Yes, please. A small one.\n— Here you are. Twelve euros.\n— Thank you very much. Have a good day!",
+    "bundle": [
+      {"type": "chunk", "key": "χρειάζομαι βοήθεια", "gloss": "I need help"},
+      {"type": "chunk", "key": "πονάει εδώ", "gloss": "it hurts here"},
+      {"type": "word", "key": "κεφάλι", "gloss": "head"},
+      {"type": "word", "key": "πυρετός", "gloss": "fever"},
+      {"type": "word", "key": "χάπι", "gloss": "pill"},
+      {"type": "chunk", "key": "δύο φορές την ημέρα", "gloss": "twice a day"},
+      {"type": "word", "key": "αντηλιακό", "gloss": "sunscreen"},
+      {"type": "word", "key": "κουρασμένος", "gloss": "tired"},
+      {"type": "grammar", "key": "negation-den", "gloss": "Not: δεν before the verb, μην for don't"}
+    ],
+    "prompts": [
+      {"situation": "You have a headache. Tell the pharmacist it hurts here, pointing at your head.", "exampleAnswer": "Πονάει εδώ, το κεφάλι.", "targets": ["πονάει εδώ", "κεφάλι"]},
+      {"situation": "Ask for a sunscreen.", "exampleAnswer": "Θα ήθελα ένα αντηλιακό, παρακαλώ.", "targets": ["αντηλιακό"]}
+    ]
+  }
+},
+{
+  "slug": "el-market",
+  "title": "Στη λαϊκή",
+  "brief": "Saturday street market. Crates of tomatoes, a man shouting prices, melons the size of footballs.",
+  "domains": ["shopping", "food"],
+  "visit": {
+    "brief": "Buy tomatoes and olives by the kilo, ask what things cost, and get your change.",
+    "summary": "Bought a kilo of tomatoes and half a kilo of olives from a stall holder who tried to sell a melon too.",
+    "dialogue": "— Καλημέρα! Φρέσκες ντομάτες, φρέσκα πεπόνια! Τι θέλετε;\n— Καλημέρα. Ένα κιλό ντομάτες, παρακαλώ. Πόσο κάνουν;\n— Δύο ευρώ το κιλό.\n— Και μισό κιλό ελιές. Είναι από εδώ;\n— Ναι, από το χωριό μας. Θέλετε και ένα πεπόνι; Είναι πολύ γλυκό.\n— Όχι, ευχαριστώ. Αυτό είναι όλο. Πόσο κάνουν όλα;\n— Πέντε ευρώ.\n— Ορίστε δέκα.\n— Τα ρέστα σας. Μια σακούλα;\n— Ναι, παρακαλώ. Ευχαριστώ, καλή μέρα!",
+    "translation": "— Good morning! Fresh tomatoes, fresh melons! What would you like?\n— Good morning. A kilo of tomatoes, please. How much are they?\n— Two euros a kilo.\n— And half a kilo of olives. Are they from here?\n— Yes, from our village. Would you like a melon too? It's very sweet.\n— No, thank you. That's all. How much is everything?\n— Five euros.\n— Here's ten.\n— Your change. A bag?\n— Yes, please. Thank you, have a good day!",
+    "bundle": [
+      {"type": "word", "key": "κιλό", "gloss": "kilo"},
+      {"type": "word", "key": "ντομάτα", "gloss": "tomato"},
+      {"type": "chunk", "key": "πόσο κάνουν;", "gloss": "how much are they?"},
+      {"type": "word", "key": "ελιά", "gloss": "olive"},
+      {"type": "word", "key": "μισό", "gloss": "half"},
+      {"type": "word", "key": "πεπόνι", "gloss": "melon"},
+      {"type": "word", "key": "ρέστα", "gloss": "change (money back)"},
+      {"type": "word", "key": "τσάντα", "gloss": "bag"},
+      {"type": "word", "key": "φρέσκο", "gloss": "fresh"},
+      {"type": "grammar", "key": "plural-basics", "gloss": "Plurals: -ος → -οι, -α/-η → -ες, -ο → -α, -ι → -ια"}
+    ],
+    "prompts": [
+      {"situation": "At the stall: ask for a kilo of tomatoes and half a kilo of olives.", "exampleAnswer": "Ένα κιλό ντομάτες και μισό κιλό ελιές, παρακαλώ.", "targets": ["κιλό", "ντομάτα", "ελιά", "μισό"]},
+      {"situation": "Ask how much they are.", "exampleAnswer": "Πόσο κάνουν;", "targets": ["πόσο κάνουν;"]}
+    ]
+  }
+},
+{
+  "slug": "el-signs",
+  "title": "Πινακίδες στην πόλη",
+  "brief": "A walk through town with a Greek friend who has decided you're going to read every sign you pass.",
+  "domains": ["signs"],
+  "visit": {
+    "brief": "Sound out the capitals on the signs around you: entrances, exits, the pharmacy, the toilets, and the one that says you can't go in.",
+    "summary": "Read a dozen signs out loud with a friend: ΕΙΣΟΔΟΣ, ΕΞΟΔΟΣ, ΦΑΡΜΑΚΕΙΟ, ΑΝΟΙΧΤΟ, ΤΟΥΑΛΕΤΕΣ, and ΑΠΑΓΟΡΕΥΕΤΑΙ Η ΕΙΣΟΔΟΣ.",
+    "dialogue": "— Κοίτα, τι λέει εκεί; ΕΙΣΟΔΟΣ.\n— Είσοδος, ναι. Και εδώ ΕΞΟΔΟΣ, η έξοδος.\n— Και αυτό; ΦΑΡΜΑΚΕΙΟ;\n— Φαρμακείο. Είναι ΑΝΟΙΧΤΟ, βλέπεις; Όχι ΚΛΕΙΣΤΟ.\n— Ωραία. Και ΤΟΥΑΛΕΤΕΣ, αριστερά. ΑΝΔΡΩΝ και ΓΥΝΑΙΚΩΝ.\n— Σωστά! Προσοχή τώρα: ΑΠΑΓΟΡΕΥΕΤΑΙ Η ΕΙΣΟΔΟΣ. Δεν πάμε από εδώ.\n— Εντάξει. Και ΠΡΟΣ ΠΑΡΑΛΙΑ, δεξιά!\n— Μπράβο. Διαβάζεις ελληνικά!",
+    "translation": "— Look, what does it say there? ENTRANCE.\n— Entrance, yes. And here EXIT, the exit.\n— And this? PHARMACY?\n— Pharmacy. It's OPEN, see? Not CLOSED.\n— Nice. And TOILETS, on the left. MEN and WOMEN.\n— Right! Careful now: NO ENTRY. We don't go this way.\n— Okay. And TO THE BEACH, on the right!\n— Well done. You're reading Greek!",
+    "bundle": [
+      {"type": "word", "key": "είσοδος", "gloss": "entrance"},
+      {"type": "word", "key": "έξοδος", "gloss": "exit"},
+      {"type": "word", "key": "φαρμακείο", "gloss": "pharmacy"},
+      {"type": "word", "key": "ανοιχτό", "gloss": "open"},
+      {"type": "word", "key": "κλειστό", "gloss": "closed"},
+      {"type": "word", "key": "τουαλέτα", "gloss": "toilet"},
+      {"type": "word", "key": "ανδρών", "gloss": "men's (gents)"},
+      {"type": "word", "key": "γυναικών", "gloss": "women's (ladies)"},
+      {"type": "chunk", "key": "απαγορεύεται η είσοδος", "gloss": "no entry"},
+      {"type": "grammar", "key": "signs-capitals", "gloss": "Reading signs: capitals without accents, final sigma"}
+    ],
+    "prompts": [
+      {"situation": "You see ΑΠΑΓΟΡΕΥΕΤΑΙ Η ΕΙΣΟΔΟΣ on a gate. Tell your friend what it says and that you won't go that way.", "exampleAnswer": "Απαγορεύεται η είσοδος. Δεν πάμε από εδώ.", "targets": ["απαγορεύεται η είσοδος"]},
+      {"situation": "Your friend points at a door marked ΕΞΟΔΟΣ and asks what it is. Answer.", "exampleAnswer": "Είναι η έξοδος.", "targets": ["έξοδος"]}
+    ]
+  }
+}
+]

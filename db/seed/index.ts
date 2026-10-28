@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { db, hasDatabase } from "@/db";
-import type { ChunkEntry, FrequencyEntry, GrammarEntry } from "@/lib/atoms/seed";
+import type { ChunkEntry, GrammarEntry, WordEntry } from "@/lib/atoms/seed";
 import type { ScenarioEntry } from "@/lib/scenarios/seed";
 import { seedAtoms } from "./run";
 import { seedScenarios } from "./scenarios";
@@ -22,19 +22,29 @@ async function main() {
     process.exit(1);
   }
   const files = {
-    freq: load<FrequencyEntry[]>("frequency-fr.json"),
+    freq: load<WordEntry[]>("frequency-fr.json"),
     chunks: load<ChunkEntry[]>("chunks-fr.json"),
     grammar: load<GrammarEntry[]>("grammar-fr.json"),
   };
-  const result = await seedAtoms(db(), files);
+  const result = await seedAtoms(db(), files, "fr");
   console.log(
-    `upserted ${result.upserted} atoms (${files.freq.length} words, ${files.chunks.length} chunks, ${files.grammar.length} grammar); linked ${result.linked} chunks`,
+    `fr: upserted ${result.upserted} atoms (${files.freq.length} words, ${files.chunks.length} chunks, ${files.grammar.length} grammar); linked ${result.linked} chunks`,
   );
-  const seeded = await seedScenarios(db(), load<ScenarioEntry[]>("scenarios-fr.json"));
-  console.log(`${seeded.scenarios} scenarios, ${seeded.visitsWritten} first visits written`);
+  const seeded = await seedScenarios(db(), load<ScenarioEntry[]>("scenarios-fr.json"), "fr");
+  console.log(`fr: ${seeded.scenarios} scenarios, ${seeded.visitsWritten} first visits written`);
   if (result.unglossed) {
-    console.warn(`${result.unglossed} words have no gloss yet; run \`npm run seed:gloss\` and re-seed.`);
+    console.warn(`${result.unglossed} French words have no gloss yet; run \`npm run seed:gloss\` and re-seed.`);
   }
+
+  const el = {
+    freq: load<WordEntry[]>("words-el.json"),
+    chunks: load<ChunkEntry[]>("chunks-el.json"),
+    grammar: load<GrammarEntry[]>("grammar-el.json"),
+  };
+  const elResult = await seedAtoms(db(), el, "el");
+  console.log(`el: upserted ${elResult.upserted} atoms (${el.freq.length} words, ${el.chunks.length} chunks, ${el.grammar.length} grammar)`);
+  const elSeeded = await seedScenarios(db(), load<ScenarioEntry[]>("scenarios-el.json"), "el");
+  console.log(`el: ${elSeeded.scenarios} scenarios, ${elSeeded.visitsWritten} first visits written`);
 }
 
 main().catch((err) => {
