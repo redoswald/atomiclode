@@ -4,6 +4,8 @@ import { homeCounts, type HomeCounts } from "@/lib/atoms/stats";
 import { signOut } from "@/app/actions/auth";
 import { authEnabled, getUser } from "@/lib/auth";
 import { learner } from "@/lib/learner";
+import { completedLessons, courseFor, courseLive } from "@/lib/course";
+import { nextLesson, unitProgress } from "@/lib/course/path";
 import { activeGoal, goalCoverageWeekAgo, goalView, type GoalView } from "@/lib/goals/goals";
 import { langName } from "@/lib/lang";
 import { hasAnthropicKey } from "@/lib/llm/client";
@@ -71,6 +73,12 @@ export default async function Home() {
     );
   }
 
+  // The course leads on a track that has one (SPEC §17): the next lesson, and the unit's progress.
+  const course = courseLive(lang) ? courseFor(lang) : undefined;
+  const done = course ? await completedLessons(db(), me) : new Set<string>();
+  const next = course ? nextLesson(course, done) : undefined;
+  const progress = next ? unitProgress(next.unit, done) : undefined;
+
   const glossedNew = Math.max(0, counts.newAvailable.word - counts.unglossed);
   const newTotal = glossedNew + counts.newAvailable.chunk + counts.newAvailable.grammar;
   const refreshMin = Math.round((counts.dueNow * MODALITY_SECONDS.recall) / 60);
@@ -98,6 +106,32 @@ export default async function Home() {
           <code className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> and{" "}
           <code className="font-mono">ALLOWED_EMAILS</code> in Vercel and redeploy to require a suite sign-in.
         </p>
+      )}
+
+      {course && (
+        <section className="card mb-4 p-5">
+          {next && progress ? (
+            <>
+              <p className="eyebrow">
+                Continue · {next.unit.title}, lesson {next.n}
+              </p>
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <h2 className="font-display min-w-0 truncate text-2xl">{next.lesson.title}</h2>
+                <Link href={next.lesson.kind === "checkpoint" ? "/learn" : `/learn/${next.lesson.id}`} className="btn-primary shrink-0 px-4 py-2 text-sm">
+                  Start
+                </Link>
+              </div>
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-line" aria-hidden>
+                <div className="h-full rounded-full bg-sage" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
+              </div>
+              <p className="mt-1 text-xs text-muted">
+                {progress.done} of {progress.total} · {next.unit.cefr}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm">The course is done for now. More units are coming.</p>
+          )}
+        </section>
       )}
 
       <section className="card p-5">

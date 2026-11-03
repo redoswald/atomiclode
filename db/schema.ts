@@ -338,6 +338,30 @@ export const producePrompts = pgTable("produce_prompts", {
   createdAt: timestamptz("created_at").notNull().defaultNow(),
 });
 
+// ---- introductions (§17) ---------------------------------------------------------
+// The course's hand-off to review: not a graded review but an atom's start. Replay
+// applies it before the atom's reviews; a per-learner FSRS fit should skip it, since
+// massed, prompted lesson practice overstates what a learner knows.
+
+export const introductions = pgTable(
+  "introductions",
+  {
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id").notNull(),
+    atomId: uuid("atom_id")
+      .notNull()
+      .references(() => atoms.id, { onDelete: "cascade" }),
+    lessonId: text("lesson_id").notNull(),
+    at: timestamptz("at").notNull().defaultNow(),
+    /** First review, after spreading a heavy day over the next ones (§17 Pacing). */
+    due: timestamptz("due").notNull(),
+    firstTimeRight: boolean("first_time_right").notNull(),
+    attempts: integer("attempts").notNull(),
+    misses: integer("misses").notNull(),
+  },
+  (t) => [uniqueIndex("introductions_atom_idx").on(t.atomId), index("introductions_user_due_idx").on(t.userId, t.due)],
+);
+
 // ---- course progress (§17) ------------------------------------------------------
 
 export const lessonProgress = pgTable(

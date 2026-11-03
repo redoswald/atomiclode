@@ -85,6 +85,13 @@
       "when": 1793735485282,
       "tag": "0011_lesson_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793735800278,
+      "tag": "0012_introductions",
+      "breakpoints": true
     }
   ]
 }

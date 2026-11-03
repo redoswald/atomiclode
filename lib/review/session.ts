@@ -55,6 +55,12 @@ export function parseIntensity(v: unknown): Intensity {
 }
 
 export interface BuildOptions {
+  /** Override the intensity's budget, e.g. a lesson's two-minute warm-up (SPEC §17). */
+  timeBudgetMin?: number;
+  /** Override new atoms per day; 0 for a review-only round such as a warm-up. */
+  newAtomsPerDay?: number;
+  /** Override whether the track's course is live (tests; see lib/course). */
+  courseLive?: boolean;
   /** Produce needs a model to grade it; defaults to whether an API key is set. */
   produce?: boolean;
   /** Listen cards need consistent audio; defaults to whether a speech provider is set (SPEC §15). */
@@ -65,9 +71,9 @@ export interface BuildOptions {
 export async function buildSession(d: Db, me: Learner, intensity: Intensity, now = new Date(), opts: BuildOptions = {}): Promise<BuiltSession> {
   const { userId, lang } = me;
   const produce = opts.produce ?? hasAnthropicKey();
-  const timeBudgetMin = BUDGETS[intensity];
+  const timeBudgetMin = opts.timeBudgetMin ?? BUDGETS[intensity];
   const [order, rows, sentenceRows, introduced, recentEncounters] = await Promise.all([
-    newAtomOrder(d, me, produce),
+    newAtomOrder(d, me, produce, { courseLive: opts.courseLive }),
     d.select().from(atoms).where(and(eq(atoms.userId, userId), eq(atoms.lang, lang), sql`${atoms.status} <> 'suspended'`)),
     d.select().from(sentences).where(and(eq(sentences.userId, userId), eq(sentences.lang, lang))),
     newAtomsIntroducedToday(d, me, now),
@@ -105,7 +111,7 @@ export async function buildSession(d: Db, me: Learner, intensity: Intensity, now
   const plan = planSession(all, sentenceList, {
     now: now.toISOString(),
     timeBudgetMin,
-    newAtomsPerDay: DEFAULT_NEW_PER_DAY,
+    newAtomsPerDay: opts.newAtomsPerDay ?? DEFAULT_NEW_PER_DAY,
     newAtomsIntroducedToday: introduced,
     intensity,
     produceMax: produce ? PRODUCE_MAX[intensity] : 0,

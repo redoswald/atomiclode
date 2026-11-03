@@ -2,6 +2,7 @@ import type { Atom, Encounter, MemoryState, ReviewEvent } from "@/lib/atoms/type
 import { emptyModalityStats, newMemoryState } from "@/lib/atoms/types";
 import { applyReview } from "./applyReview";
 import { applyExposure } from "./exposure";
+import { introducedMemoryState, type Introduction } from "./introduce";
 
 /** Stability given to an atom the learner marked "Already know" (SPEC §5). */
 export const KNOWN_STABILITY_DAYS = 120;
@@ -28,10 +29,13 @@ export function knownMemoryState(at: string): MemoryState {
  * (due at creation). Suspension is recomputed from lapses, so a manually
  * suspended atom with fewer than LEECH_LAPSES lapses becomes active again.
  */
-export function replay(atoms: Atom[], events: ReviewEvent[], encounters: Encounter[] = []): Atom[] {
+export function replay(atoms: Atom[], events: ReviewEvent[], encounters: Encounter[] = [], introductions: Introduction[] = []): Atom[] {
+  const intro = new Map(introductions.map((i) => [i.atomId, i]));
   const byAtom = new Map<string, Atom>();
   for (const a of atoms) {
-    const memory = a.markedKnownAt ? knownMemoryState(a.markedKnownAt) : newMemoryState(a.createdAt);
+    // An atom starts new, known ("Already know"), or as a lesson introduced it (SPEC §17).
+    const i = intro.get(a.id);
+    const memory = a.markedKnownAt ? knownMemoryState(a.markedKnownAt) : i ? introducedMemoryState(i) : newMemoryState(a.createdAt);
     byAtom.set(a.id, { ...a, memory, modality: emptyModalityStats() });
   }
   const ordered = [...events].sort((x, y) => (x.at < y.at ? -1 : x.at > y.at ? 1 : 0));
