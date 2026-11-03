@@ -1,11 +1,12 @@
 import type { Modality, ModalityStat } from "@/lib/atoms/types";
 
 /** Easiest → hardest. Used to decide whether a fail says "forgotten" or "weaker skill". */
-export const MODALITY_ORDER: readonly Modality[] = ["recognize", "listen", "recall", "cloze", "produce"];
+export const MODALITY_ORDER: readonly Modality[] = ["recognize", "decode", "listen", "recall", "cloze", "produce"];
 
 /** Rough seconds per item, for fitting a session to a time budget. */
 export const MODALITY_SECONDS: Record<Modality, number> = {
   recognize: 6,
+  decode: 10,
   listen: 10,
   recall: 15,
   cloze: 20,

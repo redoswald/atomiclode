@@ -7,6 +7,7 @@ import { AutoplayToggle, playSpeech, prefetchSpeech, SpeakButton, stopSpeech, us
 import { WhyPanel } from "@/app/why-panel";
 import type { Grade } from "@/lib/atoms/types";
 import { LANG_SPECS, langName, type Lang } from "@/lib/lang";
+import { LOOKALIKES, lookalikeMisread } from "@/lib/greek/script";
 import { lenientMatch } from "@/lib/review/match";
 import { spokenText } from "@/lib/speech/say";
 import type { ProduceCheck } from "@/lib/review/produce";
@@ -167,7 +168,7 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
     if (text) playSpeech(cloud, card.lang, text);
   }, [phase, autoplay, cloud, card]);
 
-  const typedModality = card.modality === "recall" || card.modality === "cloze";
+  const typedModality = card.modality === "recall" || card.modality === "cloze" || card.modality === "decode";
   const isProduce = card.modality === "produce" && card.produce !== undefined;
   const verdict = check && !("error" in check) ? check : undefined;
   const usedIt = verdict?.usedAtomIds.includes(card.atomId) ?? false;
@@ -186,6 +187,8 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
     const opts = { lang: card.lang, romanizations: card.romanization ? [card.romanization] : [] };
     if (card.modality === "recall") setCorrect(lenientMatch(typed, [card.key, ...card.forms], opts));
     if (card.modality === "cloze") setCorrect(lenientMatch(typed, [card.cloze?.answer ?? card.key, ...card.forms], opts));
+    // Decode is about the sound: only a Latin-letter reading counts, not the Greek copied back.
+    if (card.modality === "decode") setCorrect(lenientMatch(typed, [], opts));
     setPhase("revealed");
   }
 
@@ -222,6 +225,8 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
   const label =
     isProduce
       ? "What do you say?"
+      : card.modality === "decode"
+      ? "How does it sound?"
       : card.modality === "recall"
       ? `Translate to ${langName(card.lang)}`
       : card.modality === "cloze"
@@ -240,6 +245,8 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
           <ProducePrompt card={card} phase={phase} typed={typed} setTyped={setTyped} check={check} onSubmit={reveal} />
         ) : card.modality === "recall" ? (
           <RecallPrompt card={card} phase={phase} typed={typed} setTyped={setTyped} correct={correct} inputRef={inputRef} onSubmit={reveal} />
+        ) : card.modality === "decode" ? (
+          <DecodePrompt card={card} phase={phase} typed={typed} setTyped={setTyped} correct={correct} inputRef={inputRef} onSubmit={reveal} />
         ) : card.modality === "cloze" && card.cloze ? (
           <ClozePrompt card={card} phase={phase} typed={typed} setTyped={setTyped} correct={correct} inputRef={inputRef} onSubmit={reveal} />
         ) : (
@@ -355,6 +362,7 @@ function RecognizePrompt({ card, phase }: { card: SessionCard; phase: Phase }) {
             <>
               <p className="text-2xl">{card.gloss || <span className="text-muted">no gloss yet</span>}</p>
               {card.pos !== "LETTER" && <Romanized card={card} />}
+              {card.pos === "LETTER" && <LookalikeNote card={card} />}
               <OtherForms card={card} />
             </>
           )}
@@ -425,6 +433,43 @@ function RecallPrompt(props: TypedProps) {
             </p>
           </Spoken>
           <Romanized card={card} />
+          <OtherForms card={card} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** "Looks like P. Says r." on a lookalike letter's card (SPEC §16). */
+function LookalikeNote({ card }: { card: SessionCard }) {
+  if (!card.domains?.includes("lookalike")) return null;
+  const notes = card.forms.flatMap((f) => (LOOKALIKES[f] ? [`${f} looks like ${LOOKALIKES[f].looks}, says ${LOOKALIKES[f].says}`] : []));
+  return notes.length ? <p className="mt-2 text-sm text-bad">{notes.join(" · ")}.</p> : null;
+}
+
+/** Greek script → sound (SPEC §16): see the word as written, type how it sounds in Latin letters. */
+function DecodePrompt(props: TypedProps) {
+  const { card, phase, typed, correct } = props;
+  const shown = displayKey(card);
+  const misread = phase === "revealed" && !correct && card.romanization ? lookalikeMisread(shown, typed, card.romanization) : undefined;
+  return (
+    <div>
+      <p className="font-display mt-3 text-4xl leading-tight" lang={card.lang}>
+        {shown}
+      </p>
+      <AnswerInput {...props} placeholder="In Latin letters: kafes" />
+      {phase === "revealed" && (
+        <div className="mt-6 border-t border-line pt-5">
+          <Verdict correct={correct} />
+          <Spoken card={card} className="mt-1">
+            <p className="text-3xl">{card.romanization}</p>
+          </Spoken>
+          {misread && (
+            <p className="mt-2 text-sm text-bad">
+              <span lang={card.lang}>{misread.letter}</span> looks like {misread.looks} but says {misread.says}.
+            </p>
+          )}
+          <p className="mt-3 text-xl">{card.gloss}</p>
           <OtherForms card={card} />
         </div>
       )}

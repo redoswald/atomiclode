@@ -40,6 +40,7 @@ export const modalityEnum = pgEnum("modality", [
   "listen",
   "produce",
   "cloze",
+  "decode",
 ]);
 export const sentenceOriginEnum = pgEnum("sentence_origin", [
   "generated",

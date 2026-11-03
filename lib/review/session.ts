@@ -108,6 +108,7 @@ export async function buildSession(d: Db, me: Learner, intensity: Intensity, now
     produceMax: produce ? PRODUCE_MAX[intensity] : 0,
     newOrder: order.newOrder,
     noFrequencyFallback: order.noFrequencyFallback,
+    blockedNew: order.blocked,
   });
 
   // Triage: persist the bulk deferrals so the next plan sees them.
