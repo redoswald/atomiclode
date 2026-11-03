@@ -28,11 +28,13 @@ Target language for v1: French. Base language: English.
 
 **In (v2, milestones 6–8):** situational produce cards, scenarios, goal texts.
 
+**In (v5):** a native iOS app (§20) on a versioned JSON API (§19); the course and its lessons are server-driven, so new units reach the app with no app update; lessons and reviews work offline from a downloaded pack.
+
 **In (v4):** a course per track (§17) and progress you can see (§18), starting with Greek Unit 1.
 
 **In (v3):** a second track. Greek for travellers: alphabet, signs, phrases, core words and nine scenes, switched from the header; every atom, passage, scene and goal is scoped by `lang`, so the two tracks never mix. Greek lemmas come from the curriculum's own forms (accent- and case-insensitive, so ΕΞΟΔΟΣ reads as έξοδος); answers may be typed in Latin letters against the romanization.
 
-**Out for now:** pronunciation scoring, open-ended AI conversation, native iOS/Android (the PWA is the phone app until offline, audio, or a share sheet justify more; with sound and speaking in, they may), languages beyond French and Greek, PDF/epub import, per-user FSRS parameter fitting, social features, gamification aimed at children (mascots, hearts, leagues, guilt notifications; §18 says what is in).
+**Out for now:** pronunciation scoring, open-ended AI conversation, Android, languages beyond French and Greek, PDF/epub import, per-user FSRS parameter fitting, social features, gamification aimed at children (mascots, hearts, leagues, guilt notifications; §18 says what is in).
 
 ---
 
@@ -567,7 +569,14 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 15. **Progress:** `xp_events`, the daily goal and streak (with rest days), review rounds, fading lessons and Refresh, path and level progress, the v4 home screen, Stats additions. Built: reviews earn fractional XP by expected seconds; passage XP on opening (once a day), not on scrolling through.
 16. **Unit 2** (β ζ ψ οι αυ γκ τζ; getting around; checkpoint the taxi): built. Then a French course to replace the frequency-led start.
 
-Later: a JSON API and an iOS app for the daily loop.
+**v5** (the iOS app)
+
+17. **API v1** (§19): bearer-token auth with the suite account, the capability header, the endpoints, idempotent submissions (`client_id` on review events and lesson completions), the three offline-ready rules (answers carry their time, late answers rebuild the atom from its log, self-contained payloads), contract tests against the shared types.
+18. **iOS, the daily loop:** the app shell, sign-in, Home, Review rounds with every card modality, audio. TestFlight build for the two of us.
+19. **iOS, the course:** the path, the lesson player (Meet, the seven exercises, Done, Refresh), scenes and checkpoints, the mic, Stats; then the App Store.
+20. **Offline:** `GET /offline-pack` (lessons built ahead, a week of review cards, their clips voiced ahead), the rolling pack and *Going offline*, running lessons and rounds from the pack, hiding what needs the network, and replaying the queue on return. The API is offline-ready from milestone 17 (§19), so this is app work plus one endpoint.
+
+French stays scene- and reading-led for now; its course waits.
 
 ## 14. Open questions
 
@@ -586,6 +595,9 @@ Later: a JSON API and an iOS app for the daily loop.
 - How the first review after an `introduced` event should be scheduled from the lesson's stats (first-time right vs. missed), once there is data.
 - Daily goal values and the XP table are calibrated to about 2 XP a minute; check against the log after two weeks.
 - Whether the first-review spreading threshold (about 15 a day) and the round length (about five minutes) are right.
+- The iOS app's name: "Dolomite", or a suite name in the house pattern (Tend, Intend, Attend, Wend…)?
+- Offline pack sizing: is a week of reviews and three lessons the right default for *Going offline*, or should the learner pick the number of days?
+- On-device speech recognition for Greek vs. the server's transcriber: worth comparing once the app exists.
 
 ---
 
@@ -854,3 +866,112 @@ A finished lesson's Done screen: "6 words added to review · +25 XP · Unit 1: 7
 ### Later
 
 Shared progress for the two of us: each other's current unit and streak, nothing ranked. After the course ships.
+
+---
+
+## 19. API v1
+
+One versioned JSON API under `/api/v1/`, used by the iOS app (§20) and nothing else at first; the web app keeps its server actions. It wraps logic that already exists (`buildLesson`, `completeLesson`, `buildSession`, `recordReview`, the speech routes, `progressFor`); new code is the transport, not the learning model.
+
+**The point of it: the server decides what to teach, the app renders.** A lesson arrives as data (its items, how each is shown, what its audio says, and a list of exercises with their options and answers); a review round arrives as cards with a modality each. The app knows how to draw each *kind* of exercise and card, and nothing about Greek, units or the course. A new unit is a change to `course-el.json` and a deploy; the app picks it up on its next fetch.
+
+### Auth
+
+`Authorization: Bearer <Supabase access token>` from the suite account, the same identity as the web app (§9). The server verifies it locally (`getClaims`), applies `ALLOWED_EMAILS`, and resolves the learner exactly as `learner()` does, starter content included. No cookies; the web's cookie path is unchanged. The track is `?lang=el` (default: the learner's last track).
+
+### Capabilities, so an old app keeps working
+
+Every request carries `X-Dolomite-Client: ios/<version>; exercises=meaning,hear,decode,pairs,build,say,sound; cards=recognize,recall,cloze,decode,listen,produce`. The server builds lessons and rounds **only from what the client says it can draw**: an exercise kind it doesn't list is never generated, and a card modality it doesn't list is chosen down the existing cascade (produce → recall, listen → recognize). A new exercise type therefore ships server-first; installed apps simply don't get it until they update. Within v1, changes are additive only: new fields may appear (clients ignore unknown fields), none disappear or change meaning.
+
+### Endpoints
+
+| Method and path | Does | Wraps |
+|---|---|---|
+| `GET /me` | user, tracks, settings, today's XP, goal, streak | `getUser`, `progressFor` |
+| `PATCH /settings` | daily goal, time zone | `saveSettings` |
+| `GET /path` | units (id, CEFR, title, can-do, progress, level %), lessons (id, title, kind, state, faded, preview), each checkpoint's scene id | `pathStates`, `fadedLessons` |
+| `GET /lessons/:id` (`?refresh=1`) | the lesson payload, plus the warm-up round when due | `buildLesson`, `buildSession` |
+| `POST /lessons/:id/complete` | hand-off (`introductions`), XP | `completeLesson` / `completeRefresh` |
+| `GET /review` (`?intensity&round`) | one round of cards, what's left | `buildSession({ round: true })` |
+| `POST /reviews` | one answer; XP | `recordReview` |
+| `POST /produce/check`, `POST /produce` | produce cards | `checkProduce`, `recordProduce` |
+| `GET /scenes/:id` | a visit's dialogue lines (text, voice, translation), its bundle, its "your turn" prompts | scene page queries |
+| `POST /scenes/:id/rehearse`, `POST /scenes/:id/checkpoint` | "your turn" checks; passing a checkpoint | `checkProduce`, `completeCheckpoint` |
+| `GET /speech` | redirect to a clip (§15) | `/api/speech` |
+| `POST /transcribe` | speak-your-answer (§15) | `/api/transcribe` |
+
+**Shapes.** The TypeScript types are the contract (`lib/api/v1/types.ts`, re-exporting `LessonPayload`, `Exercise`, `SessionCard`, …). The app mirrors them as Swift `Codable` structs; contract tests build real payloads from PGlite and check them against JSON fixtures the iOS tests decode, so a server change that would break the app fails a test on one side or the other.
+
+**Idempotent submissions.** Phones retry. `POST /reviews` and `POST /lessons/:id/complete` carry a client-generated `clientId` (UUID); the server records it (`review_events.client_id`, `lesson_progress.last_client_id`, unique per user) and returns the original result for a repeat instead of logging twice. The web keeps its current behaviour.
+
+**Errors** are `{ "error": { "code": "lesson_locked", "message": "…" } }` with the right status; `code` is stable, `message` is for people.
+
+### Offline-ready from day one
+
+Three rules hold for every endpoint, so the offline pack (§20) needs no change to them later:
+
+1. **Answers carry the time they were given.** Every `POST /reviews`, produce answer and lesson completion has an `answeredAt` (the device's clock, ISO with offset). The server logs it as the event's `at` and awards XP on that day in the learner's zone, so a day spent on a plane still counts for the streak. A time in the future, or more than 30 days back, is clamped and flagged.
+2. **Late and out-of-order answers are rebuilt, not appended.** When an answer arrives older than the atom's last logged event, the server inserts it in time order and rebuilds that atom's memory state from its log (`replay` for one atom, with its introduction and encounters). A card reviewed on the web on Tuesday and on the phone offline on Monday ends up as if both happened in order.
+3. **What the app is given is self-contained.** A lesson payload or a review round carries everything needed to finish it: items, exercises, options, answers, readings, and the clip text for every sound. Nothing in it needs another request except the clips, which are fetched by URL and cached.
+
+## 20. iOS app
+
+A native SwiftUI app for the daily loop: the course, reviews, scenes, sound and speaking. The web app stays the place for reading, importing, goal texts and writing new scenes.
+
+### Shape
+
+- **Repo** `aaronOS/dolomite-ios`, beside `tend-ios` and `intend-ios`, in the suite's house style: XcodeGen `project.yml`, bundle id `com.doneintentionally.dolomite`, iOS 18, SwiftUI, Swift 5.9, team `D3SX98L77N`, `supabase-swift` for auth only (no direct database access: everything goes through §19).
+- **Sign-in** with the suite account (email and password, Google through the URL scheme `com.doneintentionally.dolomite://`), the session in the Keychain via supabase-swift, the access token on every API call, refreshed by the SDK.
+- **Look:** the web's visual system, carried over: warm paper and sage, Fraunces for display and Geist for text (bundled), light and dark from the same tokens.
+
+### Screens (v1)
+
+| Screen | What it does |
+|---|---|
+| Home | track switch (Ελληνικά / Français), today's XP ring and streak, **Continue** the next lesson, Review in rounds, the open scene |
+| Learn | the path: units, CEFR, can-do, lessons done / current / locked / faded with Refresh |
+| Lesson | Warm-up (review cards), Meet, Practice (the seven exercise kinds, misses requeued), Done |
+| Review | a round of cards: recognize, recall, cloze, decode, listen, produce; Round done, Next round |
+| Scene | dialogue lines with Play dialogue (two voices) and the English toggle, the bundle, "your turn" with the mic; Finish the checkpoint |
+| Stats | streak with rest days, XP by week, lessons finished, daily goal |
+| Settings | sound on / off, sign out |
+
+Out of v1, on the web: the reader and import (tap-to-mine), goal texts, generating passages, writing scenes, Explore, "why?" explanations.
+
+### How the app draws what the server sends
+
+Each exercise kind and each card modality is one SwiftUI view, chosen by the `kind` / `modality` field; the list of those the app has is exactly what it advertises in its capability header. Typed answers are checked on the device with a Swift port of `lenientMatch` (accents, articles, Greek in Latin letters), tested against the same cases as the TypeScript one; produce answers are checked by the server as now.
+
+### Sound and the mic
+
+- Clips play with `AVPlayer` from the `/speech` redirect, cached on disk by URL (a clip never changes); the next card's and the lesson's clips are fetched ahead, as on the web. The audio session is `.playback` with spoken-audio mode, so lessons play with the ringer off; the 0.35 s lead-in in every clip (§15) covers Bluetooth wake-up.
+- Speak-your-answer records with `AVAudioRecorder` (AAC in `.m4a`) and posts to `/transcribe`; microphone permission is asked the first time the mic is tapped, with a plain reason. On-device recognition (`SFSpeechRecognizer`, which has Greek) is a later option, not v1: the server path is already tested for Greek.
+
+### Offline
+
+Online first, offline on purpose: a learner on a plane can do lessons and reviews, and nothing is lost.
+
+**What's on the phone.** An *offline pack*, from `GET /offline-pack`:
+
+- the next two or three lessons, built ahead (the path is linear, so the server can build lesson *n*+1 as it will be once *n* is done);
+- every review card due in the next seven days, with a few extra cards for practice beyond that;
+- every clip those use, voiced on the server first where it doesn't exist yet, listed by URL and downloaded.
+
+A week of reviews and three lessons with their audio is a few MB (clips are 4–15 KB). Two ways in:
+
+- **Always:** a small rolling pack (the next lesson, the next day or two of reviews) is kept fresh in the background, so a surprise dead zone just works.
+- **Before a trip:** *Going offline* on Home downloads the full week, shows its size, and says what won't work offline.
+
+**On the plane.** Lessons and review rounds run from the pack. A missed card comes back later in the same round, as in a lesson. Scheduling is not done on the phone: the round is what was packed, and real scheduling happens when the answers reach the server. That keeps one scheduler, the server's, rather than a Swift port of FSRS that could drift.
+
+**What waits for the network,** hidden while offline with the same capability header an old app uses (§19): speak-your-answer and "say it" (server transcription), produce cards (graded by the model), "why?", new scene visits, and any lesson beyond the pack. On-device recognition (`SFSpeechRecognizer`) could bring speaking back offline if it handles Greek on the device; that is to be tested, not assumed.
+
+**Back online.** Every answer and lesson completion was queued with its `clientId` and `answeredAt` (a file in Application Support that survives the app being closed). The queue goes up in order, retried with backoff; the server inserts each answer at its time and rebuilds the atoms it touches (§19 rule 2), so the phone and the web reconcile by time. XP lands on the days it was earned. The pack is then refreshed.
+
+### Notifications
+
+Out of v1, consistent with §18: no guilt. A single opt-in daily reminder at a time the learner picks ("Reviews are ready · Unit 1, lesson 8") is a candidate for later.
+
+### Distribution
+
+TestFlight for the two learners first; the App Store after the course has a second track or a third unit. The privacy manifest declares the microphone (speak-your-answer, sent to the server for transcription) and nothing else; no analytics.
