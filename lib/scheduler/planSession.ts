@@ -24,6 +24,11 @@ export interface SessionRequest {
    * and mining, never from the bare frequency list.
    */
   noFrequencyFallback?: boolean;
+  /**
+   * New atoms that must not be introduced yet, whatever their tier: Greek words whose
+   * letters aren't in, and letters not yet due (SPEC §16).
+   */
+  blockedNew?: string[];
 }
 
 export type SessionReason = "due" | "overdue" | "new" | "weak-modality" | "relearn";
@@ -92,8 +97,10 @@ export function planSession(atoms: Atom[], sentences: Sentence[], req: SessionRe
   const multiplier = req.intensity === "light" ? 0 : req.intensity === "push" ? 2 : 1;
   const newCap = Math.max(0, multiplier * req.newAtomsPerDay - req.newAtomsIntroducedToday);
   const orderIndex = new Map((req.newOrder ?? []).map((id, i) => [id, i]));
+  const blocked = new Set(req.blockedNew ?? []);
   const fresh = atoms
     .filter((a) => a.memory.status === "new" && a.gloss.trim() !== "") // nothing to learn from a bare word
+    .filter((a) => !blocked.has(a.id))
     .filter((a) => newTier(a, orderIndex) < (req.noFrequencyFallback ? 2 : 3))
     .sort((a, b) => compareNew(a, b, orderIndex))
     .slice(0, newCap);
@@ -121,9 +128,11 @@ export function planSession(atoms: Atom[], sentences: Sentence[], req: SessionRe
     }
   }
   for (const atom of fresh) {
-    const cost = MODALITY_SECONDS.recognize;
+    // A new Greek word is met by sounding it out first (SPEC §16); everything else is shown.
+    const modality: Modality = decodable(atom) && req.intensity !== "light" ? "decode" : "recognize";
+    const cost = MODALITY_SECONDS[modality];
     if (seconds + cost <= budgetSec) {
-      items.push({ atomId: atom.id, modality: "recognize", reason: "new" });
+      items.push({ atomId: atom.id, modality, reason: "new" });
       seconds += cost;
     } else {
       skipped++;
@@ -184,10 +193,30 @@ function compareNew(a: Atom, b: Atom, orderIndex: Map<string, number>): number {
  * Grammar atoms are ideas, not strings to type: always recognize. Receptive-only
  * atoms (SPEC §11) are never asked for in French: recognize or cloze.
  */
+/** Greek written words and phrases can be sounded out; letters, grammar and other languages can't (SPEC §16). */
+export function decodable(atom: Atom): boolean {
+  return atom.lang === "el" && atom.type !== "grammar" && atom.pos !== "LETTER" && Boolean(atom.romanization);
+}
+
+/** Decode accuracy below this keeps decode cards coming after a word's first reps. */
+export const DECODE_SOLID = 0.8;
+/** A Greek word's first reps alternate decode and recognize. */
+export const DECODE_EARLY_REPS = 3;
+
 export function chooseModality(atom: Atom, hasSentence: boolean, intensity: Intensity, produceAllowed = false): Modality {
   const s = atom.modality;
   const m = atom.memory;
   if (m.status === "new" || atom.type === "grammar") return "recognize";
+
+  // Greek script: say it, then mean it. Early on, alternate; later, only while decoding is shaky.
+  if (decodable(atom) && intensity !== "light") {
+    const d = s.decode ?? { attempts: 0, correct: 0 };
+    if (m.reps < DECODE_EARLY_REPS) {
+      if (d.attempts <= s.recognize.attempts) return "decode";
+    } else if (d.attempts > 0 && d.correct / d.attempts < DECODE_SOLID) {
+      return "decode";
+    }
+  }
 
   const recallWanted = s.recall.attempts < 0.6 * s.recognize.attempts;
   const clozeOk = hasSentence && (s.cloze.lastAt === undefined || (m.lastReview !== undefined && s.cloze.lastAt < m.lastReview));

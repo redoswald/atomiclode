@@ -17,9 +17,10 @@ export type Domain = string;
 export type Modality =
   | "recognize" // FR → EN
   | "recall" // EN → FR, typed
-  | "listen" // audio → meaning (v2; field reserved)
+  | "listen" // audio → meaning (SPEC §15; not scheduled yet)
   | "produce" // answer a situation in French, free text
-  | "cloze"; // fill the gap in a mined sentence
+  | "cloze" // fill the gap in a mined sentence
+  | "decode"; // Greek script → how it sounds, typed in Latin letters (SPEC §16)
 
 export const MODALITIES: readonly Modality[] = [
   "recognize",
@@ -27,6 +28,7 @@ export const MODALITIES: readonly Modality[] = [
   "listen",
   "produce",
   "cloze",
+  "decode",
 ] as const;
 
 export type MemoryStatus = "new" | "learning" | "review" | "suspended";
@@ -117,6 +119,7 @@ export function emptyModalityStats(): Record<Modality, ModalityStat> {
     listen: { attempts: 0, correct: 0 },
     produce: { attempts: 0, correct: 0 },
     cloze: { attempts: 0, correct: 0 },
+    decode: { attempts: 0, correct: 0 },
   };
 }
 
