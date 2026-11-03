@@ -73,7 +73,7 @@ export function MicButton({ lang, onTranscript, disabled = false }: { lang: Lang
         const data = (await res.json()) as { text?: string; error?: string };
         if (!res.ok) throw new Error(data.error ?? `Transcription failed (${res.status})`);
         if (data.text) deliver.current(data.text);
-        else setError("Didn't catch that. Try again, a little closer.");
+        else setError("Didn’t catch that. Try again; a very short word is easier heard with its article (le pain, το νερό).");
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
