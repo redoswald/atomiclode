@@ -7,6 +7,7 @@ import { and, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { atoms } from "@/db/schema";
 import { currentPhase, type Phase } from "@/lib/atoms/phase";
+import { courseLive } from "@/lib/course";
 import { planScript } from "@/lib/greek/plan";
 import type { Learner } from "@/lib/learners/provision";
 import { goalNewOrder } from "@/lib/goals/goals";
@@ -44,7 +45,7 @@ async function greekOrder(d: Db, me: Learner, lead: string[]): Promise<{ order: 
   return planScript(rows, lead);
 }
 
-export async function newAtomOrder(d: Db, me: Learner, canGenerate = hasAnthropicKey()): Promise<NewOrder> {
+export async function newAtomOrder(d: Db, me: Learner, canGenerate = hasAnthropicKey(), opts: { courseLive?: boolean } = {}): Promise<NewOrder> {
   const [{ phase }, fromScenarios, fromGoal, states] = await Promise.all([
     currentPhase(d, me),
     scenarioNewOrder(d, me),
@@ -53,6 +54,9 @@ export async function newAtomOrder(d: Db, me: Learner, canGenerate = hasAnthropi
   ]);
   // In the foundation phase the goal only steers which words scenarios pick up (SPEC §11).
   const lead = Array.from(new Set(phase === "reading" ? [...fromGoal, ...fromScenarios] : fromScenarios));
+  // A track with a live course (SPEC §17): the course introduces words, so review only
+  // brings in what scenes, goals and the learner's own mining asked for.
+  if (opts.courseLive ?? courseLive(me.lang)) return { phase, newOrder: lead, noFrequencyFallback: true, blocked: [] };
   const noFrequencyFallback = phase === "foundation" && scenariosLead(states, canGenerate);
   if (me.lang === "el") {
     const { order, blocked } = await greekOrder(d, me, lead);

@@ -338,6 +338,22 @@ export const producePrompts = pgTable("produce_prompts", {
   createdAt: timestamptz("created_at").notNull().defaultNow(),
 });
 
+// ---- course progress (§17) ------------------------------------------------------
+
+export const lessonProgress = pgTable(
+  "lesson_progress",
+  {
+    userId: uuid("user_id").notNull(),
+    lang: text("lang").notNull(),
+    /** Lesson id from db/seed/course-<lang>.json, e.g. "el-1-04". */
+    lessonId: text("lesson_id").notNull(),
+    completedAt: timestamptz("completed_at").notNull().defaultNow(),
+    /** Times played to the end, the first included; replays earn less XP (§18). */
+    plays: integer("plays").notNull().default(1),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.lessonId] })],
+);
+
 // ---- speech clips (§15) ----------------------------------------------------------
 // Shared like the other caches: a clip of "καφές" is the same for every learner.
 

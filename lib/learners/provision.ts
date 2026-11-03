@@ -5,7 +5,7 @@
  * is copied in the first time they open a language. Pure DB code: the
  * request-side entry point is learner() in lib/learner.ts.
  */
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { atoms, learners } from "@/db/schema";
 import { seedAtoms, type SeedFiles } from "@/db/seed/run";
@@ -50,9 +50,24 @@ export const SEEDS: Record<Lang, { files: SeedFiles; scenarios: ScenarioEntry[] 
  * Copy (or refresh) one learner's starter content for one language. Idempotent:
  * memory state, progress and generated visits are never touched.
  */
+/**
+ * Seed keys that were renamed, by track. A learner who never started the old
+ * card loses it; one who did keeps it, history and all.
+ */
+export const RETIRED_KEYS: Partial<Record<Lang, string[]>> = {
+  // The course teaches the everyday numbers; the formal spellings stay as forms (SPEC §17).
+  el: ["επτά", "οκτώ", "εννέα"],
+};
+
 export async function seedLearner(d: Db, userId: string, lang: Lang, now = new Date()) {
   const seed = SEEDS[lang];
   const result = await seedAtoms(d, userId, seed.files, lang);
+  const retired = RETIRED_KEYS[lang] ?? [];
+  if (retired.length) {
+    await d
+      .delete(atoms)
+      .where(and(eq(atoms.userId, userId), eq(atoms.lang, lang), inArray(atoms.key, retired), eq(atoms.status, "new"), eq(atoms.reps, 0)));
+  }
   await borrowGlosses(d, userId, lang);
   const scenes = await seedScenarios(d, userId, seed.scenarios, lang, now);
   return { ...result, ...scenes };

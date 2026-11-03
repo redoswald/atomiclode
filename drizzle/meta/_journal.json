@@ -78,6 +78,13 @@
       "when": 1793727485657,
       "tag": "0010_decode_modality",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793735485282,
+      "tag": "0011_lesson_progress",
+      "breakpoints": true
     }
   ]
 }

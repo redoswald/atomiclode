@@ -309,9 +309,9 @@
 {"rank": 359, "lemma": "τέσσερα", "pos": "NUM", "gender": null, "forms": ["τέσσερις", "ΤΕΣΣΕΡΑ"], "gloss": "four", "romanization": "téssera", "domains": ["numbers"]},
 {"rank": 360, "lemma": "πέντε", "pos": "NUM", "gender": null, "forms": ["ΠΕΝΤΕ"], "gloss": "five", "romanization": "pénde", "domains": ["numbers"]},
 {"rank": 361, "lemma": "έξι", "pos": "NUM", "gender": null, "forms": ["ΕΞΙ"], "gloss": "six", "romanization": "éxi", "domains": ["numbers"]},
-{"rank": 362, "lemma": "επτά", "pos": "NUM", "gender": null, "forms": ["εφτά", "ΕΠΤΑ"], "gloss": "seven", "romanization": "eptá", "domains": ["numbers"]},
-{"rank": 363, "lemma": "οκτώ", "pos": "NUM", "gender": null, "forms": ["οχτώ", "ΟΚΤΩ"], "gloss": "eight", "romanization": "októ", "domains": ["numbers"]},
-{"rank": 364, "lemma": "εννέα", "pos": "NUM", "gender": null, "forms": ["εννιά", "ΕΝΝΕΑ"], "gloss": "nine", "romanization": "ennéa", "domains": ["numbers"]},
+{"rank": 362, "lemma": "εφτά", "pos": "NUM", "gender": null, "forms": ["επτά", "ΕΦΤΑ", "ΕΠΤΑ"], "gloss": "seven", "romanization": "eftá", "domains": ["numbers"]},
+{"rank": 363, "lemma": "οχτώ", "pos": "NUM", "gender": null, "forms": ["οκτώ", "ΟΧΤΩ", "ΟΚΤΩ"], "gloss": "eight", "romanization": "ochtó", "domains": ["numbers"]},
+{"rank": 364, "lemma": "εννιά", "pos": "NUM", "gender": null, "forms": ["εννέα", "ΕΝΝΙΑ", "ΕΝΝΕΑ"], "gloss": "nine", "romanization": "enniá", "domains": ["numbers"]},
 {"rank": 365, "lemma": "δέκα", "pos": "NUM", "gender": null, "forms": ["ΔΕΚΑ"], "gloss": "ten", "romanization": "déka", "domains": ["numbers"]},
 {"rank": 366, "lemma": "είκοσι", "pos": "NUM", "gender": null, "forms": ["ΕΙΚΟΣΙ"], "gloss": "twenty", "romanization": "íkosi", "domains": ["numbers"]},
 {"rank": 367, "lemma": "τριάντα", "pos": "NUM", "gender": null, "forms": ["ΤΡΙΑΝΤΑ"], "gloss": "thirty", "romanization": "triánda", "domains": ["numbers"]},
@@ -348,5 +348,6 @@
 {"rank": 407, "lemma": "αριθμός", "pos": "NOUN", "gender": "m", "forms": ["αριθμό", "ΑΡΙΘΜΟΣ"], "gloss": "number", "romanization": "arithmós"},
 {"rank": 408, "lemma": "ορίστε", "pos": "INTJ", "gender": null, "forms": ["ΟΡΙΣΤΕ"], "gloss": "here you are / pardon?", "romanization": "oríste"},
 {"rank": 409, "lemma": "έλα", "pos": "INTJ", "gender": null, "forms": ["ελάτε", "ΕΛΑ"], "gloss": "come (on); hello (on the phone)", "romanization": "éla"},
-{"rank": 410, "lemma": "αντίο", "pos": "INTJ", "gender": null, "forms": ["ΑΝΤΙΟ"], "gloss": "goodbye", "romanization": "andío"}
+{"rank": 410, "lemma": "αντίο", "pos": "INTJ", "gender": null, "forms": ["ΑΝΤΙΟ"], "gloss": "goodbye", "romanization": "andío"},
+{"rank": 411, "lemma": "πίτσα", "pos": "NOUN", "gender": "f", "forms": ["πίτσες", "ΠΙΤΣΑ"], "gloss": "pizza", "romanization": "pítsa", "domains": ["food"]}
 ]

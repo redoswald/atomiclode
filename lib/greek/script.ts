@@ -9,32 +9,42 @@ export const COMBINATIONS = ["ου", "αι", "ει", "οι", "μπ", "ντ", "γ
 
 const LETTERS = new Set("αβγδεζηθικλμνξοπρστυφχψω");
 const COMBO_SET = new Set<string>(COMBINATIONS);
+/** Combinations of two vowel letters, which an accent on the first splits. */
+const VOWEL_PAIRS = new Set(["ου", "αι", "ει", "οι", "αυ", "ευ"]);
 
 /** The atom key for a unit: `letter:ρ`, `letter:ου`. */
 export const letterKey = (unit: string) => `letter:${unit}`;
 
 /**
  * The units of a word or phrase, in order: lowercase, accents off, ς read as σ,
- * combinations first. A diaeresis splits a combination (κοροϊδεύω: ο, ι, not οι).
+ * combinations first. A diaeresis on the second vowel splits a combination
+ * (κοροϊδεύω: ο, ι, not οι), and so does an accent on the first, since a vowel
+ * pair takes its accent on its second letter (είναι) and one on the first marks
+ * two vowels (τσάι: α, ι, said tsá-i, not αι).
  * Anything that isn't a Greek letter (spaces, Latin, punctuation) is skipped.
  */
 export function scriptUnits(text: string): string[] {
-  const chars: Array<{ c: string; split: boolean }> = [];
+  const chars: Array<{ c: string; split: boolean; accent: boolean }> = [];
   for (const ch of text.toLowerCase().normalize("NFD")) {
     if (ch === "̈") {
       if (chars.length) chars[chars.length - 1].split = true;
       continue;
     }
+    if (ch === "́") {
+      if (chars.length) chars[chars.length - 1].accent = true;
+      continue;
+    }
     if (/\p{M}/u.test(ch)) continue;
     const c = ch === "ς" ? "σ" : ch;
-    chars.push({ c, split: false });
+    chars.push({ c, split: false, accent: false });
   }
   const units: string[] = [];
   for (let i = 0; i < chars.length; i++) {
-    const { c } = chars[i];
+    const { c, accent } = chars[i];
     if (!LETTERS.has(c)) continue;
     const next = chars[i + 1];
-    if (next && !next.split && COMBO_SET.has(c + next.c)) {
+    const vowelPair = VOWEL_PAIRS.has(c + (next?.c ?? ""));
+    if (next && !next.split && !(vowelPair && accent) && COMBO_SET.has(c + next.c)) {
       units.push(c + next.c);
       i++;
       continue;
