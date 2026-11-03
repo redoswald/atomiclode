@@ -562,10 +562,10 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 
 **v4** (course and progress)
 
-13. **Course model and Greek Unit 1:** `course-el.json` with validation (readable-with-taught-letters, items resolve, no repeats), the new seed words, `lesson_progress`, the locked path, and review no longer introducing words on its own for a track with a course.
-14. **Lesson player:** Meet, Practice (the seven exercise types), Done, and the hand-off to review.
-15. **Progress:** `xp_events`, the daily goal and streak (with rest days), path and level progress, the v4 home screen, Stats additions.
-16. **Unit 2** (δ β ζ ψ οι αυ γκ τζ; getting around: directions, transport, the ferry), and a French course to replace the frequency-led start.
+13. **Course model and Greek Unit 1:** `course-el.json` with validation (readable, decodable with the taught sound rules, items resolve, no repeats), the new seed words, `lesson_progress`, the locked path, scenes opening with their unit, and review no longer introducing words on its own for a track with a course.
+14. **Lesson player:** Warm-up, Meet, Practice (the seven exercise types), Done; the `introduced` event and the hand-off (skipping items already known); first-review spreading.
+15. **Progress:** `xp_events`, the daily goal and streak (with rest days), review rounds, fading lessons and Refresh, path and level progress, the v4 home screen, Stats additions.
+16. **Unit 2** (β ζ ψ οι αυ γκ τζ; getting around; checkpoint the taxi), and a French course to replace the frequency-led start.
 
 Later: a JSON API and an iOS app for the daily loop.
 
@@ -583,9 +583,9 @@ Later: a JSON API and an iOS app for the daily loop.
 - Which Google voices sound best in Greek and French. Decide by ear before milestone 9 fixes them in `LANG_SPECS`.
 - Decode before meaning, or both on one card? The spec alternates them; a combined card ("say it, then what it means") may be faster once the alphabet is in.
 - Whether the one-unknown-letter rule is too strict for long words late in the alphabet, when most letters are known anyway.
-- Whether a lesson's hand-off grade (Good / Hard) is the right first rep, or whether course words should start one step further along.
-- Daily goal values (20 / 40 / 80) and the XP table are guesses; tune them on real use.
-- A placement test, and a profile (where the learner is from) for lessons like "Who are you?".
+- How the first review after an `introduced` event should be scheduled from the lesson's stats (first-time right vs. missed), once there is data.
+- Daily goal values and the XP table are calibrated to about 2 XP a minute; check against the log after two weeks.
+- Whether the first-review spreading threshold (about 15 a day) and the round length (about five minutes) are right.
 
 ---
 
@@ -676,7 +676,7 @@ A new Greek word is introduced as a decode card: sound it out, then see what it 
 
 Scenes, reading and review all assume the learner has already *met* a word. The course is where that happens: a path of units and lessons, in order, whose whole point is to introduce words well and then hand them to review.
 
-**Learn → Review → Use.** The course introduces. Review keeps: due cards, plus the words a scene, a reading or the learner's own mining brought in. Scenes and reading put words to use. On a track with a course, review never introduces a word on its own: the frequency fallback and the §16 script planner no longer feed new atoms; `newOrder` holds only scene and goal bundles, and mined words keep tier 0. French has no course yet and keeps working as before.
+**Learn → Review → Use.** The course introduces. Review keeps: due cards, plus the words a scene, a reading or the learner's own mining brought in. Scenes and reading put words to use. On a track with a course, review never introduces a word on its own: the frequency fallback and the §16 script planner no longer feed new atoms (the planner's rules become the course validator, below); `newOrder` holds only scene and goal bundles, and mined words keep tier 0. French has no course yet and keeps working as before.
 
 ### Shape
 
@@ -689,71 +689,100 @@ interface Unit {
   title: string;         // "First steps"
   canDo: string[];       // "Read signs and simple words", "Order a coffee and ask the price"
   lessons: Lesson[];
+  scenes: string[];      // scenario slugs that open with this unit; the first is its checkpoint
 }
 
 interface Lesson {
-  id: string;            // "el-1-03"
+  id: string;            // "el-1-04"
   title: string;         // "Letters: Κ Φ Σ"
-  kind: "letters" | "words" | "phrases" | "checkpoint";
+  kind: "letters" | "phrases" | "checkpoint";
   letters?: string[];    // script units this lesson teaches (Greek)
-  items: string[];       // atom keys introduced, in teaching order
-  scene?: string;        // checkpoint: the scenario slug played as the unit test
+  items: LessonItem[];   // introduced, in teaching order
+}
+
+interface LessonItem {
+  key: string;           // atom key
+  /** sight: its spelling doesn't follow the rules taught so far (γεια, συγγνώμη); never a sound-it-out card.
+   *  heard: a phrase met by ear before its letters are taught (καλημέρα in lesson 3); sound-it-out waits until it is readable. */
+  mode?: "sight" | "heard";
 }
 ```
 
-Authored by hand in `db/seed/course-<lang>.json`, like the scene files, and validated at seed time: every item resolves to an atom (a lesson may add one with a gloss, as scenes do); in Greek, every item is readable with the letters taught by the end of its lesson (the §16 rule, checked with `scriptUnits`, now enforced at authoring time rather than computed); no item is introduced twice.
+Authored by hand in `db/seed/course-<lang>.json`, like the scene files, and validated at seed time:
 
-**Locked path.** Lessons open one at a time, in order; a unit opens when the last one's checkpoint is passed. A finished lesson can be replayed at any time (it earns less, §18). There is no skipping ahead and no placement test yet.
+- every item resolves to an atom (a lesson may add one with a gloss, as scenes do), and no item is introduced twice;
+- **readable**: every item not marked `heard` or `sight` uses only script units taught by the end of its lesson (the §16 rule, checked with `scriptUnits`); a letters lesson's every letter appears in at least one of its items;
+- **decodable**: for every item not marked `sight`, a reading predicted from the sound rules taught so far matches its stored Latin reading (accents and the `/` alternatives of the romanization aside). The rules are per unit and context-aware: γ is *y* before ε, ι, η, υ, ει, οι and *gh* elsewhere; μπ, ντ are *b*, *d* at the start of a word and *mb*, *nd* inside it; σ is *z* before β, γ, δ, μ, ν, ρ; αυ, ευ are *af*, *ef* before θ, κ, ξ, π, σ, τ, φ, χ, ψ and *av*, *ev* elsewhere; γγ is *ng*; γχ is *nch*. A rule counts as taught once the lesson that introduces it is done. A mismatch fails the seed: the item is marked `sight`, or moved, or a lesson teaching the rule is added before it. *Readable* (§16) only proves the letters are known; *decodable* proves that sounding the word out gives the right answer.
+
+**Locked path.** Lessons open one at a time, in order; a unit opens when the last one's checkpoint is passed. A finished lesson can be replayed at any time (it earns less, §18). There is no placement test; everyone starts at lesson 1.
+
+**Scenes follow the path.** A unit's scenes open with the unit (a scene not yet listed in any unit opens after the last unit's checkpoint). Once open, a scene's words enter review on opening as before, without letter gating: the scene is the reason to learn them. Mined words also skip gating: the learner chose them.
 
 ### A lesson
 
-Five to ten minutes. Three parts:
+Five to ten minutes. Four parts:
 
-1. **Meet.** Each new item once: the word as written (a sign in capitals), its audio, its Latin reading (Greek), its meaning, and a short phrase it lives in. A letter shows both cases, its sound, and an example word. No question yet.
-2. **Practice.** 10–15 exercises built from the lesson's items, with a few from the two previous lessons mixed in. A missed exercise comes back at the end; the lesson is done when every exercise has been answered right once. Exercise types, all built from what the review screen already has:
+0. **Warm-up.** About two minutes of the learner's most overdue review cards, earliest lessons first among equally due cards. Skipped when nothing is due. This is how an hour of lessons carries its own reviews with it (Pacing, below).
+1. **Meet.** Each new item once: the word as written (a sign in capitals), its audio, its Latin reading, its meaning, and a short phrase it lives in. A sight word says so ("said *ya*; just learn this one"). A letter shows both cases, its sound in an example word, and, for a lookalike, what it isn't. No question yet.
+2. **Practice.** 10–15 exercises built from the lesson's items, with a few from the two previous lessons mixed in. A missed exercise comes back at the end; the lesson is done when every exercise has been answered right once.
 
 | Exercise | Prompt | Answer |
 |---|---|---|
 | pick the meaning | the word (and its audio) | one of four meanings; distractors from the same unit |
 | hear it | audio only | one of four written words |
-| sound it out | a Greek word or sign | type it in Latin letters (§16 decode) |
+| sound it out | a Greek word or sign (never a sight or not-yet-readable item) | type it in Latin letters (§16 decode) |
 | match pairs | five words, five meanings | tap pairs |
 | build it | a meaning | the phrase from shuffled word tiles (phrases only) |
-| say it | a meaning | speak it (mic, §15 speak-your-answer); "can't speak now" skips speaking for the rest of the lesson |
-| letter sound | a letter or pair | one of four sounds (letters lessons) |
+| say it | a meaning | speak it (§15 speak-your-answer); never a one-syllable item (*ναι*, *τι*), which the transcriber can miss; "can't speak now" skips speaking for the rest of the lesson |
+| which word has this sound | a letter's sound, played inside a word | one of four words with that sound (letters lessons). Sounds are taught in words, never as bare letters: several letters have two sounds (γ, αυ/ευ, μπ/ντ, σ), and a voice says a bare letter badly |
 
 3. **Done.** Words added to review, experience earned, the path one step further.
 
-**Handing off to review.** On completion each introduced item gets one review event, so the log stays the single source of truth and replay still works: modality `recognize`, grade Good (3) if it was answered right first time throughout the lesson, Hard (2) if it was ever missed. That takes it from `new` to `learning`, first due the next day, `source: "course"`. Practice exercises themselves are not logged as reviews.
+**Handing off to review.** On completion each introduced item gets an **`introduced` event** in the review log: not a graded review, but the atom's start, carrying the lesson's stats for it (attempts, misses, first-time right). Replay treats it as the atom's birth: `new` → `learning`, first due as set by Pacing below; a future per-learner FSRS fit ignores these events, since massed, prompted practice overstates what a learner knows. Practice exercises themselves are not logged. An item that already has memory state (met in a scene, mined, or learned before the course) is **not** handed off again: the lesson still teaches it, and its existing card keeps its history.
 
-**A checkpoint** is the unit's scene (Unit 1: the café). It passes when the visit is opened and its "your turn" prompts are all answered. Its bundle enters review as any scene's does.
+### Pacing
 
-**Pacing.** No cap on lessons a day, but the home screen recommends review first when the due pile would take more than about ten minutes, and suggests one or two lessons a day.
+A learner may do as many lessons as they like; nothing is locked behind reviews. Instead:
+
+- **Warm-ups** (above) pull a little review into every lesson.
+- **First reviews are spread.** When a day's new items would put more than about 15 first reviews on one day, the excess is staggered across the next two or three days, earliest lessons first. The same smoothing the triage (§4) does for a comeback, done for an enthusiastic evening.
+- **Long reviews come in rounds.** A due pile longer than one session is split into rounds of about five minutes ("Round 2 of 4"); each finished round is its own small finish (its XP, "Round done", the remaining count going down). The learner can stop after any round; the remainder is always ordered most urgent first, earliest lessons first among equals.
+- **Lessons fade, nothing is taken away.** When most of a finished lesson's items are overdue or lapsing, its step on the path fades and offers **Refresh**: a short practice round on just those items that counts as reviewing them. Finished stays finished.
+- The home screen suggests one or two lessons a day and shows the review time honestly.
 
 ### Greek Unit 1: First steps (A1.1)
 
-*Can do:* read letters, signs and simple words; greet and say goodbye; please, thanks, sorry; order a coffee or water and ask the price; say your name and where you're from.
+*Can do:* read letters, signs and simple words; greet and say goodbye; please, thanks, sorry; count to ten and understand a price; order a coffee or water; say your name and where you're from.
 
-Letters and phrases are interleaved so that every lesson is readable with what has been taught (checked against the seed). Unit 1 teaches 28 of the 36 script units; δ β ζ ψ οι αυ γκ τζ open Unit 2.
+Thirteen lessons and a checkpoint. Letter lessons and phrase lessons interleave, with a heard-first phrase lesson early so the first greetings don't wait for their letters. Every lesson is readable and decodable by the validator's rules (`*` = sight, `~` = heard first). Unit 1 teaches 29 of the 36 script units; β ζ ψ οι αυ γκ τζ open Unit 2.
 
 | # | Lesson | Teaches | Items |
 |---|---|---|---|
 | 1 | Letters: Τ Α Ξ Ι Ο | τ α ξ ι ο | ταξί, τι, ο |
 | 2 | Letters: Μ Ε Ρ | μ ε ρ (Ρ is a lookalike) | μετρό, μέρα, έξι, τρία |
-| 3 | Letters: Κ Φ Σ | κ φ σ (and final ς) | καφές, κρασί, φέτα, κάρτα, ΚΑΣΤΡΟ |
-| 4 | Letters: ΟΥ Λ Π | ου λ π | τουαλέτα, ΣΤΟΠ, σαλάτα, πατάτα, πού;, πόσο; |
-| 5 | Letters: ΕΙ Ν Η | ει ν η (Η and ν are lookalikes) | φαρμακείο, μουσείο, νερό, λεμόνι, ΚΛΕΙΣΤΟ |
-| 6 | Hello and goodbye | γ | γεια σας, γεια σου, καλημέρα, καλησπέρα, τα λέμε |
+| 3 | Hello and goodbye | (heard first) | γεια σας\*, γεια σου\*, καλημέρα~, καλησπέρα~, τα λέμε~ |
+| 4 | Letters: Κ Φ Σ | κ φ σ (and final ς) | καφές, κρασί, φέτα, κάρτα, ΚΑΣΤΡΟ |
+| 5 | Letters: ΟΥ Λ Π | ου λ π | τουαλέτα, ΣΤΟΠ, σαλάτα, πατάτα, πού;, πόσο; |
+| 6 | Letters: ΕΙ Ν Η | ει ν η (Η and ν are lookalikes) | πόλη, φαρμακείο, μουσείο, νερό, λεμόνι, ΚΛΕΙΣΤΟ |
 | 7 | Letters: Χ Ω Υ ΑΙ ΕΥ | χ ω υ αι ευ (Χ, Υ lookalikes) | όχι, ναι, και, πολύ, παρακαλώ, ευχαριστώ |
-| 8 | Please, thanks, sorry | γγ | ευχαριστώ πολύ, παρακαλώ, συγγνώμη, με συγχωρείτε, καλά, ευχαριστώ |
+| 8 | Please, thanks, sorry | γγ | ευχαριστώ πολύ, καλά, ευχαριστώ, μιλάτε αγγλικά;, συγγνώμη\*, με συγχωρείτε\* |
 | 9 | Letters: ΝΤ ΜΠ ΤΣ Θ | ντ μπ τσ θ | ντομάτα, τσάι, πίτσα, μια μπίρα, θέλω |
-| 10 | At the café | | θα ήθελα, έναν καφέ, παρακαλώ, ένα νερό, παρακαλώ, πόσο κάνει;, τον λογαριασμό, παρακαλώ |
-| 11 | Who are you? | | με λένε…, πώς σας λένε;, χαίρω πολύ, είμαι από…, Αμερική |
-| 12 | Checkpoint: the café | | scene `el-cafe` |
+| 10 | Numbers 1–5 | δ | ένα, δύο, τέσσερα, πέντε, δεν ξέρω |
+| 11 | Numbers 6–10 and the price | | εφτά, οχτώ, εννιά, δέκα, ευρώ |
+| 12 | At the café | γ (as *gh*) | γάλα, θα ήθελα, έναν καφέ, παρακαλώ, ένα νερό, παρακαλώ, πόσο κάνει;, τον λογαριασμό, παρακαλώ\* |
+| 13 | Who are you? | | με λένε…, πώς σας λένε;, χαίρω πολύ, είμαι από την Αμερική |
+| 14 | Checkpoint: the café | | scene `el-cafe` |
 
-New to the seed: πίτσα, είμαι από… (chunk), Αμερική. The learner's own country is a placeholder: "είμαι από την Αμερική" stands until a profile can say otherwise.
+Notes on the choices:
 
-The γεια σας / γεια σου pair is taught as formal / informal from the start; lesson 6's Meet step says so in one line. Everything in this table wants one read-through by a Greek speaker before it ships.
+- γεια is said *ya* (γ before ε, then a silent ε), so it is a sight word; γ itself is taught in lesson 12 with its default *gh* (γάλα), where λογαριασμό (σμ said *zm*) is still a sight item.
+- γγ is taught with μιλάτε αγγλικά; (*ng*, its usual sound), not συγγνώμη, where γγν is said *γn*; συγγνώμη and με συγχωρείτε (γχ said *nch*) are sight items.
+- δ comes into Unit 1 for the numbers: with ένα–δέκα and ευρώ the learner can understand the answer to πόσο κάνει;, and δεν ξέρω comes free.
+- τρία and έξι are already met in lesson 2; lessons 10 and 11 practise them without introducing them again.
+- New to the seed: πίτσα, εφτά, οχτώ, εννιά (the everyday forms; the seed has επτά, οκτώ, εννέα), είμαι από την Αμερική. The country is hardcoded: both learners are from the US.
+- Every item wants one read-through by a Greek speaker for naturalness before it ships.
+
+**Unit 2** (sketch): β ζ ψ οι αυ γκ τζ; getting around (directions as lessons, transport, asking the way); checkpoint the taxi scene, a complete transaction that reuses numbers and prices. The ferry waits for a later unit.
 
 ## 18. Progress
 
@@ -761,28 +790,28 @@ Things that help a learner come back and see that they are moving, in an adult r
 
 ### Experience (XP)
 
-Earned for real work, never bought or lost:
+Earned for real work, never bought or lost, and calibrated to time: about **2 XP per minute** of focused work, so a daily goal reads as minutes.
 
 | Work | XP |
 |---|---|
-| lesson completed | 20, +5 if no exercise was missed (a replay: 5) |
-| review card answered | 1 (2 for produce, speak or listen) |
+| lesson completed (about 10 min, warm-up included) | 20, +5 if no exercise was missed (a replay or a Refresh: 5) |
+| review round completed (about 5 min) | 10; a partial round earns pro rata |
 | scene visit opened and its "your turn" done | 15 |
-| passage read (opened and scrolled through) | 5 |
 | goal text section read | 10 |
+| passage read (opened and scrolled through) | 5 |
 
-Stored as an append-only `xp_events` log (`user_id`, `lang`, `kind`, `amount`, `ref`, `at`), so totals, weekly sums and the streak are all derived. Experience is per track and in total.
+Stored as an append-only `xp_events` log (`user_id`, `lang`, `kind`, `amount`, `ref`, `at`), so totals, weekly sums and the streak are all derived. Experience is per track and in total. After two weeks of real use, check minutes-per-XP against the log and recalibrate.
 
 ### Daily goal and streak
 
-A daily goal in XP, chosen once (casual 20, steady 40, serious 80; changeable in Stats). The home screen shows today's progress toward it as a ring.
+A daily goal in XP, chosen once: casual 20, steady 40, serious 80 (about 10, 20 and 40 minutes); changeable in Stats. The home screen shows today's progress toward it as a ring.
 
 The streak counts consecutive days the goal was met, in the learner's own time zone (from the browser). One missed day a week is forgiven automatically and shown as a rest day, so the streak measures habit, not perfection. No notifications about it.
 
 ### Path progress
 
-- The course path: units as sections, lessons as steps, the current lesson highlighted, finished ones checked, locked ones dimmed.
-- Per unit: "Unit 1 · 7 of 12 lessons" and its can-do list, ticked as lessons finish.
+- The course path: units as sections, lessons as steps, the current lesson highlighted, finished ones checked, faded ones (Pacing) marked with Refresh, locked ones dimmed.
+- Per unit: "Unit 1 · 7 of 14 lessons" and its can-do list, ticked as lessons finish.
 - Per level: "A1 · 35%" across the units that make up the level.
 - On Stats, beside vocabulary and coverage: XP by week, the streak, lessons finished.
 
@@ -792,11 +821,15 @@ The streak counts consecutive days the goal was met, in the learner's own time z
 Greek · Day 12 · 9-day streak              ◔ 28 / 40 XP today
 
 Continue · Unit 1, lesson 7 · Letters: Χ Ω Υ ΑΙ ΕΥ        [Start]
-████████░░░░  7 of 12 · A1 · 18%
+████████░░░░  7 of 14 · A1 · 18%
 
-Review · 6 min · 23 due
-Scene · The café, visit 1 is your checkpoint
+Review · Round 1 of 2 · 5 min
+Scene · The café, your checkpoint
 Read · "Στο λιμάνι" · 91% known
 ```
 
-A finished lesson's Done screen: "6 words added to review · +25 XP · Unit 1: 7 of 12." No animation beyond the path step filling in.
+A finished lesson's Done screen: "6 words added to review · +25 XP · Unit 1: 7 of 14." No animation beyond the path step filling in.
+
+### Later
+
+Shared progress for the two of us: each other's current unit and streak, nothing ranked. After the course ships.
