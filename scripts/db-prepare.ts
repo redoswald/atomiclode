@@ -26,8 +26,15 @@ async function main() {
     console.log("db:prepare — DATABASE_URL not set, skipping migrations and seed.");
     return;
   }
+  // A preview build must never migrate a database it doesn't own. Preview gets its own
+  // Neon branch, and PREVIEW_HAS_OWN_DATABASE=1 (set for Preview only) says so.
+  if (process.env.VERCEL_ENV === "preview" && process.env.PREVIEW_HAS_OWN_DATABASE !== "1") {
+    console.log("db:prepare — preview build without PREVIEW_HAS_OWN_DATABASE=1: skipping migrations and seed.");
+    return;
+  }
 
   const migrationsFolder = path.join(root, "drizzle");
+  console.log(`db:prepare — target ${isPglite(url) ? "pglite" : new URL(url).hostname} (${process.env.VERCEL_ENV ?? "local"})`);
   console.log("db:prepare — applying migrations…");
   let target;
   if (isPglite(url)) {
