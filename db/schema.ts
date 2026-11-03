@@ -57,28 +57,34 @@ const timestamptz = (name: string) => timestamp(name, { withTimezone: true, mode
 
 // ---- passages (declared first: sentences reference it) --------------------
 
-export const passages = pgTable("passages", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  lang: text("lang").notNull().default("fr"),
-  title: text("title"),
-  origin: passageOriginEnum("origin").notNull(),
-  sourceRef: text("source_ref"),
-  genre: text("genre"),
-  /** Raw text as imported or generated; sentences/tokens are derived. */
-  text: text("text").notNull(),
-  /** Sentence texts in order; tokens refer to them by index. */
-  sentenceTexts: jsonb("sentence_texts").$type<string[]>().notNull().default([]),
-  /** Token[] from SPEC §5, stored as a blob; recomputed when re-analysed. */
-  tokens: jsonb("tokens").$type<PassageToken[]>().notNull().default([]),
-  coverage: real("coverage").notNull().default(0),
-  coverageAtGeneration: real("coverage_at_generation").notNull().default(0),
-  unknownAtoms: uuid("unknown_atoms").array().notNull().default([]),
-  /** Known word atoms when an adaptation was written; a rung goes stale as this grows (SPEC §11). */
-  knownAtGeneration: integer("known_at_generation"),
-  reads: integer("reads").notNull().default(0),
-  lastReadAt: timestamptz("last_read_at"),
-  createdAt: timestamptz("created_at").notNull().defaultNow(),
-});
+export const passages = pgTable(
+  "passages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** auth.users.id of the learner who owns this row (lib/learner.ts). */
+    userId: uuid("user_id").notNull(),
+    lang: text("lang").notNull().default("fr"),
+    title: text("title"),
+    origin: passageOriginEnum("origin").notNull(),
+    sourceRef: text("source_ref"),
+    genre: text("genre"),
+    /** Raw text as imported or generated; sentences/tokens are derived. */
+    text: text("text").notNull(),
+    /** Sentence texts in order; tokens refer to them by index. */
+    sentenceTexts: jsonb("sentence_texts").$type<string[]>().notNull().default([]),
+    /** Token[] from SPEC §5, stored as a blob; recomputed when re-analysed. */
+    tokens: jsonb("tokens").$type<PassageToken[]>().notNull().default([]),
+    coverage: real("coverage").notNull().default(0),
+    coverageAtGeneration: real("coverage_at_generation").notNull().default(0),
+    unknownAtoms: uuid("unknown_atoms").array().notNull().default([]),
+    /** Known word atoms when an adaptation was written; a rung goes stale as this grows (SPEC §11). */
+    knownAtGeneration: integer("known_at_generation"),
+    reads: integer("reads").notNull().default(0),
+    lastReadAt: timestamptz("last_read_at"),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("passages_user_lang_idx").on(t.userId, t.lang)],
+);
 
 export interface PassageToken {
   /** Whitespace (may include paragraph breaks) before this token. */
@@ -97,6 +103,8 @@ export const atoms = pgTable(
   "atoms",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** auth.users.id of the learner who owns this row (lib/learner.ts). */
+    userId: uuid("user_id").notNull(),
     lang: text("lang").notNull().default("fr"),
     type: atomTypeEnum("type").notNull(),
     key: text("key").notNull(),
@@ -134,8 +142,8 @@ export const atoms = pgTable(
     markedKnownAt: timestamptz("marked_known_at"),
   },
   (t) => [
-    uniqueIndex("atoms_lang_type_key_idx").on(t.lang, t.type, t.key),
-    index("atoms_status_due_idx").on(t.status, t.due),
+    uniqueIndex("atoms_user_lang_type_key_idx").on(t.userId, t.lang, t.type, t.key),
+    index("atoms_user_status_due_idx").on(t.userId, t.status, t.due),
     index("atoms_frequency_rank_idx").on(t.frequencyRank),
   ],
 );
@@ -146,6 +154,8 @@ export const sentences = pgTable(
   "sentences",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** auth.users.id of the learner who owns this row (lib/learner.ts). */
+    userId: uuid("user_id").notNull(),
     lang: text("lang").notNull().default("fr"),
     text: text("text").notNull(),
     translation: text("translation"),
@@ -158,7 +168,7 @@ export const sentences = pgTable(
     passageIdx: integer("passage_idx"),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
-  (t) => [index("sentences_passage_idx").on(t.passageId)],
+  (t) => [index("sentences_passage_idx").on(t.passageId), index("sentences_user_lang_idx").on(t.userId, t.lang)],
 );
 
 // ---- review log (append-only) ---------------------------------------------
@@ -167,6 +177,8 @@ export const reviewEvents = pgTable(
   "review_events",
   {
     id: serial("id").primaryKey(),
+    /** auth.users.id of the learner who owns this row (lib/learner.ts). */
+    userId: uuid("user_id").notNull(),
     atomId: uuid("atom_id")
       .notNull()
       .references(() => atoms.id, { onDelete: "cascade" }),
@@ -176,7 +188,7 @@ export const reviewEvents = pgTable(
     responseMs: integer("response_ms").notNull(),
     at: timestamptz("at").notNull().defaultNow(),
   },
-  (t) => [index("review_events_atom_at_idx").on(t.atomId, t.at)],
+  (t) => [index("review_events_atom_at_idx").on(t.atomId, t.at), index("review_events_user_at_idx").on(t.userId, t.at)],
 );
 
 // ---- reader exposure log ---------------------------------------------------
@@ -185,6 +197,8 @@ export const encounters = pgTable(
   "encounters",
   {
     id: serial("id").primaryKey(),
+    /** auth.users.id of the learner who owns this row (lib/learner.ts). */
+    userId: uuid("user_id").notNull(),
     atomId: uuid("atom_id")
       .notNull()
       .references(() => atoms.id, { onDelete: "cascade" }),
@@ -193,7 +207,7 @@ export const encounters = pgTable(
     tapped: boolean("tapped").notNull().default(false),
     at: timestamptz("at").notNull().defaultNow(),
   },
-  (t) => [index("encounters_atom_at_idx").on(t.atomId, t.at)],
+  (t) => [index("encounters_atom_at_idx").on(t.atomId, t.at), index("encounters_user_at_idx").on(t.userId, t.at)],
 );
 
 // ---- "why?" cache ------------------------------------------------------------
@@ -239,6 +253,8 @@ export const sentenceTranslations = pgTable("sentence_translations", {
 
 export const goals = pgTable("goals", {
   id: uuid("id").primaryKey().defaultRandom(),
+  /** auth.users.id of the learner who owns this row (lib/learner.ts). */
+  userId: uuid("user_id").notNull(),
   lang: text("lang").notNull().default("fr"),
   title: text("title").notNull(),
   status: text("status").$type<"active" | "waiting" | "reached">().notNull().default("active"),
@@ -272,6 +288,8 @@ export const scenarios = pgTable(
   "scenarios",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** auth.users.id of the learner who owns this row (lib/learner.ts). */
+    userId: uuid("user_id").notNull(),
     lang: text("lang").notNull().default("fr"),
     slug: text("slug").notNull(),
     title: text("title").notNull(),
@@ -281,13 +299,15 @@ export const scenarios = pgTable(
     goalId: uuid("goal_id").references(() => goals.id, { onDelete: "set null" }),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("scenarios_slug_idx").on(t.slug)],
+  (t) => [uniqueIndex("scenarios_user_slug_idx").on(t.userId, t.slug)],
 );
 
 export const scenarioVisits = pgTable(
   "scenario_visits",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** auth.users.id of the learner who owns this row (lib/learner.ts). */
+    userId: uuid("user_id").notNull(),
     scenarioId: uuid("scenario_id")
       .notNull()
       .references(() => scenarios.id, { onDelete: "cascade" }),
@@ -308,12 +328,30 @@ export const scenarioVisits = pgTable(
 
 export const producePrompts = pgTable("produce_prompts", {
   id: uuid("id").primaryKey().defaultRandom(),
+  /** auth.users.id of the learner who owns this row (lib/learner.ts). */
+  userId: uuid("user_id").notNull(),
   visitId: uuid("visit_id").references(() => scenarioVisits.id, { onDelete: "cascade" }),
   situation: text("situation").notNull(),
   targetAtomIds: uuid("target_atom_ids").array().notNull().default([]),
   exampleAnswer: text("example_answer").notNull(),
   createdAt: timestamptz("created_at").notNull().defaultNow(),
 });
+
+// ---- learners ------------------------------------------------------------------
+// One row per learner per language, written when their starter content is in
+// place (lib/learner.ts). Everything above except the caches belongs to one learner.
+
+export const learners = pgTable(
+  "learners",
+  {
+    userId: uuid("user_id").notNull(),
+    lang: text("lang").notNull(),
+    /** Set when provisioning starts; a stale claim with no readyAt is retried. */
+    claimedAt: timestamptz("claimed_at").notNull().defaultNow(),
+    readyAt: timestamptz("ready_at"),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.lang] })],
+);
 
 export type AtomRow = typeof atoms.$inferSelect;
 export type NewAtomRow = typeof atoms.$inferInsert;

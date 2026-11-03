@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { atoms, reviewEvents } from "@/db/schema";
 import { atomToRow, rowToAtom } from "@/lib/atoms/rows";
@@ -21,16 +21,18 @@ export interface RecordReviewResult {
   lapses: number;
 }
 
-/** Append to the review log, then update the atom's cached memory state. */
-export async function recordReview(d: Db, input: RecordReviewInput, now = new Date()): Promise<RecordReviewResult> {
+/** Append to the review log, then update the atom's cached memory state. Only the owner's atoms. */
+export async function recordReview(d: Db, userId: string, input: RecordReviewInput, now = new Date()): Promise<RecordReviewResult> {
   if (![1, 2, 3, 4].includes(input.grade)) throw new Error("grade must be 1–4");
   if (!MODALITIES.includes(input.modality)) throw new Error("unknown modality");
   const at = now.toISOString();
 
-  const [row] = await d.select().from(atoms).where(eq(atoms.id, input.atomId));
+  const mine = and(eq(atoms.id, input.atomId), eq(atoms.userId, userId));
+  const [row] = await d.select().from(atoms).where(mine);
   if (!row) throw new Error("unknown atom");
 
   await d.insert(reviewEvents).values({
+    userId,
     atomId: input.atomId,
     modality: input.modality,
     sentenceId: input.sentenceId ?? null,
@@ -62,7 +64,7 @@ export async function recordReview(d: Db, input: RecordReviewInput, now = new Da
       scheduledDays: next.scheduledDays,
       modality: next.modality,
     })
-    .where(eq(atoms.id, input.atomId));
+    .where(mine);
 
   return {
     status: updated.memory.status,

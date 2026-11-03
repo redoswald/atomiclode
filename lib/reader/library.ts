@@ -8,6 +8,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { isLang, type Lang } from "@/lib/lang";
+import type { Learner } from "@/lib/learners/provision";
 import { atoms, passages } from "@/db/schema";
 import { adaptText as adaptWithModel, type AdaptInput, type Level } from "@/lib/llm/adapt";
 import { generatePassage as generateWithModel, type GenerateInput, type GeneratedPassage, type Genre } from "@/lib/llm/generate";
@@ -15,7 +16,6 @@ import { computeCoverage, isKnownStatus, type AtomLite } from "./coverage";
 import { createPassage } from "./passages";
 
 export interface LibraryRequest {
-  lang?: Lang;
   targetCoverage: number; // 0.90–0.98
   genre: Genre;
   topic?: string;
@@ -38,11 +38,11 @@ export const REREAD_AFTER_DAYS = 7;
 /** Genre tag on the section passages of a goal text; they live on the goal page, not in the library list. */
 export const GOAL_SECTION_GENRE = "goal-section";
 
-async function knownIndex(d: Db, lang: Lang = "fr") {
+async function knownIndex(d: Db, me: Learner) {
   const rows = await d
     .select({ id: atoms.id, key: atoms.key, type: atoms.type, status: atoms.status, gloss: atoms.gloss })
     .from(atoms)
-    .where(and(eq(atoms.lang, lang), inArray(atoms.type, ["word", "chunk"])));
+    .where(and(eq(atoms.userId, me.userId), eq(atoms.lang, me.lang), inArray(atoms.type, ["word", "chunk"])));
   const words = new Map<string, AtomLite>();
   const chunks = new Map<string, AtomLite>();
   for (const r of rows) (r.type === "chunk" ? chunks : words).set(r.key, r);
@@ -50,10 +50,13 @@ async function knownIndex(d: Db, lang: Lang = "fr") {
 }
 
 /** Find a passage to serve instead of generating. */
-export async function findReusable(d: Db, req: LibraryRequest, now = new Date()): Promise<LibraryResult | undefined> {
-  const lang = req.lang ?? "fr";
-  const index = await knownIndex(d, lang);
-  const rows = await d.select().from(passages).where(eq(passages.lang, lang)).orderBy(desc(passages.createdAt));
+export async function findReusable(d: Db, me: Learner, req: LibraryRequest, now = new Date()): Promise<LibraryResult | undefined> {
+  const index = await knownIndex(d, me);
+  const rows = await d
+    .select()
+    .from(passages)
+    .where(and(eq(passages.userId, me.userId), eq(passages.lang, me.lang)))
+    .orderBy(desc(passages.createdAt));
   const cutoff = now.getTime() - REREAD_AFTER_DAYS * DAY_MS;
   let best: { id: string; coverage: number; score: number } | undefined;
 
@@ -73,11 +76,11 @@ export async function findReusable(d: Db, req: LibraryRequest, now = new Date())
 }
 
 /** The one-generation-per-session cap: an unread generated passage blocks a new one. */
-export async function unreadGenerated(d: Db, lang: Lang = "fr"): Promise<{ id: string; title: string | null } | undefined> {
+export async function unreadGenerated(d: Db, me: Learner): Promise<{ id: string; title: string | null } | undefined> {
   const [row] = await d
     .select({ id: passages.id, title: passages.title })
     .from(passages)
-    .where(and(eq(passages.lang, lang), eq(passages.origin, "generated"), eq(passages.reads, 0), sql`coalesce(${passages.sourceRef}, '') not like 'passage:%'`))
+    .where(and(eq(passages.userId, me.userId), eq(passages.lang, me.lang), eq(passages.origin, "generated"), eq(passages.reads, 0), sql`coalesce(${passages.sourceRef}, '') not like 'passage:%'`))
     .orderBy(desc(passages.createdAt))
     .limit(1);
   return row;
@@ -86,20 +89,21 @@ export async function unreadGenerated(d: Db, lang: Lang = "fr"): Promise<{ id: s
 /** Serve a matching passage from the library, otherwise generate, store, and serve. */
 export async function reuseOrGenerate(
   d: Db,
+  me: Learner,
   req: LibraryRequest,
   generate: GenerateFn = generateWithModel,
   now = new Date(),
 ): Promise<LibraryResult> {
-  const reusable = await findReusable(d, req, now);
+  const reusable = await findReusable(d, me, req, now);
   if (reusable) return reusable;
 
-  const lang = req.lang ?? "fr";
-  const pending = await unreadGenerated(d, lang);
+  const { lang } = me;
+  const pending = await unreadGenerated(d, me);
   if (pending) {
     throw new Error(`Read "${pending.title ?? "your last generated passage"}" before generating another.`);
   }
 
-  const index = await knownIndex(d, lang);
+  const index = await knownIndex(d, me);
   const known = [...index.words.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
   const chunks = [...index.chunks.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
   if (known.length < 20) {
@@ -108,7 +112,7 @@ export async function reuseOrGenerate(
   const recent = await d
     .select({ title: passages.title })
     .from(passages)
-    .where(and(eq(passages.lang, lang), eq(passages.origin, "generated")))
+    .where(and(eq(passages.userId, me.userId), eq(passages.lang, lang), eq(passages.origin, "generated")))
     .orderBy(desc(passages.createdAt))
     .limit(5);
 
@@ -122,18 +126,18 @@ export async function reuseOrGenerate(
     mustInclude: req.mustInclude,
     avoidTitles: recent.map((r) => r.title).filter((t): t is string => Boolean(t)),
   });
-  const { id } = await createPassage(d, { lang, title: generated.title, text: generated.text, origin: "generated" });
+  const { id } = await createPassage(d, me.userId, { lang, title: generated.title, text: generated.text, origin: "generated" });
   await d.update(passages).set({ genre: req.genre }).where(eq(passages.id, id));
   const [row] = await d.select({ coverage: passages.coverage }).from(passages).where(eq(passages.id, id));
   return { id, reused: false, coverage: row.coverage };
 }
 
 /** Lemmas of atoms due now, for `mustInclude` ("refresh inside reading"). */
-export async function dueLemmas(d: Db, limit = 8, now = new Date(), lang: Lang = "fr"): Promise<string[]> {
+export async function dueLemmas(d: Db, me: Learner, limit = 8, now = new Date()): Promise<string[]> {
   const rows = await d
     .select({ key: atoms.key })
     .from(atoms)
-    .where(and(eq(atoms.lang, lang), eq(atoms.type, "word"), inArray(atoms.status, ["learning", "review"]), sql`${atoms.due} <= ${now.toISOString()}`))
+    .where(and(eq(atoms.userId, me.userId), eq(atoms.lang, me.lang), eq(atoms.type, "word"), inArray(atoms.status, ["learning", "review"]), sql`${atoms.due} <= ${now.toISOString()}`))
     .orderBy(atoms.due)
     .limit(limit);
   return rows.map((r) => r.key);
@@ -148,43 +152,44 @@ export type AdaptFn = (input: AdaptInput) => Promise<{ title: string; text: stri
  */
 export async function adaptPassage(
   d: Db,
+  userId: string,
   passageId: string,
   level: Level,
   adapt: AdaptFn = adaptWithModel,
   opts: { refresh?: boolean } = {},
 ): Promise<LibraryResult> {
-  const [original] = await d.select().from(passages).where(eq(passages.id, passageId));
+  const [original] = await d.select().from(passages).where(and(eq(passages.id, passageId), eq(passages.userId, userId)));
   if (!original) throw new Error("unknown passage");
   const ref = `passage:${passageId}#${level}`;
   const [existing] = await d
     .select({ id: passages.id, coverage: passages.coverage })
     .from(passages)
-    .where(eq(passages.sourceRef, ref))
+    .where(and(eq(passages.userId, userId), eq(passages.sourceRef, ref)))
     .orderBy(desc(passages.createdAt))
     .limit(1);
   // `refresh` rewrites a rung the learner has outgrown; the old one stays in the library.
   if (existing && !opts.refresh) return { id: existing.id, coverage: existing.coverage, reused: true };
 
   const lang: Lang = isLang(original.lang) ? original.lang : "fr";
-  const index = await knownIndex(d, lang);
+  const index = await knownIndex(d, { userId, lang });
   const known = [...index.words.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
   const chunks = [...index.chunks.values()].filter((a) => isKnownStatus(a.status)).map((a) => a.key);
   if (known.length < 20) {
     throw new Error("Learn a few more words first: adapting needs at least 20 known words to work with.");
   }
   const adapted = await adapt({ lang, text: original.text, title: original.title ?? undefined, known, chunks, level });
-  const { id } = await createPassage(d, { lang, title: adapted.title, text: adapted.text, origin: "generated", sourceRef: ref });
+  const { id } = await createPassage(d, userId, { lang, title: adapted.title, text: adapted.text, origin: "generated", sourceRef: ref });
   await d.update(passages).set({ genre: original.genre && original.genre !== GOAL_SECTION_GENRE ? original.genre : "adapted", knownAtGeneration: known.length }).where(eq(passages.id, id));
   const [row] = await d.select({ coverage: passages.coverage }).from(passages).where(eq(passages.id, id));
   return { id, reused: false, coverage: row.coverage };
 }
 
 /** Existing adaptations of a passage, by level (the most recent of each). */
-export async function adaptationsOf(d: Db, passageId: string): Promise<Partial<Record<Level, string>>> {
+export async function adaptationsOf(d: Db, userId: string, passageId: string): Promise<Partial<Record<Level, string>>> {
   const rows = await d
     .select({ id: passages.id, sourceRef: passages.sourceRef })
     .from(passages)
-    .where(sql`${passages.sourceRef} like ${`passage:${passageId}#%`}`)
+    .where(and(eq(passages.userId, userId), sql`${passages.sourceRef} like ${`passage:${passageId}#%`}`))
     .orderBy(passages.createdAt);
   const out: Partial<Record<Level, string>> = {};
   for (const r of rows) {

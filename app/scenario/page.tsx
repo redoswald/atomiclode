@@ -3,7 +3,7 @@ import { createScenario } from "@/app/actions/scenario";
 import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
 import { LANG_SPECS } from "@/lib/lang";
-import { currentLang } from "@/lib/lang-server";
+import { learner } from "@/lib/learner";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { scenarioStates, suggestVisit, type ScenarioState } from "@/lib/scenarios/visits";
 
@@ -20,14 +20,15 @@ export default async function ScenariosPage({ searchParams }: PageProps<"/scenar
     );
   }
   const hasKey = hasAnthropicKey();
-  const lang = await currentLang();
-  const states = await scenarioStates(db(), lang);
+  const me = await learner();
+  const { lang } = me;
+  const states = await scenarioStates(db(), me);
   const suggestion = suggestVisit(states, hasKey);
 
   return (
     <Shell title="Scenes" eyebrow="Places you'll stand. Things you'll say.">
       {typeof error === "string" && <p className="mb-4 text-sm text-bad">{error}</p>}
-      {states.length === 0 && <p className="text-sm text-muted">No scenarios yet. Redeploy, or run npm run db:prepare: the build seeds them.</p>}
+      {states.length === 0 && <p className="text-sm text-muted">No scenes yet. They arrive with your starter words; reload in a moment.</p>}
 
       <ul className="space-y-3">
         {states.map((s) => (

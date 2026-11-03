@@ -11,6 +11,7 @@ import { knownMemoryState } from "@/lib/scheduler";
 import { analyzeText, type AnalysisSource } from "./analyze";
 import { computeCoverage, isKnownStatus, toPassageTokens, type AtomLite } from "./coverage";
 import { isLang, normalizeFor, type Lang } from "@/lib/lang";
+import type { Learner } from "@/lib/learners/provision";
 import { buildLexicon, frLexicon, type Lexicon } from "./lexicon";
 
 export interface ViewToken extends PassageToken {
@@ -62,12 +63,13 @@ interface AtomIndex {
   lexicon: Lexicon;
 }
 
-async function loadAtomIndex(d: Db, lang: Lang): Promise<AtomIndex> {
+async function loadAtomIndex(d: Db, me: Learner): Promise<AtomIndex> {
+  const { lang } = me;
   const normalize = normalizeFor(lang);
   const rows = await d
     .select({ id: atoms.id, key: atoms.key, type: atoms.type, status: atoms.status, gloss: atoms.gloss, pos: atoms.pos, romanization: atoms.romanization, forms: atoms.forms })
     .from(atoms)
-    .where(and(eq(atoms.lang, lang), inArray(atoms.type, ["word", "chunk"])));
+    .where(and(eq(atoms.userId, me.userId), eq(atoms.lang, lang), inArray(atoms.type, ["word", "chunk"])));
   const words = new Map<string, AtomLite>();
   const chunks = new Map<string, AtomLite>();
   for (const r of rows) (r.type === "chunk" ? chunks : words).set(r.type === "chunk" ? r.key : normalize(r.key), r);
@@ -87,13 +89,13 @@ export interface CreatePassageInput {
   sourceRef?: string;
 }
 
-export async function createPassage(d: Db, input: CreatePassageInput): Promise<{ id: string; source: AnalysisSource }> {
+export async function createPassage(d: Db, userId: string, input: CreatePassageInput): Promise<{ id: string; source: AnalysisSource }> {
   const text = input.text.trim();
   if (text.length < 20) throw new Error("Paste at least a sentence or two.");
   if (text.length > 20_000) throw new Error("That's too long for one passage (20,000 characters max).");
 
   const lang = input.lang ?? "fr";
-  const index = await loadAtomIndex(d, lang);
+  const index = await loadAtomIndex(d, { userId, lang });
   const analysis = await analyzeText(text, { lang, lexicon: index.lexicon });
   const tokens = toPassageTokens(analysis.tokens, [...index.chunks.keys()], lang, index.lexicon);
   const report = computeCoverage(tokens, (l) => index.words.get(l), (k) => index.chunks.get(k));
@@ -102,6 +104,7 @@ export async function createPassage(d: Db, input: CreatePassageInput): Promise<{
   const [row] = await d
     .insert(passages)
     .values({
+      userId,
       lang,
       title: input.title?.trim() || titleFrom(text),
       origin: input.origin,
@@ -122,7 +125,7 @@ function titleFrom(text: string): string {
   return first.length > 60 ? first.slice(0, 57).trimEnd() + "…" : first;
 }
 
-export async function listPassages(d: Db, lang: Lang = "fr"): Promise<PassageSummary[]> {
+export async function listPassages(d: Db, me: Learner): Promise<PassageSummary[]> {
   const rows = await d
     .select({
       id: passages.id,
@@ -137,16 +140,16 @@ export async function listPassages(d: Db, lang: Lang = "fr"): Promise<PassageSum
     })
     .from(passages)
     // Scenario dialogues live under Scenes, a goal's sections under Goal.
-    .where(sql`${passages.lang} = ${lang} and ${passages.origin} <> 'scenario' and coalesce(${passages.genre}, '') <> 'goal-section'`)
+    .where(sql`${passages.userId} = ${me.userId}::uuid and ${passages.lang} = ${me.lang} and ${passages.origin} <> 'scenario' and coalesce(${passages.genre}, '') <> 'goal-section'`)
     .orderBy(desc(passages.createdAt));
   return rows;
 }
 
 /** Load a passage for reading, refresh its coverage, and count the read. */
-export async function openPassage(d: Db, id: string, now = new Date()): Promise<PassageView | undefined> {
-  const [row] = await d.select().from(passages).where(eq(passages.id, id));
+export async function openPassage(d: Db, userId: string, id: string, now = new Date()): Promise<PassageView | undefined> {
+  const [row] = await d.select().from(passages).where(and(eq(passages.id, id), eq(passages.userId, userId)));
   if (!row) return undefined;
-  const index = await loadAtomIndex(d, passageLang(row));
+  const index = await loadAtomIndex(d, { userId, lang: passageLang(row) });
   const report = computeCoverage(row.tokens, (l) => index.words.get(l), (k) => index.chunks.get(k));
 
   await d
@@ -154,7 +157,7 @@ export async function openPassage(d: Db, id: string, now = new Date()): Promise<
     .set({ coverage: report.coverage, reads: row.reads + 1, lastReadAt: now.toISOString() })
     .where(eq(passages.id, id));
   if (report.knownAtomIds.length) {
-    await d.insert(encounters).values(report.knownAtomIds.map((atomId) => ({ atomId, passageId: id, tapped: false, at: now.toISOString() })));
+    await d.insert(encounters).values(report.knownAtomIds.map((atomId) => ({ userId, atomId, passageId: id, tapped: false, at: now.toISOString() })));
   }
 
   const tokens: ViewToken[] = row.tokens.map((t) => {
@@ -188,19 +191,20 @@ export async function openPassage(d: Db, id: string, now = new Date()): Promise<
 /** Find or create the word atom for a lemma. Returns the row id and whether it was created. */
 async function ensureWordAtom(
   d: Db,
-  lang: Lang,
+  me: Learner,
   lemma: string,
   surface: string,
   gloss: string,
   source: "mined" | "manual",
 ): Promise<{ id: string; created: boolean; status: MemoryStatus }> {
+  const { userId, lang } = me;
   const normalize = normalizeFor(lang);
   // French keys are normalized; Greek keys keep their accents (the lemma came from an accented atom or the text).
   const key = lang === "fr" ? normalize(lemma) : lemma.trim().toLowerCase();
   const form = lang === "fr" ? normalize(surface) : surface.trim().toLowerCase();
-  const index = await loadAtomIndex(d, lang);
+  const index = await loadAtomIndex(d, me);
   const hit = index.words.get(normalize(key));
-  const existing = hit ? (await d.select().from(atoms).where(eq(atoms.id, hit.id)))[0] : undefined;
+  const existing = hit ? (await d.select().from(atoms).where(and(eq(atoms.id, hit.id), eq(atoms.userId, userId))))[0] : undefined;
   if (existing) {
     const forms = existing.forms.includes(form) ? existing.forms : [...existing.forms, form];
     await d
@@ -216,7 +220,7 @@ async function ensureWordAtom(
   }
   const [row] = await d
     .insert(atoms)
-    .values({ lang, type: "word", key, forms: Array.from(new Set([key, form])), gloss, source, status: "new" })
+    .values({ userId, lang, type: "word", key, forms: Array.from(new Set([key, form])), gloss, source, status: "new" })
     .returning({ id: atoms.id });
   return { id: row.id, created: true, status: "new" };
 }
@@ -230,17 +234,18 @@ export interface MineInput {
 }
 
 /** SPEC §5 "Mine": create or link the atom and save the tapped sentence for cloze. */
-export async function mineWord(d: Db, input: MineInput, now = new Date()): Promise<{ atomId: string; sentenceId: string }> {
-  const [passage] = await d.select().from(passages).where(eq(passages.id, input.passageId));
+export async function mineWord(d: Db, userId: string, input: MineInput, now = new Date()): Promise<{ atomId: string; sentenceId: string }> {
+  const [passage] = await d.select().from(passages).where(and(eq(passages.id, input.passageId), eq(passages.userId, userId)));
   if (!passage) throw new Error("unknown passage");
   const text = passage.sentenceTexts[input.sentenceIdx];
   if (!text) throw new Error("unknown sentence");
 
   const lang = passageLang(passage);
-  const atom = await ensureWordAtom(d, lang, input.lemma, input.surface, input.gloss, "mined");
+  const me: Learner = { userId, lang };
+  const atom = await ensureWordAtom(d, me, input.lemma, input.surface, input.gloss, "mined");
 
   // Every atom present in the sentence, known or not, so cloze/produce can use it later.
-  const index = await loadAtomIndex(d, lang);
+  const index = await loadAtomIndex(d, me);
   const atomIds = new Set<string>([atom.id]);
   for (const t of passage.tokens) {
     if (t.sentenceIdx !== input.sentenceIdx || !t.isWord) continue;
@@ -252,7 +257,7 @@ export async function mineWord(d: Db, input: MineInput, now = new Date()): Promi
   const [existing] = await d
     .select({ id: sentences.id })
     .from(sentences)
-    .where(and(eq(sentences.passageId, input.passageId), eq(sentences.passageIdx, input.sentenceIdx)));
+    .where(and(eq(sentences.userId, userId), eq(sentences.passageId, input.passageId), eq(sentences.passageIdx, input.sentenceIdx)));
   let sentenceId: string;
   if (existing) {
     await d.update(sentences).set({ atomIds: [...atomIds] }).where(eq(sentences.id, existing.id));
@@ -261,6 +266,7 @@ export async function mineWord(d: Db, input: MineInput, now = new Date()): Promi
     const [row] = await d
       .insert(sentences)
       .values({
+        userId,
         lang,
         text,
         atomIds: [...atomIds],
@@ -273,13 +279,13 @@ export async function mineWord(d: Db, input: MineInput, now = new Date()): Promi
     sentenceId = row.id;
   }
 
-  await d.insert(encounters).values({ atomId: atom.id, sentenceId, passageId: input.passageId, tapped: true, at: now.toISOString() });
+  await d.insert(encounters).values({ userId, atomId: atom.id, sentenceId, passageId: input.passageId, tapped: true, at: now.toISOString() });
   return { atomId: atom.id, sentenceId };
 }
 
 /** SPEC §5 "Already know": the atom starts (or restarts) with a mature memory state. */
-export async function markKnown(d: Db, input: { lang?: Lang; lemma: string; surface: string; gloss: string }, now = new Date()): Promise<{ atomId: string }> {
-  const atom = await ensureWordAtom(d, input.lang ?? "fr", input.lemma, input.surface, input.gloss, "manual");
+export async function markKnown(d: Db, me: Learner, input: { lemma: string; surface: string; gloss: string }, now = new Date()): Promise<{ atomId: string }> {
+  const atom = await ensureWordAtom(d, me, input.lemma, input.surface, input.gloss, "manual");
   const m = knownMemoryState(now.toISOString());
   await d
     .update(atoms)
@@ -295,11 +301,16 @@ export async function markKnown(d: Db, input: { lang?: Lang; lemma: string; surf
       scheduledDays: m.scheduledDays,
       markedKnownAt: now.toISOString(),
     })
-    .where(eq(atoms.id, atom.id));
+    .where(and(eq(atoms.id, atom.id), eq(atoms.userId, me.userId)));
   return { atomId: atom.id };
 }
 
-/** Log a tap on a known atom (exposure signal for the scheduler, SPEC §4). */
-export async function logTap(d: Db, atomId: string, passageId: string, now = new Date()): Promise<void> {
-  await d.insert(encounters).values({ atomId, passageId, tapped: true, at: now.toISOString() });
+/** Log a tap on a known atom (exposure signal for the scheduler, SPEC §4). Ignores atoms and passages that aren't the learner's. */
+export async function logTap(d: Db, userId: string, atomId: string, passageId: string, now = new Date()): Promise<void> {
+  const [[atom], [passage]] = await Promise.all([
+    d.select({ id: atoms.id }).from(atoms).where(and(eq(atoms.id, atomId), eq(atoms.userId, userId))),
+    d.select({ id: passages.id }).from(passages).where(and(eq(passages.id, passageId), eq(passages.userId, userId))),
+  ]);
+  if (!atom || !passage) return;
+  await d.insert(encounters).values({ userId, atomId, passageId, tapped: true, at: now.toISOString() });
 }

@@ -4,6 +4,7 @@ import { atoms, encounters, reviewEvents, sentences } from "@/db/schema";
 import { rowToAtom } from "@/lib/atoms/rows";
 import type { Atom, AtomType, Encounter, Modality, Sentence } from "@/lib/atoms/types";
 import type { Gender, Lang } from "@/lib/lang";
+import type { Learner } from "@/lib/learners/provision";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { applyExposure } from "@/lib/scheduler/exposure";
 import { normalizeFor } from "@/lib/lang";
@@ -53,25 +54,24 @@ export function parseIntensity(v: unknown): Intensity {
 }
 
 export interface BuildOptions {
-  lang?: Lang;
   /** Produce needs a model to grade it; defaults to whether an API key is set. */
   produce?: boolean;
   writePrompt?: WritePromptFn;
 }
 
-export async function buildSession(d: Db, intensity: Intensity, now = new Date(), opts: BuildOptions = {}): Promise<BuiltSession> {
-  const lang: Lang = opts.lang ?? "fr";
+export async function buildSession(d: Db, me: Learner, intensity: Intensity, now = new Date(), opts: BuildOptions = {}): Promise<BuiltSession> {
+  const { userId, lang } = me;
   const produce = opts.produce ?? hasAnthropicKey();
   const timeBudgetMin = BUDGETS[intensity];
   const [order, rows, sentenceRows, introduced, recentEncounters] = await Promise.all([
-    newAtomOrder(d, lang, produce),
-    d.select().from(atoms).where(and(eq(atoms.lang, lang), sql`${atoms.status} <> 'suspended'`)),
-    d.select().from(sentences).where(eq(sentences.lang, lang)),
-    newAtomsIntroducedToday(d, now, lang),
+    newAtomOrder(d, me, produce),
+    d.select().from(atoms).where(and(eq(atoms.userId, userId), eq(atoms.lang, lang), sql`${atoms.status} <> 'suspended'`)),
+    d.select().from(sentences).where(and(eq(sentences.userId, userId), eq(sentences.lang, lang))),
+    newAtomsIntroducedToday(d, me, now),
     d
       .select()
       .from(encounters)
-      .where(gte(encounters.at, new Date(now.getTime() - 30 * 86_400_000).toISOString())),
+      .where(and(eq(encounters.userId, userId), gte(encounters.at, new Date(now.getTime() - 30 * 86_400_000).toISOString()))),
   ]);
   // Exposure signals from reading (SPEC §4): small stability bumps, fragile words pulled forward.
   const exposure: Encounter[] = recentEncounters.map((e) => ({
@@ -86,7 +86,7 @@ export async function buildSession(d: Db, intensity: Intensity, now = new Date()
     const before = rowToAtom(row);
     const { atom } = applyExposure(before, exposure, now.toISOString());
     if (atom !== before) {
-      await d.update(atoms).set({ stability: atom.memory.stability, due: atom.memory.due }).where(eq(atoms.id, atom.id));
+      await d.update(atoms).set({ stability: atom.memory.stability, due: atom.memory.due }).where(and(eq(atoms.id, atom.id), eq(atoms.userId, userId)));
     }
     all.push(atom);
   }
@@ -112,16 +112,16 @@ export async function buildSession(d: Db, intensity: Intensity, now = new Date()
 
   // Triage: persist the bulk deferrals so the next plan sees them.
   for (const def of plan.deferrals) {
-    await d.update(atoms).set({ due: def.due }).where(eq(atoms.id, def.atomId));
+    await d.update(atoms).set({ due: def.due }).where(and(eq(atoms.id, def.atomId), eq(atoms.userId, userId)));
   }
 
   const byId = new Map(all.map((a) => [a.id, a]));
 
   // Produce cards need a situation: a stored one, or one written now (a few per session at most).
   const wantProduce = plan.items.filter((i) => i.modality === "produce").map((i) => byId.get(i.atomId)!);
-  const prompts = await promptsFor(d, wantProduce);
+  const prompts = await promptsFor(d, userId, wantProduce);
   const unprompted = wantProduce.filter((a) => !prompts.has(a.id));
-  for (const [id, row] of await writePrompts(d, unprompted, opts.writePrompt)) prompts.set(id, row);
+  for (const [id, row] of await writePrompts(d, userId, unprompted, opts.writePrompt)) prompts.set(id, row);
 
   const sentenceById = new Map(sentenceList.map((s) => [s.id, s]));
   const cards: SessionCard[] = plan.items.map((item) => {
@@ -162,13 +162,13 @@ export async function buildSession(d: Db, intensity: Intensity, now = new Date()
 }
 
 /** Atoms whose first-ever review happened since the start of today (UTC). */
-export async function newAtomsIntroducedToday(d: Db, now = new Date(), lang: Lang = "fr"): Promise<number> {
+export async function newAtomsIntroducedToday(d: Db, me: Learner, now = new Date()): Promise<number> {
   const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
   const firsts = d
     .select({ atomId: reviewEvents.atomId, first: min(reviewEvents.at).as("first") })
     .from(reviewEvents)
     .innerJoin(atoms, eq(atoms.id, reviewEvents.atomId))
-    .where(eq(atoms.lang, lang))
+    .where(and(eq(reviewEvents.userId, me.userId), eq(atoms.userId, me.userId), eq(atoms.lang, me.lang)))
     .groupBy(reviewEvents.atomId)
     .as("firsts");
   const [row] = await d

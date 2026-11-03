@@ -4,7 +4,7 @@ import Link from "next/link";
 import { vocabStats } from "@/lib/atoms/vocab-stats";
 import { activeGoal, goalCoverageSeries, goalView } from "@/lib/goals/goals";
 import { LANG_SPECS, langName } from "@/lib/lang";
-import { currentLang } from "@/lib/lang-server";
+import { learner } from "@/lib/learner";
 import { CoverageChart } from "./chart";
 
 export const dynamic = "force-dynamic";
@@ -17,12 +17,13 @@ export default async function StatsPage() {
       </Shell>
     );
   }
-  const lang = await currentLang();
-  const s = await vocabStats(db(), new Date(), lang);
-  const goal = await activeGoal(db(), lang);
+  const me = await learner();
+  const { lang } = me;
+  const s = await vocabStats(db(), me);
+  const goal = await activeGoal(db(), me);
   // Opening the view logs today's point, so the line is never a day behind.
-  const goalNow = goal ? await goalView(db(), goal.id) : undefined;
-  const goalSeries = goal ? await goalCoverageSeries(db(), goal.id) : [];
+  const goalNow = goal ? await goalView(db(), me.userId, goal.id) : undefined;
+  const goalSeries = goal ? await goalCoverageSeries(db(), me.userId, goal.id) : [];
   const pct = (x: number) => `${Math.round(x * 100)}%`;
 
   return (

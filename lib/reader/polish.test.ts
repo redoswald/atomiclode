@@ -19,18 +19,22 @@ import { recordReview } from "@/lib/review/record";
 import { buildSession, insightFor } from "@/lib/review/session";
 import { emptyModalityStats, newMemoryState, type Atom } from "@/lib/atoms/types";
 import { adaptationsOf, adaptPassage, unreadGenerated } from "./library";
+import type { Learner } from "@/lib/learners/provision";
 import { createPassage } from "./passages";
 
 let client: PGlite;
 let d: ReturnType<typeof drizzle<typeof schema>>;
 const NOW = new Date("2026-09-10T12:00:00Z");
+const USER = "11111111-1111-1111-1111-111111111111";
+const me: Learner = { userId: USER, lang: "fr" };
+
 const FREQ = freq as FrequencyEntry[];
 
 beforeAll(async () => {
   client = new PGlite();
   d = drizzle(client, { schema });
   await migrate(d, { migrationsFolder: "./drizzle" });
-  await seedAtoms(d, { freq: FREQ, chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
+  await seedAtoms(d, USER, { freq: FREQ, chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
   await d
     .update(atoms)
     .set({ status: "review", stability: 30, difficulty: 5, scheduledDays: 30, reps: 3, due: "2026-10-01T00:00:00Z", lastReview: "2026-09-01T00:00:00Z" })
@@ -55,7 +59,7 @@ describe("stats", () => {
   });
 
   it("buckets vocabulary and builds a series from the review log", async () => {
-    const before = await vocabStats(d, NOW);
+    const before = await vocabStats(d, me, NOW);
     expect(before.total).toBe(60);
     expect(before.strong).toBe(40);
     expect(before.developing).toBe(20);
@@ -66,12 +70,12 @@ describe("stats", () => {
     expect(before.series).toEqual([{ date: "2026-09-10", coverage: 0, known: 0 }]);
 
     const [w] = await d.select().from(atoms).where(sql`${atoms.type} = 'word' and ${atoms.frequencyRank} = 41`);
-    await recordReview(d, { atomId: w.id, modality: "recognize", grade: 3, responseMs: 1000 }, new Date("2026-09-08T10:00:00Z"));
+    await recordReview(d, USER, { atomId: w.id, modality: "recognize", grade: 3, responseMs: 1000 }, new Date("2026-09-08T10:00:00Z"));
     // Tap it three times this week → fragile.
     for (let i = 0; i < 3; i++) {
-      await d.insert(encounters).values({ atomId: w.id, tapped: true, at: new Date(NOW.getTime() - i * 86_400_000).toISOString() });
+      await d.insert(encounters).values({ userId: USER, atomId: w.id, tapped: true, at: new Date(NOW.getTime() - i * 86_400_000).toISOString() });
     }
-    const after = await vocabStats(d, NOW);
+    const after = await vocabStats(d, me, NOW);
     expect(after.fragile).toBe(1);
     expect(after.series.map((p) => p.date)).toEqual(["2026-09-08", "2026-09-10"]);
     expect(after.series[0].known).toBe(1);
@@ -96,9 +100,9 @@ describe("exposure through the session", () => {
   it("pulls a tapped-often word forward and bumps untapped ones without moving due", async () => {
     const [fragile] = await d.select().from(atoms).where(sql`${atoms.type} = 'word' and ${atoms.frequencyRank} = 41`);
     const [seen] = await d.select().from(atoms).where(sql`${atoms.type} = 'word' and ${atoms.frequencyRank} = 1`);
-    await d.insert(encounters).values({ atomId: seen.id, tapped: false, at: NOW.toISOString() });
+    await d.insert(encounters).values({ userId: USER, atomId: seen.id, tapped: false, at: NOW.toISOString() });
 
-    const session = await buildSession(d, "steady", NOW);
+    const session = await buildSession(d, me, "steady", NOW);
     expect(session.cards.some((c) => c.atomId === fragile.id)).toBe(true);
     const [f] = await d.select().from(atoms).where(eq(atoms.id, fragile.id));
     expect(new Date(f.due).getTime()).toBeLessThanOrEqual(NOW.getTime());
@@ -116,8 +120,8 @@ describe("adapt this text", () => {
   }));
 
   it("creates one adaptation per level, reuses it, and keeps it out of the generation cap", async () => {
-    const { id } = await createPassage(d, { text: "Un texte original assez long pour être importé sans problème, avec plusieurs mots.", origin: "imported", title: "Original" });
-    const a = await adaptPassage(d, id, "balanced", fakeAdapt);
+    const { id } = await createPassage(d, USER, { text: "Un texte original assez long pour être importé sans problème, avec plusieurs mots.", origin: "imported", title: "Original" });
+    const a = await adaptPassage(d, USER, id, "balanced", fakeAdapt);
     expect(a.reused).toBe(false);
     expect(fakeAdapt.mock.calls[0][0].level).toBe("balanced");
     const [row] = await d.select().from(passages).where(eq(passages.id, a.id));
@@ -125,17 +129,17 @@ describe("adapt this text", () => {
     expect(row.sourceRef).toBe(`passage:${id}#balanced`);
     expect(row.title).toBe("Adapté (balanced)");
 
-    const again = await adaptPassage(d, id, "balanced", fakeAdapt);
+    const again = await adaptPassage(d, USER, id, "balanced", fakeAdapt);
     expect(again).toMatchObject({ id: a.id, reused: true });
     expect(fakeAdapt).toHaveBeenCalledTimes(1);
 
-    const b = await adaptPassage(d, id, "comfortable", fakeAdapt);
-    expect(await adaptationsOf(d, id)).toEqual({ balanced: a.id, comfortable: b.id });
+    const b = await adaptPassage(d, USER, id, "comfortable", fakeAdapt);
+    expect(await adaptationsOf(d, USER, id)).toEqual({ balanced: a.id, comfortable: b.id });
     // Unread adaptations don't block "read something new".
-    expect(await unreadGenerated(d)).toBeUndefined();
+    expect(await unreadGenerated(d, me)).toBeUndefined();
   }, 60_000);
 
   it("refuses an unknown passage", async () => {
-    await expect(adaptPassage(d, "00000000-0000-0000-0000-000000000000", "balanced", fakeAdapt)).rejects.toThrow("unknown passage");
+    await expect(adaptPassage(d, USER, "00000000-0000-0000-0000-000000000000", "balanced", fakeAdapt)).rejects.toThrow("unknown passage");
   });
 });

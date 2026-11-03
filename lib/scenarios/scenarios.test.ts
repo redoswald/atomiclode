@@ -23,17 +23,21 @@ import { buildSession } from "@/lib/review/session";
 import { createCustomScenario, generateNextVisit } from "./generate";
 import type { ScenarioEntry } from "./seed";
 import { scenarioStates, startVisit, suggestVisit } from "./visits";
+import type { Learner } from "@/lib/learners/provision";
 
 let client: PGlite;
 let d: ReturnType<typeof drizzle<typeof schema>>;
 const NOW = new Date("2026-09-20T12:00:00Z");
+const USER = "11111111-1111-1111-1111-111111111111";
+const me: Learner = { userId: USER, lang: "fr" };
+
 const ENTRIES = seedFile as ScenarioEntry[];
 
 beforeAll(async () => {
   client = new PGlite();
   d = drizzle(client, { schema });
   await migrate(d, { migrationsFolder: "./drizzle" });
-  await seedAtoms(d, { freq: freq as FrequencyEntry[], chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
+  await seedAtoms(d, USER, { freq: freq as FrequencyEntry[], chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
 }, 60_000);
 
 afterAll(async () => {
@@ -68,9 +72,9 @@ const VISIT_2: GeneratedVisit = {
 
 describe("scenarios", () => {
   it("seeds a dozen scenarios with their first visit, idempotently", async () => {
-    const first = await seedScenarios(d, ENTRIES, "fr", NOW);
+    const first = await seedScenarios(d, USER, ENTRIES, "fr", NOW);
     expect(first).toEqual({ scenarios: ENTRIES.length, visitsWritten: ENTRIES.length });
-    const again = await seedScenarios(d, ENTRIES, "fr", NOW);
+    const again = await seedScenarios(d, USER, ENTRIES, "fr", NOW);
     expect(again.visitsWritten).toBe(0);
 
     const { visit } = await cafe();
@@ -88,18 +92,18 @@ describe("scenarios", () => {
   });
 
   it("offers the first scenario, and holds the bare frequency list back while scenarios lead", async () => {
-    const states = await scenarioStates(d);
+    const states = await scenarioStates(d, me);
     expect(states.every((s) => s.state === "ready")).toBe(true);
     expect(suggestVisit(states, false)?.scenario.slug).toBe("arriving");
     // Nothing opened yet: no new atoms at all, rather than "de, la, et".
-    const session = await buildSession(d, "steady", NOW, { produce: false });
+    const session = await buildSession(d, me, "steady", NOW, { produce: false });
     expect(session.cards).toHaveLength(0);
   });
 
   it("opening a visit puts its bundle at the head of the queue, with lines from the dialogue as sentences", async () => {
     const { visit } = await cafe();
-    await startVisit(d, visit.id, NOW);
-    await startVisit(d, visit.id, new Date(NOW.getTime() + 1000)); // idempotent
+    await startVisit(d, USER, visit.id, NOW);
+    await startVisit(d, USER, visit.id, new Date(NOW.getTime() + 1000)); // idempotent
     const [started] = await d.select().from(scenarioVisits).where(eq(scenarioVisits.id, visit.id));
     expect(new Date(started.startedAt!).getTime()).toBe(NOW.getTime());
 
@@ -109,32 +113,32 @@ describe("scenarios", () => {
     expect(lines.length).toBeGreaterThan(3);
     expect(lines.every((l) => l.origin === "scenario")).toBe(true);
 
-    const session = await buildSession(d, "steady", NOW, { produce: false });
+    const session = await buildSession(d, me, "steady", NOW, { produce: false });
     expect(session.cards.map((c) => c.atomId)).toEqual(visit.bundle);
     expect(session.cards[0].key).toBe("je voudrais");
 
-    const states = await scenarioStates(d);
+    const states = await scenarioStates(d, me);
     expect(states.find((s) => s.scenario.slug === "cafe")?.state).toBe("learning");
     expect(suggestVisit(states, true)).toBeUndefined();
 
     // The dialogue reads like any passage.
-    const view = (await openPassage(d, visit.passageId!, NOW))!;
+    const view = (await openPassage(d, USER, visit.passageId!, NOW))!;
     expect(view.origin).toBe("scenario");
     expect(view.tokens.some((t) => t.chunkKey === "à emporter")).toBe(true);
   });
 
   it("once the bundle is absorbed, writes the next visit from the model's answer, dropping what it got wrong", async () => {
     const { scenario, visit } = await cafe();
-    await expect(generateNextVisit(d, (await d.select().from(scenarios).where(eq(scenarios.slug, "bakery")))[0].id, { generate: async () => VISIT_2 })).rejects.toThrow(/haven't opened/);
+    await expect(generateNextVisit(d, USER, (await d.select().from(scenarios).where(eq(scenarios.slug, "bakery")))[0].id, { generate: async () => VISIT_2 })).rejects.toThrow(/haven't opened/);
 
     await d.update(atoms).set({ status: "learning", stability: 1, reps: 1 }).where(inArray(atoms.id, visit.bundle));
-    const states = await scenarioStates(d);
+    const states = await scenarioStates(d, me);
     expect(states.find((s) => s.scenario.slug === "cafe")?.state).toBe("next");
     // Unopened seed visits are offered before one that has to be written.
     expect(suggestVisit(states, true)?.scenario.slug).toBe("arriving");
 
-    let asked: Parameters<NonNullable<Parameters<typeof generateNextVisit>[2]>["generate"] & object>[0] | undefined;
-    const { visitId, n } = await generateNextVisit(d, scenario.id, {
+    let asked: Parameters<NonNullable<Parameters<typeof generateNextVisit>[3]>["generate"] & object>[0] | undefined;
+    const { visitId, n } = await generateNextVisit(d, USER, scenario.id, {
       goalLemmas: ["naître", "café"],
       now: NOW,
       generate: async (input) => {
@@ -157,10 +161,10 @@ describe("scenarios", () => {
 
   it("makes a scenario from the learner's own words, and cleans up when the model fails", async () => {
     const before = (await d.select().from(scenarios)).length;
-    await expect(createCustomScenario(d, "Meeting her grandmother on Sunday", { generate: async () => Promise.reject(new Error("no model")) })).rejects.toThrow("no model");
+    await expect(createCustomScenario(d, me, "Meeting her grandmother on Sunday", { generate: async () => Promise.reject(new Error("no model")) })).rejects.toThrow("no model");
     expect((await d.select().from(scenarios)).length).toBe(before);
 
-    const { scenarioId } = await createCustomScenario(d, "Meeting her grandmother on Sunday", { generate: async () => ({ ...VISIT_2, title: "Chez sa grand-mère" }), now: NOW });
+    const { scenarioId } = await createCustomScenario(d, me, "Meeting her grandmother on Sunday", { generate: async () => ({ ...VISIT_2, title: "Chez sa grand-mère" }), now: NOW });
     const [s] = await d.select().from(scenarios).where(eq(scenarios.id, scenarioId));
     expect(s).toMatchObject({ origin: "custom", title: "Chez sa grand-mère" });
   });

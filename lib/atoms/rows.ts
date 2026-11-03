@@ -38,8 +38,8 @@ export function rowToAtom(row: AtomRow): Atom {
   };
 }
 
-/** In-memory Atom → row for insert/update. */
-export function atomToRow(atom: Atom): NewAtomRow {
+/** In-memory Atom → row for update (the owner is not part of an Atom). */
+export function atomToRow(atom: Atom): Omit<NewAtomRow, "userId"> {
   return {
     id: atom.id,
     lang: atom.lang,

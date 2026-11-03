@@ -7,7 +7,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { atoms } from "@/db/schema";
 import { currentPhase, type Phase } from "@/lib/atoms/phase";
-import type { Lang } from "@/lib/lang";
+import type { Learner } from "@/lib/learners/provision";
 import { goalNewOrder } from "@/lib/goals/goals";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { scenarioNewOrder, scenariosLead, scenarioStates } from "@/lib/scenarios/visits";
@@ -23,22 +23,22 @@ export interface NewOrder {
  * A script comes before any scene: the Greek alphabet atoms (domain "alphabet")
  * lead the new-atom order while any of them is still new. French has none.
  */
-async function primerOrder(d: Db, lang: Lang): Promise<string[]> {
+async function primerOrder(d: Db, me: Learner): Promise<string[]> {
   const rows = await d
     .select({ id: atoms.id })
     .from(atoms)
-    .where(and(eq(atoms.lang, lang), eq(atoms.status, "new"), sql`'alphabet' = any(${atoms.domains})`))
+    .where(and(eq(atoms.userId, me.userId), eq(atoms.lang, me.lang), eq(atoms.status, "new"), sql`'alphabet' = any(${atoms.domains})`))
     .orderBy(asc(atoms.frequencyRank));
   return rows.map((r) => r.id);
 }
 
-export async function newAtomOrder(d: Db, lang: Lang = "fr", canGenerate = hasAnthropicKey()): Promise<NewOrder> {
+export async function newAtomOrder(d: Db, me: Learner, canGenerate = hasAnthropicKey()): Promise<NewOrder> {
   const [{ phase }, primer, fromScenarios, fromGoal, states] = await Promise.all([
-    currentPhase(d, lang),
-    primerOrder(d, lang),
-    scenarioNewOrder(d, lang),
-    goalNewOrder(d, lang),
-    scenarioStates(d, lang),
+    currentPhase(d, me),
+    primerOrder(d, me),
+    scenarioNewOrder(d, me),
+    goalNewOrder(d, me),
+    scenarioStates(d, me),
   ]);
   // In the foundation phase the goal only steers which words scenarios pick up (SPEC §11).
   const newOrder = [...primer, ...(phase === "reading" ? [...fromGoal, ...fromScenarios] : fromScenarios)];

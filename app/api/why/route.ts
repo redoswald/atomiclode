@@ -5,7 +5,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db, hasDatabase } from "@/db";
 import { getUser } from "@/lib/auth";
-import { currentLang } from "@/lib/lang-server";
+import { learner } from "@/lib/learner";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { askWhy, type WhyRequest } from "@/lib/reader/why";
 
@@ -25,8 +25,7 @@ export async function POST(request: NextRequest) {
   if (!body.atomId && !body.lemma) return NextResponse.json({ error: "atomId or lemma is required" }, { status: 400 });
 
   try {
-    const answer = await askWhy(db(), {
-      lang: await currentLang(),
+    const answer = await askWhy(db(), await learner(), {
       atomId: typeof body.atomId === "string" ? body.atomId : undefined,
       lemma: typeof body.lemma === "string" ? body.lemma : undefined,
       surface: typeof body.surface === "string" ? body.surface : undefined,

@@ -18,16 +18,20 @@ import type { WhyInput } from "@/lib/llm/why";
 import { dueLemmas, findReusable, reuseOrGenerate, unreadGenerated } from "./library";
 import { createPassage, openPassage } from "./passages";
 import { addGrammarAtom, askWhy } from "./why";
+import type { Learner } from "@/lib/learners/provision";
 
 let client: PGlite;
 let d: ReturnType<typeof drizzle<typeof schema>>;
 const NOW = new Date("2026-09-10T12:00:00Z");
+const USER = "11111111-1111-1111-1111-111111111111";
+const me: Learner = { userId: USER, lang: "fr" };
+
 
 beforeAll(async () => {
   client = new PGlite();
   d = drizzle(client, { schema });
   await migrate(d, { migrationsFolder: "./drizzle" });
-  await seedAtoms(d, { freq: freq as FrequencyEntry[], chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
+  await seedAtoms(d, USER, { freq: freq as FrequencyEntry[], chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
   // Learn the 60 most frequent words so generation has something to work with.
   await d
     .update(atoms)
@@ -52,7 +56,7 @@ describe("askWhy", () => {
 
   it("caches generic explanations on the atom and links existing grammar", async () => {
     const [vouloir] = await d.select().from(atoms).where(sql`${atoms.type} = 'word' and ${atoms.key} = 'vouloir'`);
-    const first = await askWhy(d, { atomId: vouloir.id }, fake);
+    const first = await askWhy(d, me, { atomId: vouloir.id }, fake);
     expect(first.cached).toBe(false);
     expect(first.explanation).toBe("About vouloir.");
     expect(first.grammar).toMatchObject({ key: "conditional-polite-request", existing: true });
@@ -65,7 +69,7 @@ describe("askWhy", () => {
     const [g] = await d.select().from(atoms).where(sql`${atoms.type} = 'grammar' and ${atoms.key} = 'conditional-polite-request'`);
     expect(after.relatedAtoms).toContain(g.id);
 
-    const second = await askWhy(d, { atomId: vouloir.id }, fake);
+    const second = await askWhy(d, me, { atomId: vouloir.id }, fake);
     expect(second.cached).toBe(true);
     expect(second.grammar?.key).toBe("conditional-polite-request");
     expect(fake).toHaveBeenCalledTimes(1);
@@ -74,31 +78,31 @@ describe("askWhy", () => {
   it("caches contextual explanations per sentence, separately from the generic one", async () => {
     const [vouloir] = await d.select().from(atoms).where(sql`${atoms.type} = 'word' and ${atoms.key} = 'vouloir'`);
     const before = fake.mock.calls.length;
-    const ctx = await askWhy(d, { atomId: vouloir.id, sentence: "Je voudrais un café." }, fake);
+    const ctx = await askWhy(d, me, { atomId: vouloir.id, sentence: "Je voudrais un café." }, fake);
     expect(ctx.cached).toBe(false);
     expect(ctx.explanation).toBe("About vouloir in context.");
-    const again = await askWhy(d, { atomId: vouloir.id, sentence: "Je voudrais un café." }, fake);
+    const again = await askWhy(d, me, { atomId: vouloir.id, sentence: "Je voudrais un café." }, fake);
     expect(again.cached).toBe(true);
     expect(fake.mock.calls.length).toBe(before + 1);
   });
 
   it("works for a word with no atom yet and offers a new grammar atom", async () => {
-    const answer = await askWhy(d, { lemma: "faille", surface: "faille", sentence: "Il faut que tu failles." }, fake);
+    const answer = await askWhy(d, me, { lemma: "faille", surface: "faille", sentence: "Il faut que tu failles." }, fake);
     expect(answer.grammar).toMatchObject({ key: "subjunctive-after-il-faut", existing: false });
-    const { atomId, created } = await addGrammarAtom(d, { key: answer.grammar!.key, title: answer.grammar!.title, explanation: answer.grammar!.explanation });
+    const { atomId, created } = await addGrammarAtom(d, me, { key: answer.grammar!.key, title: answer.grammar!.title, explanation: answer.grammar!.explanation });
     expect(created).toBe(true);
     const [g] = await d.select().from(atoms).where(eq(atoms.id, atomId));
     expect(g).toMatchObject({ type: "grammar", key: "subjunctive-after-il-faut", gloss: "Subjunctive after il faut", status: "new", source: "conversation" });
     // Adding twice is a no-op.
-    expect((await addGrammarAtom(d, { key: g.key, title: "x", explanation: "y" })).created).toBe(false);
+    expect((await addGrammarAtom(d, me, { key: g.key, title: "x", explanation: "y" })).created).toBe(false);
     // Once it exists, a cached answer reports it as existing.
-    const cached = await askWhy(d, { lemma: "faille", sentence: "Il faut que tu failles." }, fake);
+    const cached = await askWhy(d, me, { lemma: "faille", sentence: "Il faut que tu failles." }, fake);
     expect(cached.cached).toBe(true);
     expect(cached.grammar?.existing).toBe(true);
   });
 
   it("rejects an empty request", async () => {
-    await expect(askWhy(d, {}, fake)).rejects.toThrow();
+    await expect(askWhy(d, me, {}, fake)).rejects.toThrow();
   });
 });
 
@@ -111,12 +115,12 @@ describe("passage library", () => {
   const fakeGenerate = vi.fn(async () => ({ title: "Généré", text: knownText() }));
 
   it("dueLemmas lists due known words", async () => {
-    const due = await dueLemmas(d, 5, NOW);
+    const due = await dueLemmas(d, me, 5, NOW);
     expect(due.length).toBe(5);
   });
 
   it("generates when nothing fits, stores the genre, and blocks a second unread generation", async () => {
-    const r = await reuseOrGenerate(d, { targetCoverage: 0.95, genre: "short story", mustInclude: [] }, fakeGenerate, NOW);
+    const r = await reuseOrGenerate(d, me, { targetCoverage: 0.95, genre: "short story", mustInclude: [] }, fakeGenerate, NOW);
     expect(r.reused).toBe(false);
     expect(fakeGenerate).toHaveBeenCalledTimes(1);
     const call = fakeGenerate.mock.calls[0] as unknown as [{ known: string[]; targetCoverage: number; genre: string }];
@@ -126,39 +130,39 @@ describe("passage library", () => {
     expect(row.origin).toBe("generated");
     expect(row.genre).toBe("short story");
     expect(row.coverage).toBeGreaterThan(0.9);
-    expect(await unreadGenerated(d)).toMatchObject({ id: r.id });
+    expect(await unreadGenerated(d, me)).toMatchObject({ id: r.id });
 
-    await expect(reuseOrGenerate(d, { targetCoverage: 0.9, genre: "dialogue", mustInclude: [] }, fakeGenerate, NOW)).rejects.toThrow(/Read "Généré"/);
+    await expect(reuseOrGenerate(d, me, { targetCoverage: 0.9, genre: "dialogue", mustInclude: [] }, fakeGenerate, NOW)).rejects.toThrow(/Read "Généré"/);
     expect(fakeGenerate).toHaveBeenCalledTimes(1);
   });
 
   it("reuses a passage whose live coverage fits the band and that wasn't read recently", async () => {
     const [row] = await d.select().from(passages).where(eq(passages.origin, "generated"));
     // Unread: eligible. Coverage ~0.97 fits a 0.95 target (band -0.04/+0.02).
-    const hit = await findReusable(d, { targetCoverage: 0.95, genre: "short story", mustInclude: [] }, NOW);
+    const hit = await findReusable(d, me, { targetCoverage: 0.95, genre: "short story", mustInclude: [] }, NOW);
     expect(hit?.id).toBe(row.id);
     // Too far from target: not eligible.
-    expect(await findReusable(d, { targetCoverage: 0.9, genre: "short story", mustInclude: [] }, NOW)).toBeUndefined();
+    expect(await findReusable(d, me, { targetCoverage: 0.9, genre: "short story", mustInclude: [] }, NOW)).toBeUndefined();
     // mustInclude must overlap.
-    expect(await findReusable(d, { targetCoverage: 0.95, genre: "short story", mustInclude: ["zzz-not-here"] }, NOW)).toBeUndefined();
-    expect((await findReusable(d, { targetCoverage: 0.95, genre: "short story", mustInclude: ["zzz", "de"] }, NOW))?.id).toBe(row.id);
+    expect(await findReusable(d, me, { targetCoverage: 0.95, genre: "short story", mustInclude: ["zzz-not-here"] }, NOW)).toBeUndefined();
+    expect((await findReusable(d, me, { targetCoverage: 0.95, genre: "short story", mustInclude: ["zzz", "de"] }, NOW))?.id).toBe(row.id);
 
     // Reading it today makes it ineligible for a week; reuseOrGenerate then generates again.
-    await openPassage(d, row.id, NOW);
-    expect(await findReusable(d, { targetCoverage: 0.95, genre: "short story", mustInclude: [] }, NOW)).toBeUndefined();
+    await openPassage(d, USER, row.id, NOW);
+    expect(await findReusable(d, me, { targetCoverage: 0.95, genre: "short story", mustInclude: [] }, NOW)).toBeUndefined();
     const later = new Date(NOW.getTime() + 8 * 86_400_000);
-    expect((await findReusable(d, { targetCoverage: 0.95, genre: "short story", mustInclude: [] }, later))?.id).toBe(row.id);
+    expect((await findReusable(d, me, { targetCoverage: 0.95, genre: "short story", mustInclude: [] }, later))?.id).toBe(row.id);
 
     const before = fakeGenerate.mock.calls.length;
-    const r2 = await reuseOrGenerate(d, { targetCoverage: 0.95, genre: "dialogue", mustInclude: [] }, fakeGenerate, NOW);
+    const r2 = await reuseOrGenerate(d, me, { targetCoverage: 0.95, genre: "dialogue", mustInclude: [] }, fakeGenerate, NOW);
     expect(r2.reused).toBe(false);
     expect(fakeGenerate.mock.calls.length).toBe(before + 1);
   }, 60_000);
 
   it("imported passages are reusable too", async () => {
-    const { id } = await createPassage(d, { text: knownText(), origin: "imported", title: "Importé" });
+    const { id } = await createPassage(d, USER, { text: knownText(), origin: "imported", title: "Importé" });
     const later = new Date(NOW.getTime() + 30 * 86_400_000);
-    const hit = await findReusable(d, { targetCoverage: 0.95, genre: "news-style", mustInclude: [] }, later);
+    const hit = await findReusable(d, me, { targetCoverage: 0.95, genre: "news-style", mustInclude: [] }, later);
     expect(hit).toBeDefined();
     const [row] = await d.select({ coverage: passages.coverage }).from(passages).where(eq(passages.id, id));
     expect(row.coverage).toBeGreaterThan(0.9);

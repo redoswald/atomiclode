@@ -17,24 +17,24 @@ export interface SeedResult {
 }
 
 /**
- * Upsert the starter atoms for one language. Idempotent: re-running refreshes
- * glosses, forms, POS, and ranks on existing atoms and never touches memory
- * state. Chunks are linked to their component word and grammar atoms by key.
+ * Upsert one learner's starter atoms for one language. Idempotent: re-running
+ * refreshes glosses, forms, POS, and ranks on existing atoms and never touches
+ * memory state. Chunks are linked to their component word and grammar atoms by key.
  */
-export async function seedAtoms(d: Db, files: SeedFiles, lang: Lang = "fr"): Promise<SeedResult> {
+export async function seedAtoms(d: Db, userId: string, files: SeedFiles, lang: Lang = "fr"): Promise<SeedResult> {
   const { freq, chunks, grammar } = files;
   const problems = validateSeed(freq, chunks, grammar);
   if (problems.length) {
     throw new Error(`Seed files (${lang}) are inconsistent:\n  ` + problems.join("\n  "));
   }
 
-  const rows = [...frequencyToRows(freq, lang), ...chunksToRows(chunks, lang), ...grammarToRows(grammar, lang)];
+  const rows = [...frequencyToRows(freq, lang), ...chunksToRows(chunks, lang), ...grammarToRows(grammar, lang)].map((r) => ({ ...r, userId }));
   for (let i = 0; i < rows.length; i += 500) {
     await d
       .insert(atoms)
       .values(rows.slice(i, i + 500))
       .onConflictDoUpdate({
-        target: [atoms.lang, atoms.type, atoms.key],
+        target: [atoms.userId, atoms.lang, atoms.type, atoms.key],
         set: {
           forms: sql`excluded.forms`,
           // Never blank a gloss that was filled in the app after the seed file was written.
@@ -61,7 +61,7 @@ export async function seedAtoms(d: Db, files: SeedFiles, lang: Lang = "fr"): Pro
     ? await d
         .select({ id: atoms.id, type: atoms.type, key: atoms.key })
         .from(atoms)
-        .where(and(eq(atoms.lang, lang), inArray(atoms.key, [...wanted])))
+        .where(and(eq(atoms.userId, userId), eq(atoms.lang, lang), inArray(atoms.key, [...wanted])))
     : [];
   const idByTypeKey = new Map(related.map((r) => [`${r.type}:${r.key}`, r.id]));
 
@@ -73,7 +73,7 @@ export async function seedAtoms(d: Db, files: SeedFiles, lang: Lang = "fr"): Pro
     await d
       .update(atoms)
       .set({ relatedAtoms: ids })
-      .where(and(eq(atoms.lang, lang), eq(atoms.type, "chunk"), eq(atoms.key, key)));
+      .where(and(eq(atoms.userId, userId), eq(atoms.lang, lang), eq(atoms.type, "chunk"), eq(atoms.key, key)));
     linked++;
   }
 

@@ -11,6 +11,7 @@ import * as schema from "@/db/schema";
 import { atoms, reviewEvents } from "@/db/schema";
 import type { ChunkEntry, FrequencyEntry, GrammarEntry } from "@/lib/atoms/seed";
 import { homeCounts } from "@/lib/atoms/stats";
+import type { Learner } from "@/lib/learners/provision";
 import chunks from "./chunks-fr.json";
 import freq from "./frequency-fr.json";
 import grammar from "./grammar-fr.json";
@@ -21,6 +22,9 @@ const files = {
   chunks: chunks as ChunkEntry[],
   grammar: grammar as GrammarEntry[],
 };
+
+const USER = "11111111-1111-1111-1111-111111111111";
+const me: Learner = { userId: USER, lang: "fr" };
 
 let client: PGlite;
 let d: ReturnType<typeof drizzle<typeof schema>>;
@@ -37,7 +41,7 @@ afterAll(async () => {
 
 describe("migrations + seed", () => {
   it("seeds every atom and links chunks", async () => {
-    const result = await seedAtoms(d, files);
+    const result = await seedAtoms(d, USER, files);
     expect(result.upserted).toBe(files.freq.length + files.chunks.length + files.grammar.length);
     expect(result.linked).toBe(files.chunks.length);
 
@@ -57,7 +61,7 @@ describe("migrations + seed", () => {
       .set({ status: "review", stability: 12.5, reps: 4, gloss: "stale gloss" })
       .where(eq(atoms.id, before.id));
 
-    const result = await seedAtoms(d, files);
+    const result = await seedAtoms(d, USER, files);
     expect(result.upserted).toBe(files.freq.length + files.chunks.length + files.grammar.length);
 
     const [{ n }] = await d.select({ n: sql<number>`count(*)::int` }).from(atoms);
@@ -72,7 +76,7 @@ describe("migrations + seed", () => {
     expect(after.gloss).toBe("stale gloss");
     // …but a real gloss in the file wins.
     const glossed = { ...files, freq: files.freq.map((f) => (f.lemma === "vouloir" ? { ...f, gloss: "to want" } : f)) };
-    await seedAtoms(d, glossed);
+    await seedAtoms(d, USER, glossed);
     const [reglossed] = await d.select().from(atoms).where(eq(atoms.key, "vouloir"));
     expect(reglossed.gloss).toBe("to want");
     expect(reglossed.status).toBe("review");
@@ -83,6 +87,7 @@ describe("migrations + seed", () => {
     const [vouloir] = await d.select().from(atoms).where(eq(atoms.key, "vouloir"));
     await d.update(atoms).set({ due: "2026-09-09T00:00:00Z" }).where(eq(atoms.id, vouloir.id));
     await d.insert(reviewEvents).values({
+      userId: USER,
       atomId: vouloir.id,
       modality: "recognize",
       grade: 3,
@@ -90,7 +95,7 @@ describe("migrations + seed", () => {
       at: "2026-09-01T09:00:00Z",
     });
 
-    const counts = await homeCounts(now, d);
+    const counts = await homeCounts(d, me, now);
     expect(counts.day).toBe(10);
     expect(counts.total).toBe(files.freq.length + files.chunks.length + files.grammar.length);
     expect(counts.byStatus.review).toBe(1);

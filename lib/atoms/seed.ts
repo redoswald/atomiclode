@@ -5,6 +5,9 @@
  * hand-ordered, carries romanizations, and marks sign words receptive-only.
  */
 import type { NewAtomRow } from "@/db/schema";
+
+/** A seed atom before it is given to a learner (db/seed/run.ts adds userId). */
+export type SeedAtomRow = Omit<NewAtomRow, "userId">;
 import type { Gender, Lang } from "@/lib/lang";
 
 export interface WordEntry {
@@ -38,7 +41,7 @@ export interface GrammarEntry {
   explanation: string;
 }
 
-export function frequencyToRows(entries: WordEntry[], lang: Lang = "fr"): NewAtomRow[] {
+export function frequencyToRows(entries: WordEntry[], lang: Lang = "fr"): SeedAtomRow[] {
   return entries.map((e) => ({
     lang,
     type: "word",
@@ -57,7 +60,7 @@ export function frequencyToRows(entries: WordEntry[], lang: Lang = "fr"): NewAto
   }));
 }
 
-export function chunksToRows(entries: ChunkEntry[], lang: Lang = "fr"): NewAtomRow[] {
+export function chunksToRows(entries: ChunkEntry[], lang: Lang = "fr"): SeedAtomRow[] {
   return entries.map((e) => ({
     lang,
     type: "chunk",
@@ -72,7 +75,7 @@ export function chunksToRows(entries: ChunkEntry[], lang: Lang = "fr"): NewAtomR
   }));
 }
 
-export function grammarToRows(entries: GrammarEntry[], lang: Lang = "fr"): NewAtomRow[] {
+export function grammarToRows(entries: GrammarEntry[], lang: Lang = "fr"): SeedAtomRow[] {
   return entries.map((e) => ({
     lang,
     type: "grammar",

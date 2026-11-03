@@ -5,8 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { contextGlosses, sentenceTranslations } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
-import { currentLang } from "@/lib/lang-server";
+import { learner } from "@/lib/learner";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { glossInContext } from "@/lib/llm/contextGloss";
 import { fetchArticle } from "@/lib/reader/import";
@@ -14,19 +13,19 @@ import { createPassage, logTap, markKnown, mineWord } from "@/lib/reader/passage
 
 /** Form action for /read: paste text or give a URL, then open the passage. */
 export async function importPassage(formData: FormData): Promise<void> {
-  await requireUser();
+  const me = await learner();
   const url = String(formData.get("url") ?? "").trim();
   const pasted = String(formData.get("text") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
 
-  const lang = await currentLang();
+  const { lang } = me;
   let id: string;
   try {
     if (url) {
       const article = await fetchArticle(url);
-      ({ id } = await createPassage(db(), { lang, title: title || article.title, text: article.text, origin: "imported", sourceRef: article.sourceRef }));
+      ({ id } = await createPassage(db(), me.userId, { lang, title: title || article.title, text: article.text, origin: "imported", sourceRef: article.sourceRef }));
     } else {
-      ({ id } = await createPassage(db(), { lang, title, text: pasted, origin: "imported" }));
+      ({ id } = await createPassage(db(), me.userId, { lang, title, text: pasted, origin: "imported" }));
     }
   } catch (err) {
     redirect(`/read?error=${encodeURIComponent(err instanceof Error ? err.message : String(err))}`);
@@ -57,10 +56,10 @@ export async function tapWord(input: {
   surface: string;
   sentence: string;
 }): Promise<TapResult> {
-  await requireUser();
+  const me = await learner();
   const d = db();
-  const lang = await currentLang();
-  if (input.atomId) await logTap(d, input.atomId, input.passageId);
+  const { lang } = me;
+  if (input.atomId) await logTap(d, me.userId, input.atomId, input.passageId);
 
   const [[cached], [tr]] = await Promise.all([
     d
@@ -85,15 +84,15 @@ export async function tapWord(input: {
 }
 
 export async function mine(input: { passageId: string; sentenceIdx: number; lemma: string; surface: string; gloss: string }) {
-  await requireUser();
-  const result = await mineWord(db(), input);
+  const me = await learner();
+  const result = await mineWord(db(), me.userId, input);
   revalidatePath("/");
   return result;
 }
 
 export async function alreadyKnow(input: { lemma: string; surface: string; gloss: string }) {
-  await requireUser();
-  const result = await markKnown(db(), { ...input, lang: await currentLang() });
+  const me = await learner();
+  const result = await markKnown(db(), me, input);
   revalidatePath("/");
   return result;
 }
