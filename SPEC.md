@@ -620,7 +620,7 @@ interface SpeechClip {
 
 Table `speech_clips`; audio in Vercel Blob (`BLOB_READ_WRITE_TOKEN`). `GET /api/speech?lang&text&voice&rate` returns a redirect to the clip, generating it on a miss (text capped at 400 characters; signed-in, allowed learners only, like every route). `npm run speech:warm` pre-generates the seed: every word and phrase atom, every letter, every seed dialogue line, so a new learner never waits on a first play.
 
-**What is said.** A word or phrase: its key as written (Greek accents matter: the stress is in them). A sign word: the lowercase key, never the capitals, which voices tend to spell out. A letter: its name and one example word ("άλφα, αέρας"), from `LETTER_SAY` in `lib/speech/say.ts`; letter combinations have no names, so just the example ("ου… ούζο"). Grammar atoms: nothing. Dialogue lines that start with a dash alternate the two voices, so a café scene has a waiter and a customer.
+**What is said.** A word or phrase: its key as written (Greek accents matter: the stress is in them). A sign word: the lowercase key, never the capitals, which voices tend to spell out. A letter: two everyday words that start with its sound ("όνομα, όλα" for ο), from `LETTER_SAY` in `lib/speech/say.ts`, never its name or the bare letter: a voice reads a bare letter by its name, or not at all; letter combinations have no names, so just the example ("ου… ούζο"). Grammar atoms: nothing. Dialogue lines that start with a dash alternate the two voices, so a café scene has a waiter and a customer.
 
 ### Playing
 

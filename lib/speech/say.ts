@@ -12,48 +12,50 @@ export type SpeechRate = "normal" | "slow";
 export type VoiceIndex = 0 | 1;
 
 /**
- * Letters have no sound of their own a voice will say reliably, so each says its
- * name and one everyday word that starts with it. Combinations have no names: just
- * the example. Keys match the alphabet atoms (`letter:α`); the last four are the
- * combinations §16 adds.
+ * A letter is heard through words, never alone: a voice reads a bare letter by
+ * its name (ο comes out "omikron") or not at all (α, ι, αι come back silent).
+ * So each letter plays two everyday words that start with its sound (SPEC §17:
+ * sounds are taught inside words). The name stays in the card's written gloss.
+ * The words avoid Unit 1's own items, so "which word has this sound" never
+ * plays one of its answers. Keys match the letter atoms (`letter:α`).
  */
 export const LETTER_SAY: Record<string, string> = {
-  "letter:α": "άλφα, αέρας",
-  "letter:β": "βήτα, βάρκα",
-  "letter:γ": "γάμα, γάλα",
-  "letter:δ": "δέλτα, δέντρο",
-  "letter:ε": "έψιλον, ελιά",
-  "letter:ζ": "ζήτα, ζάχαρη",
-  "letter:η": "ήτα, ήλιος",
-  "letter:θ": "θήτα, θάλασσα",
-  "letter:ι": "γιώτα, Ιταλία",
-  "letter:κ": "κάπα, καφές",
-  "letter:λ": "λάμδα, λεμόνι",
-  "letter:μ": "μι, μήλο",
-  "letter:ν": "νι, νερό",
-  "letter:ξ": "ξι, ξενοδοχείο",
-  "letter:ο": "όμικρον, όνομα",
-  "letter:π": "πι, πόρτα",
-  "letter:ρ": "ρο, ρολόι",
-  "letter:σ": "σίγμα, σπίτι",
-  "letter:τ": "ταυ, ταξί",
-  "letter:υ": "ύψιλον, ύπνος",
-  "letter:φ": "φι, φως",
-  "letter:χ": "χι, χέρι",
-  "letter:ψ": "ψι, ψωμί",
-  "letter:ω": "ωμέγα, ώρα",
-  "letter:ου": "ούζο",
-  "letter:αι": "και",
-  "letter:ει": "είναι",
-  "letter:μπ": "μπύρα",
-  "letter:ντ": "ντομάτα",
-  "letter:γκ": "γκαράζ",
-  "letter:αυ": "αύριο",
-  "letter:τσ": "τσάι",
-  "letter:οι": "οικογένεια",
-  "letter:ευ": "ευχαριστώ",
-  "letter:γγ": "Αγγλία",
-  "letter:τζ": "τζάκι",
+  "letter:α": "άλλο, αέρας",
+  "letter:β": "βάρκα, βουνό",
+  "letter:γ": "γάτα, γωνία",
+  "letter:δ": "δρόμος, δώρο",
+  "letter:ε": "ελιά, εδώ",
+  "letter:ζ": "ζάχαρη, ζεστό",
+  "letter:η": "ήλιος, ήδη",
+  "letter:θ": "θάλασσα, θέατρο",
+  "letter:ι": "ίδιο, Ιταλία",
+  "letter:κ": "κάτω, κόσμος",
+  "letter:λ": "λάθος, λίγο",
+  "letter:μ": "μήλο, μαζί",
+  "letter:ν": "νύχτα, νησί",
+  "letter:ξ": "ξύλο, ξενοδοχείο",
+  "letter:ο": "όνομα, όλα",
+  "letter:π": "πόρτα, πάνω",
+  "letter:ρ": "ρολόι, ρύζι",
+  "letter:σ": "σπίτι, σήμερα",
+  "letter:τ": "τώρα, τέλος",
+  "letter:υ": "ύπνος, ύψος",
+  "letter:φ": "φως, φίλος",
+  "letter:χ": "χέρι, χαρτί",
+  "letter:ψ": "ψωμί, ψάρι",
+  "letter:ω": "ώρα, ωραίο",
+  "letter:ου": "ούζο, ουρά",
+  "letter:αι": "αίμα, αίθουσα",
+  "letter:ει": "είκοσι, εικόνα",
+  "letter:μπ": "μπάλα, μπλε",
+  "letter:ντ": "ντους, ντουλάπα",
+  "letter:γκ": "γκαράζ, γκρι",
+  "letter:αυ": "αύριο, αυγό",
+  "letter:τσ": "τσάντα, τσέπη",
+  "letter:οι": "οικογένεια, οίκος",
+  "letter:ευ": "Ευρώπη, ευχή",
+  "letter:γγ": "Αγγλία, φεγγάρι",
+  "letter:τζ": "τζάκι, τζάμι",
 };
 
 export interface Speakable {

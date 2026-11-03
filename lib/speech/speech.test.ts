@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "@/db/schema";
 import { speechClips } from "@/db/schema";
 import wordsEl from "@/db/seed/words-el.json";
+import course from "@/db/seed/course-el.json";
+import { scriptUnits } from "@/lib/greek/script";
 import { clipKey, getOrCreateClip } from "./clips";
 import { dialogueLines, LETTER_SAY, MAX_SPEECH_CHARS, speechPath, spokenText } from "./say";
 import type { SynthesizeInput } from "./tts";
@@ -22,11 +24,24 @@ describe("what a card says", () => {
     expect(spokenText({ lang: "fr", type: "grammar", key: "passe-compose" })).toBeUndefined();
   });
 
-  it("has a name and example for every letter in the seed", () => {
+  it("has example words for every letter in the seed", () => {
     const letters = (wordsEl as Array<{ lemma: string; pos: string }>).filter((w) => w.pos === "LETTER").map((w) => w.lemma);
     expect(letters.length).toBeGreaterThan(0);
     for (const l of letters) expect(LETTER_SAY[l], l).toBeTruthy();
-    expect(spokenText({ lang: "el", type: "word", key: "letter:ρ", pos: "LETTER" })).toBe("ρο, ρολόι");
+    expect(spokenText({ lang: "el", type: "word", key: "letter:ρ", pos: "LETTER" })).toBe("ρολόι, ρύζι");
+  });
+
+  it("plays a letter's sound in words that start with it, never its name, never a lesson answer", () => {
+    const items = new Set(course.units.flatMap((u) => u.lessons.flatMap((l) => l.items.map((i) => i.key))));
+    for (const [key, say] of Object.entries(LETTER_SAY)) {
+      const unit = key.replace("letter:", "");
+      for (const word of say.split(", ")) {
+        // γγ never starts a word; it sits inside one.
+        if (unit === "γγ") expect(scriptUnits(word), word).toContain(unit);
+        else expect(scriptUnits(word)[0], `${key}: ${word}`).toBe(unit);
+        expect(items.has(word), `${word} is a Unit 1 item`).toBe(false);
+      }
+    }
   });
 });
 
