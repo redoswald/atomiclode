@@ -22,6 +22,14 @@ describe("the Greek course", () => {
     expect(courseProblems()).toEqual([]);
   });
 
+  it("has Unit 2: the rest of the alphabet, getting around, the taxi as its checkpoint", () => {
+    const unit = el.units[1];
+    expect(unit).toMatchObject({ id: "el-2", cefr: "A1.2", scenes: ["el-taxi", "el-directions"] });
+    expect(unit.lessons.at(-1)).toMatchObject({ kind: "checkpoint", scene: "el-taxi" });
+    const taught = new Set(el.units.flatMap((u) => u.lessons.flatMap((l) => l.letters ?? [])));
+    expect(taught.size).toBe(36);
+  });
+
   it("is Unit 1 as specified: 13 lessons and the café checkpoint, 29 script units", () => {
     const unit = el.units[0];
     expect(unit.lessons).toHaveLength(14);
@@ -42,6 +50,15 @@ describe("predicted readings", () => {
     expect(say("ευρώ")).toBe("evro");
     expect(say("τσάι")).toBe("tsai");
     expect(say("μιλάτε αγγλικά;")).toBe("milate anglika");
+  });
+
+  it("reads γ before a front vowel as y once that rule is taught, and νγκ as ng", () => {
+    const front = new Set<"gamma-front">(["gamma-front"]);
+    expect(predictReading("γιατρός", all, front)).toBe("yatros");
+    expect(predictReading("γιατρός", all, new Set())).toBe("giatros");
+    expect(predictReading("τι ώρα φεύγει;", all, front)).toBe("ti ora fevyi");
+    const withGk = new Set([...all, "γκ"]);
+    expect(predictReading("πάρκινγκ", withGk, new Set())).toBe("parking");
   });
 
   it("can't sound out the sight words to their readings", () => {
@@ -103,14 +120,22 @@ describe("the path", () => {
     const fresh = pathStates(el, new Set());
     expect(fresh.map((p) => p.state).slice(0, 3)).toEqual(["current", "locked", "locked"]);
     expect(nextLesson(el, new Set(ids.slice(0, 3)))?.lesson.id).toBe(ids[3]);
-    expect(nextLesson(el, new Set(ids))).toBeUndefined();
+    expect(nextLesson(el, new Set(el.units.flatMap((u) => u.lessons.map((l) => l.id))))).toBeUndefined();
     expect(unitProgress(el.units[0], new Set(ids.slice(0, 7)))).toEqual({ done: 7, total: 14 });
   });
 
-  it("opens the café with Unit 1 and other scenes after its checkpoint", () => {
+  it("opens each unit's scenes with it, and unlisted scenes after the last checkpoint", () => {
+    const all = el.units.flatMap((u) => u.lessons.map((l) => l.id));
     expect(sceneOpen(el, new Set(), "el-cafe")).toBe(true);
-    expect(sceneOpen(el, new Set(), "el-ferry")).toBe(false);
-    expect(sceneOpen(el, new Set(ids), "el-ferry")).toBe(true);
+    expect(sceneOpen(el, new Set(), "el-taxi")).toBe(false);
+    expect(sceneOpen(el, new Set(ids), "el-taxi")).toBe(true);
+    expect(sceneOpen(el, new Set(ids), "el-ferry")).toBe(false);
+    expect(sceneOpen(el, new Set(all), "el-ferry")).toBe(true);
+  });
+
+  it("opens Unit 2 only after Unit 1's checkpoint", () => {
+    expect(nextLesson(el, new Set(ids.slice(0, 13)))?.lesson.id).toBe("el-1-14");
+    expect(nextLesson(el, new Set(ids))?.lesson.id).toBe("el-2-01");
   });
 });
 
@@ -143,6 +168,9 @@ describe("a live course in the database", () => {
     expect((await scenarioStates(d, me, { courseLive: true })).map((s) => s.scenario.slug)).toEqual(["el-cafe"]);
     await d.insert(lessonProgress).values(el.units[0].lessons.map((l) => ({ userId: USER, lang: "el", lessonId: l.id })));
     expect(await completedLessons(d, me)).toHaveProperty("size", 14);
+    // Unit 1 done: Unit 2's scenes open; the rest wait for the last checkpoint.
+    expect((await scenarioStates(d, me, { courseLive: true })).map((s) => s.scenario.slug).sort()).toEqual(["el-cafe", "el-directions", "el-taxi"]);
+    await d.insert(lessonProgress).values(el.units[1].lessons.map((l) => ({ userId: USER, lang: "el", lessonId: l.id })));
     expect((await scenarioStates(d, me, { courseLive: true })).length).toBe(9);
   });
 

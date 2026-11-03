@@ -565,7 +565,7 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 13. **Course model and Greek Unit 1:** `course-el.json` with validation (readable, decodable with the taught sound rules, items resolve, no repeats), the new seed words, `lesson_progress`, the locked path, scenes opening with their unit, and review no longer introducing words on its own for a track with a course.
 14. **Lesson player:** Warm-up, Meet, Practice (the seven exercise types), Done; the `introduced` event and the hand-off (skipping items already known); first-review spreading. Built: introductions are their own log (`introductions`), applied by replay before an atom's reviews.
 15. **Progress:** `xp_events`, the daily goal and streak (with rest days), review rounds, fading lessons and Refresh, path and level progress, the v4 home screen, Stats additions. Built: reviews earn fractional XP by expected seconds; passage XP on opening (once a day), not on scrolling through.
-16. **Unit 2** (β ζ ψ οι αυ γκ τζ; getting around; checkpoint the taxi), and a French course to replace the frequency-led start.
+16. **Unit 2** (β ζ ψ οι αυ γκ τζ; getting around; checkpoint the taxi): built. Then a French course to replace the frequency-led start.
 
 Later: a JSON API and an iOS app for the daily loop.
 
@@ -782,7 +782,28 @@ Notes on the choices:
 - New to the seed: πίτσα, εφτά, οχτώ, εννιά (the everyday forms; the seed has επτά, οκτώ, εννέα), είμαι από την Αμερική. The country is hardcoded: both learners are from the US.
 - Every item wants one read-through by a Greek speaker for naturalness before it ships.
 
-**Unit 2** (sketch): β ζ ψ οι αυ γκ τζ; getting around (directions as lessons, transport, asking the way); checkpoint the taxi scene, a complete transaction that reuses numbers and prices. The ferry waits for a later unit.
+### Greek Unit 2: Getting around (A1.2)
+
+*Can do:* read the rest of the alphabet; ask where something is and follow left, right, straight on; use buses, stations and tickets; count to a hundred and pay a fare; take a taxi to your hotel; say when you don't understand.
+
+Eleven lessons and the taxi checkpoint; the last 7 script units, so the alphabet is complete. Its scenes are the taxi and directions; the other seven open after its checkpoint.
+
+| # | Lesson | Teaches | Items |
+|---|---|---|---|
+| 1 | Letters: Β Ζ Ψ | β ζ ψ (Β is a lookalike) | βαλίτσα, βουνό, ψωμί, ψάρι, ζάχαρη |
+| 2 | Where is it? | | πού είναι…;, εδώ, εκεί, κοντά, μακριά |
+| 3 | Left, right, straight on | | αριστερά, δεξιά, στα αριστερά, στα δεξιά, όλο ευθεία, εδώ κοντά |
+| 4 | Letters: ΑΥ ΟΙ | αυ οι | αυτοκίνητο, αύριο, αυτός, ποιος, πόσο μακριά είναι; |
+| 5 | Getting about | | στάση, λεωφορείο, σταθμός, αεροδρόμιο, λιμάνι, εισιτήριο |
+| 6 | Letters: ΓΚ, and γ before ι and ε | γκ; rule: γ before a front vowel is *y*, and γι / γει before a vowel is one *y* | πάρκινγκ, γιατρός, γιατί, τι ώρα φεύγει; |
+| 7 | Tickets | | ένα εισιτήριο για, με επιστροφή, απλή διαδρομή, πού πάει αυτό το λεωφορείο; |
+| 8 | Numbers 15–100 | | δεκαπέντε, είκοσι, τριάντα, πενήντα, εκατό |
+| 9 | In the taxi | | ξενοδοχείο, εντάξει, ορίστε, καλή διαμονή, λίγο ελληνικά |
+| 10 | Letter ΤΖ, and a good evening | τζ | τζατζίκι, καλή όρεξη, καλό βράδυ |
+| 11 | When you don't understand | | δεν καταλαβαίνω, πιο σιγά, παρακαλώ, δεν μιλάω ελληνικά, λίγο |
+| 12 | Checkpoint: the taxi | | scene `el-taxi` |
+
+The predictor learned two rules for it: γι / γει before a vowel is a single *y* (γιατρός is *yatrós*), and μπ / ντ / γκ after a nasal are *b* / *d* / *g* (πάρκινγκ is *párking*). New to the seed: τζατζίκι, the only τζ word. The ferry waits for a later unit.
 
 ## 18. Progress
 

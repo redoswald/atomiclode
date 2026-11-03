@@ -31,7 +31,7 @@ describe("what a card says", () => {
     expect(spokenText({ lang: "el", type: "word", key: "letter:ρ", pos: "LETTER" })).toBe("ρολόι, ρύζι");
   });
 
-  it("plays a letter's sound in words that start with it, never its name, never a lesson answer", () => {
+  it("plays a letter's sound in words that start with it, never its name, never a course item", () => {
     const items = new Set(course.units.flatMap((u) => u.lessons.flatMap((l) => l.items.map((i) => i.key))));
     for (const [key, say] of Object.entries(LETTER_SAY)) {
       const unit = key.replace("letter:", "");
@@ -39,7 +39,7 @@ describe("what a card says", () => {
         // γγ never starts a word; it sits inside one.
         if (unit === "γγ") expect(scriptUnits(word), word).toContain(unit);
         else expect(scriptUnits(word)[0], `${key}: ${word}`).toBe(unit);
-        expect(items.has(word), `${word} is a Unit 1 item`).toBe(false);
+        expect(items.has(word), `${word} is a course item`).toBe(false);
       }
     }
   });

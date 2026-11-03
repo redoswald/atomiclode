@@ -16,24 +16,24 @@ export type VoiceIndex = 0 | 1;
  * its name (ο comes out "omikron") or not at all (α, ι, αι come back silent).
  * So each letter plays two everyday words that start with its sound (SPEC §17:
  * sounds are taught inside words). The name stays in the card's written gloss.
- * The words avoid Unit 1's own items, so "which word has this sound" never
+ * The words avoid the course's own items, so "which word has this sound" never
  * plays one of its answers. Keys match the letter atoms (`letter:α`).
  */
 export const LETTER_SAY: Record<string, string> = {
   "letter:α": "άλλο, αέρας",
-  "letter:β": "βάρκα, βουνό",
+  "letter:β": "βάρκα, βροχή",
   "letter:γ": "γάτα, γωνία",
   "letter:δ": "δρόμος, δώρο",
-  "letter:ε": "ελιά, εδώ",
-  "letter:ζ": "ζάχαρη, ζεστό",
+  "letter:ε": "ελιά, εβδομάδα",
+  "letter:ζ": "ζεστό, ζωή",
   "letter:η": "ήλιος, ήδη",
   "letter:θ": "θάλασσα, θέατρο",
   "letter:ι": "ίδιο, Ιταλία",
   "letter:κ": "κάτω, κόσμος",
-  "letter:λ": "λάθος, λίγο",
+  "letter:λ": "λάθος, λουλούδι",
   "letter:μ": "μήλο, μαζί",
   "letter:ν": "νύχτα, νησί",
-  "letter:ξ": "ξύλο, ξενοδοχείο",
+  "letter:ξ": "ξύλο, ξανά",
   "letter:ο": "όνομα, όλα",
   "letter:π": "πόρτα, πάνω",
   "letter:ρ": "ρολόι, ρύζι",
@@ -42,15 +42,15 @@ export const LETTER_SAY: Record<string, string> = {
   "letter:υ": "ύπνος, ύψος",
   "letter:φ": "φως, φίλος",
   "letter:χ": "χέρι, χαρτί",
-  "letter:ψ": "ψωμί, ψάρι",
+  "letter:ψ": "ψηλός, ψυγείο",
   "letter:ω": "ώρα, ωραίο",
   "letter:ου": "ούζο, ουρά",
   "letter:αι": "αίμα, αίθουσα",
-  "letter:ει": "είκοσι, εικόνα",
+  "letter:ει": "εικόνα, είδος",
   "letter:μπ": "μπάλα, μπλε",
   "letter:ντ": "ντους, ντουλάπα",
   "letter:γκ": "γκαράζ, γκρι",
-  "letter:αυ": "αύριο, αυγό",
+  "letter:αυ": "αυγό, αυλή",
   "letter:τσ": "τσάντα, τσέπη",
   "letter:οι": "οικογένεια, οίκος",
   "letter:ευ": "Ευρώπη, ευχή",

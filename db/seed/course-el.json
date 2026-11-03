@@ -368,6 +368,283 @@
      "scene": "el-cafe"
     }
    ]
+  },
+  {
+   "id": "el-2",
+   "cefr": "A1.2",
+   "title": "Getting around",
+   "canDo": [
+    "Read the rest of the alphabet",
+    "Ask where something is and follow left, right, straight on",
+    "Use buses, stations and tickets",
+    "Count to a hundred and pay a fare",
+    "Take a taxi to your hotel",
+    "Say when you don't understand"
+   ],
+   "scenes": [
+    "el-taxi",
+    "el-directions"
+   ],
+   "lessons": [
+    {
+     "id": "el-2-01",
+     "title": "Letters: Β Ζ Ψ",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "βαλίτσα"
+      },
+      {
+       "key": "βουνό"
+      },
+      {
+       "key": "ψωμί"
+      },
+      {
+       "key": "ψάρι"
+      },
+      {
+       "key": "ζάχαρη"
+      }
+     ],
+     "letters": [
+      "β",
+      "ζ",
+      "ψ"
+     ]
+    },
+    {
+     "id": "el-2-02",
+     "title": "Where is it?",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "πού είναι…;"
+      },
+      {
+       "key": "εδώ"
+      },
+      {
+       "key": "εκεί"
+      },
+      {
+       "key": "κοντά"
+      },
+      {
+       "key": "μακριά"
+      }
+     ]
+    },
+    {
+     "id": "el-2-03",
+     "title": "Left, right, straight on",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "αριστερά"
+      },
+      {
+       "key": "δεξιά"
+      },
+      {
+       "key": "στα αριστερά"
+      },
+      {
+       "key": "στα δεξιά"
+      },
+      {
+       "key": "όλο ευθεία"
+      },
+      {
+       "key": "εδώ κοντά"
+      }
+     ]
+    },
+    {
+     "id": "el-2-04",
+     "title": "Letters: ΑΥ ΟΙ",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "αυτοκίνητο"
+      },
+      {
+       "key": "αύριο"
+      },
+      {
+       "key": "αυτός"
+      },
+      {
+       "key": "ποιος"
+      },
+      {
+       "key": "πόσο μακριά είναι;"
+      }
+     ],
+     "letters": [
+      "αυ",
+      "οι"
+     ]
+    },
+    {
+     "id": "el-2-05",
+     "title": "Getting about",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "στάση"
+      },
+      {
+       "key": "λεωφορείο"
+      },
+      {
+       "key": "σταθμός"
+      },
+      {
+       "key": "αεροδρόμιο"
+      },
+      {
+       "key": "λιμάνι"
+      },
+      {
+       "key": "εισιτήριο"
+      }
+     ]
+    },
+    {
+     "id": "el-2-06",
+     "title": "Letters: ΓΚ, and γ before ι and ε",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "πάρκινγκ"
+      },
+      {
+       "key": "γιατρός"
+      },
+      {
+       "key": "γιατί"
+      },
+      {
+       "key": "τι ώρα φεύγει;"
+      }
+     ],
+     "letters": [
+      "γκ"
+     ],
+     "rules": [
+      "gamma-front"
+     ]
+    },
+    {
+     "id": "el-2-07",
+     "title": "Tickets",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "ένα εισιτήριο για"
+      },
+      {
+       "key": "με επιστροφή"
+      },
+      {
+       "key": "απλή διαδρομή"
+      },
+      {
+       "key": "πού πάει αυτό το λεωφορείο;"
+      }
+     ]
+    },
+    {
+     "id": "el-2-08",
+     "title": "Numbers 15–100",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "δεκαπέντε"
+      },
+      {
+       "key": "είκοσι"
+      },
+      {
+       "key": "τριάντα"
+      },
+      {
+       "key": "πενήντα"
+      },
+      {
+       "key": "εκατό"
+      }
+     ]
+    },
+    {
+     "id": "el-2-09",
+     "title": "In the taxi",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "ξενοδοχείο"
+      },
+      {
+       "key": "εντάξει"
+      },
+      {
+       "key": "ορίστε"
+      },
+      {
+       "key": "καλή διαμονή"
+      },
+      {
+       "key": "λίγο ελληνικά"
+      }
+     ]
+    },
+    {
+     "id": "el-2-10",
+     "title": "Letter ΤΖ, and a good evening",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "τζατζίκι"
+      },
+      {
+       "key": "καλή όρεξη"
+      },
+      {
+       "key": "καλό βράδυ"
+      }
+     ],
+     "letters": [
+      "τζ"
+     ]
+    },
+    {
+     "id": "el-2-11",
+     "title": "When you don't understand",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "δεν καταλαβαίνω"
+      },
+      {
+       "key": "πιο σιγά, παρακαλώ"
+      },
+      {
+       "key": "δεν μιλάω ελληνικά"
+      },
+      {
+       "key": "λίγο"
+      }
+     ]
+    },
+    {
+     "id": "el-2-12",
+     "title": "Checkpoint: the taxi",
+     "kind": "checkpoint",
+     "items": [],
+     "scene": "el-taxi"
+    }
+   ]
   }
  ]
 }

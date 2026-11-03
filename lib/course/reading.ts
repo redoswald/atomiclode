@@ -21,6 +21,7 @@ const NASAL: Record<string, [string, string]> = { μπ: ["b", "mb"], ντ: ["d",
 /** ev / av, or ef / af before a voiceless consonant. */
 const VOWEL_F: Record<string, [string, string]> = { ευ: ["ev", "ef"], αυ: ["av", "af"] };
 const VOICELESS = new Set(["θ", "κ", "ξ", "π", "σ", "τ", "φ", "χ", "ψ", "τσ"]);
+const VOWELS = new Set(["α", "ε", "η", "ι", "ο", "υ", "ω", "ου", "αι", "ει", "οι", "αυ", "ευ"]);
 /** Units that start with a front vowel sound, before which γ is said "y". */
 const FRONT = new Set(["ε", "ι", "η", "υ", "ει", "οι", "αι"]);
 
@@ -50,8 +51,15 @@ export function predictReading(text: string, known: Set<string>, rules: Set<Soun
       if (!known.has(u)) return undefined;
       const next = units.at(i + 1);
       if (u === "γ" && next === "χ" && rules.has("gamma-chi")) s += "n";
-      else if (u === "γ" && next && FRONT.has(next) && rules.has("gamma-front")) s += "y";
-      else if (u in NASAL) s += NASAL[u][i === 0 ? 0 : 1];
+      else if (u === "γ" && next && FRONT.has(next) && rules.has("gamma-front")) {
+        s += "y";
+        // γι / γει before another vowel is one sound, "y": γιατρός is yatrós, not yiatrós.
+        const after = units.at(i + 2);
+        if ((next === "ι" || next === "ει") && after && VOWELS.has(after)) i++;
+      }
+      // b / d / g at the start of a word, and after a nasal that already says the n or m
+      // (πάρκινγκ is párking); mb / nd / ng elsewhere inside a word.
+      else if (u in NASAL) s += NASAL[u][i === 0 || units.at(i - 1) === "ν" || units.at(i - 1) === "μ" ? 0 : 1];
       else if (u in VOWEL_F) s += VOWEL_F[u][next && VOICELESS.has(next) ? 1 : 0];
       else s += BASE[u] ?? "";
     }
