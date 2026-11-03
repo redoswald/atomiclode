@@ -650,8 +650,8 @@ A new modality, `decode` (Greek only; an enum migration and an empty stat in `em
 |---|---|---|---|
 | decode | the word as written (a sign in capitals) | type how it sounds in Latin letters (`farmakio`) | auto-check against the romanization with the existing variants (accents optional, χ as ch or h); self-grade override; audio plays after |
 
-A Greek word's first reviews alternate decode and recognize (decode first: say it, then mean it). After its first three reps, decode is chosen when decode accuracy is under 80%, and otherwise not. Letters themselves stay recognize cards (letter → sound), now with their clip on reveal.
+A new Greek word is introduced as a decode card: sound it out, then see what it means. Its first reviews alternate decode and recognize. After its first three reps, decode is chosen when decode accuracy is under 80%, and otherwise not. Letters themselves stay recognize cards (letter → sound), now with their clip on reveal.
 
 ### Lookalikes
 
-Η (i), Ρ (r), Χ (ch), Ν (n), Υ (i), Β (v), and lowercase ν (n) and η (i) look like Latin letters that say something else. Their letter atoms get the domain `lookalike`. On introduction the card says so ("Looks like P. Says r."). When a decode answer goes wrong because of one (the typed answer matches a naive Latin reading of the capitals, such as *metpo* for ΜΕΤΡΟ), the result names the letter that misled. A lookalike letter is pulled forward like a lapse when that happens.
+Η (i), Ρ (r), Χ (ch), Υ (i), Β (v), and lowercase ν (n), η (i), ρ (r) and υ (i) look like Latin letters that say something else. (Capital Ν looks and sounds like N, so it isn't one.) Their letter atoms get the domain `lookalike`. On introduction the card says so ("Looks like P. Says r."). When a decode answer goes wrong because of one (the typed answer matches a naive Latin reading of the capitals, such as *metpo* for ΜΕΤΡΟ), the result names the letter that misled. (Pulling the misleading letter forward like a lapse is left for later; for now the card names it.)
