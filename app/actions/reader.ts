@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { contextGlosses, sentenceTranslations } from "@/db/schema";
-import { requireAuth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { glossInContext } from "@/lib/llm/contextGloss";
@@ -14,7 +14,7 @@ import { createPassage, logTap, markKnown, mineWord } from "@/lib/reader/passage
 
 /** Form action for /read: paste text or give a URL, then open the passage. */
 export async function importPassage(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const url = String(formData.get("url") ?? "").trim();
   const pasted = String(formData.get("text") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
@@ -57,7 +57,7 @@ export async function tapWord(input: {
   surface: string;
   sentence: string;
 }): Promise<TapResult> {
-  await requireAuth();
+  await requireUser();
   const d = db();
   const lang = await currentLang();
   if (input.atomId) await logTap(d, input.atomId, input.passageId);
@@ -85,14 +85,14 @@ export async function tapWord(input: {
 }
 
 export async function mine(input: { passageId: string; sentenceIdx: number; lemma: string; surface: string; gloss: string }) {
-  await requireAuth();
+  await requireUser();
   const result = await mineWord(db(), input);
   revalidatePath("/");
   return result;
 }
 
 export async function alreadyKnow(input: { lemma: string; surface: string; gloss: string }) {
-  await requireAuth();
+  await requireUser();
   const result = await markKnown(db(), { ...input, lang: await currentLang() });
   revalidatePath("/");
   return result;

@@ -376,7 +376,7 @@ Below: Read (import or generate), Explore (ask anything about French; same model
 
 - **Web:** Next.js (App Router), TypeScript, Tailwind. PWA manifest so it installs to the home screen. Deployed on Vercel from the GitHub repo.
 - **DB:** Postgres via Neon (or Supabase). Prisma or Drizzle.
-- **Auth:** single-user for MVP (env-var secret or magic link). Multi-user later.
+- **Auth:** the Done Intentionally suite account (Supabase Auth), limited to emails in `ALLOWED_EMAILS`. Data is still single-learner; per-user data is the next step.
 - **Model:** Anthropic API for generation, glosses, explanations, produce-grading.
 - **NLP service:** small Python FastAPI app with spaCy `fr_core_news_md`, deployed separately (Fly.io or Railway); called only at passage-analysis time. Run locally in a conda env during development.
 - **Scheduler:** pure TS module, no dependencies beyond an FSRS implementation (`ts-fsrs`).

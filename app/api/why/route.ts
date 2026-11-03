@@ -4,7 +4,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { db, hasDatabase } from "@/db";
-import { isAuthenticated } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { askWhy, type WhyRequest } from "@/lib/reader/why";
@@ -12,7 +12,7 @@ import { askWhy, type WhyRequest } from "@/lib/reader/why";
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
-  if (!(await isAuthenticated())) return NextResponse.json({ error: "not signed in" }, { status: 401 });
+  if (!(await getUser())) return NextResponse.json({ error: "not signed in" }, { status: 401 });
   if (!hasDatabase()) return NextResponse.json({ error: "no database" }, { status: 503 });
   if (!hasAnthropicKey()) return NextResponse.json({ error: "ANTHROPIC_API_KEY is not set" }, { status: 503 });
 

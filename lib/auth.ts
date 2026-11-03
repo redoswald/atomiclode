@@ -1,49 +1,65 @@
 /**
- * Single-user auth (SPEC §9): one shared secret from APP_SECRET. A signed,
- * httpOnly cookie proves the visitor entered it. When APP_SECRET is unset the
- * app is open, and the home page says so.
+ * Sign-in with the Done Intentionally suite account (SPEC §9).
+ *
+ * Supabase Auth is the identity: the session cookie is the suite's, so a
+ * sign-in on any *.doneintentionally.com app signs you in here too. On top of
+ * that, only emails in ALLOWED_EMAILS may use Dolomite (lib/auth-rules.ts).
+ *
+ * When the Supabase env vars are unset the app is open and every request acts
+ * as LOCAL_USER; the home page says so. That keeps local dev and the PGlite
+ * tests free of an auth server.
  */
-import { cookies } from "next/headers";
+import { cache } from "react";
+import { isAllowedEmail } from "@/lib/auth-rules";
+import { createClient } from "@/lib/supabase/server";
 
-export const AUTH_COOKIE = "lode_auth";
-const TOKEN_PURPOSE = "lode-session-v1";
+export interface AppUser {
+  /** auth.users.id */
+  id: string;
+  email: string;
+  name: string | null;
+}
+
+/** Stand-in identity while auth is off. A fixed id, so local data has one owner. */
+export const LOCAL_USER: AppUser = {
+  id: "00000000-0000-0000-0000-000000000000",
+  email: "local@localhost",
+  name: null,
+};
 
 export function authEnabled(): boolean {
-  return Boolean(process.env.APP_SECRET);
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
-/** HMAC-SHA256(APP_SECRET, purpose) as hex. Web Crypto so it also runs in proxy.ts. */
-export async function sessionToken(): Promise<string> {
-  const secret = process.env.APP_SECRET;
-  if (!secret) throw new Error("APP_SECRET is not set");
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, [
-    "sign",
-  ]);
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(TOKEN_PURPOSE));
-  return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
+/**
+ * The signed-in suite user, allowed or not, from the verified access token.
+ * getClaims checks the signature locally with asymmetric keys (no network
+ * call) and falls back to asking Supabase with legacy keys.
+ */
+export const getSessionUser = cache(async (): Promise<AppUser | null> => {
+  if (!authEnabled()) return LOCAL_USER;
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub || !claims.email) return null;
+  const meta = (claims.user_metadata ?? {}) as Record<string, string | undefined>;
+  return { id: claims.sub, email: claims.email, name: meta.full_name || meta.name || null };
+});
+
+/** The signed-in user if they may use Dolomite, else null. */
+export async function getUser(): Promise<AppUser | null> {
+  const user = await getSessionUser();
+  if (!user) return null;
+  if (!authEnabled()) return user;
+  return isAllowedEmail(user.email) ? user : null;
 }
 
-export async function isValidToken(value: string | undefined): Promise<boolean> {
-  if (!value) return false;
-  const expected = await sessionToken();
-  return constantTimeEqual(value, expected);
-}
-
-/** True when auth is off, or the request carries a valid session cookie. */
-export async function isAuthenticated(): Promise<boolean> {
-  if (!authEnabled()) return true;
-  const store = await cookies();
-  return isValidToken(store.get(AUTH_COOKIE)?.value);
-}
-
-/** For server actions: they are reachable by direct POST, so check inside each one. */
-export async function requireAuth(): Promise<void> {
-  if (!(await isAuthenticated())) throw new Error("Not signed in");
-}
-
-export function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+/**
+ * For server actions and route handlers: they are reachable by direct POST,
+ * so each one checks for itself rather than trusting proxy.ts.
+ */
+export async function requireUser(): Promise<AppUser> {
+  const user = await getUser();
+  if (!user) throw new Error("Not signed in");
+  return user;
 }

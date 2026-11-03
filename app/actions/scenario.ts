@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { requireAuth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { currentLang } from "@/lib/lang-server";
 import { goalLemmasForScenarios } from "@/lib/goals/goals";
 import { hasAnthropicKey } from "@/lib/llm/client";
@@ -14,7 +14,7 @@ const NO_KEY = "Set ANTHROPIC_API_KEY in Vercel to write new visits.";
 
 /** Form action: write the next visit of a scenario and open it. */
 export async function nextVisit(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const scenarioId = String(formData.get("scenarioId") ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(scenarioId)) redirect("/scenario");
   let n: number;
@@ -31,7 +31,7 @@ export async function nextVisit(formData: FormData): Promise<void> {
 
 /** Form action: a scenario from the learner's own words. */
 export async function createScenario(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const situation = String(formData.get("situation") ?? "");
   let scenarioId: string;
   try {
@@ -48,7 +48,7 @@ export async function createScenario(formData: FormData): Promise<void> {
 
 /** "Your turn" on a visit: checked like a produce card, but a rehearsal. Nothing is logged (SPEC §10). */
 export async function rehearse(input: { promptId: string; answer: string }): Promise<ProduceCheck | { error: string }> {
-  await requireAuth();
+  await requireUser();
   if (!hasAnthropicKey()) return { error: "Set ANTHROPIC_API_KEY to have answers checked. Compare with the example instead." };
   try {
     return await checkProduce(db(), input.promptId, input.answer);

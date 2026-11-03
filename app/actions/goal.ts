@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { currentPhase } from "@/lib/atoms/phase";
-import { requireAuth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { isLang } from "@/lib/lang";
 import { currentLang } from "@/lib/lang-server";
 import { activate, goalLemmasForScenarios, pinGoal, prepareGoal, rungGate } from "@/lib/goals/goals";
@@ -21,7 +21,7 @@ const message = (err: unknown) => (!hasAnthropicKey() ? NO_KEY : err instanceof 
 
 /** Form action on a passage page: "Make this my goal". */
 export async function pin(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const passageId = String(formData.get("passageId") ?? "");
   if (!UUID.test(passageId)) redirect("/read");
   let id: string;
@@ -35,7 +35,7 @@ export async function pin(formData: FormData): Promise<void> {
 }
 
 export async function makeActive(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const goalId = String(formData.get("goalId") ?? "");
   if (UUID.test(goalId)) await activate(db(), goalId);
   revalidatePath("/");
@@ -44,7 +44,7 @@ export async function makeActive(formData: FormData): Promise<void> {
 
 /** Gloss the goal's words and survey its grammar (two model calls, run together). */
 export async function prepare(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const goalId = String(formData.get("goalId") ?? "");
   if (!UUID.test(goalId)) redirect("/goal");
   try {
@@ -58,7 +58,7 @@ export async function prepare(formData: FormData): Promise<void> {
 
 /** Write (or rewrite, when stale) one rung of the ladder for one section, and open it. */
 export async function writeRung(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const goalId = String(formData.get("goalId") ?? "");
   const passageId = String(formData.get("passageId") ?? "");
   // "balanced!" asks for a stale rung to be rewritten.
@@ -81,7 +81,7 @@ export async function writeRung(formData: FormData): Promise<void> {
 
 /** Spin one of the survey's scene ideas out as a goal scenario (SPEC §10). */
 export async function sceneFromGoal(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const goalId = String(formData.get("goalId") ?? "");
   const idx = Number(formData.get("idea"));
   if (!UUID.test(goalId)) redirect("/goal");

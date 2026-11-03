@@ -72,7 +72,11 @@ Stats buckets known atoms into strong (stability ≥ 21 days), developing, and f
 
 ### Sign-in
 
-Set `APP_SECRET` to any long random string and the app asks for it once per browser (a signed, httpOnly cookie for a year). Without it the app is open to anyone with the URL, and the home page says so.
+Dolomite signs in with the Done Intentionally suite account: Supabase Auth from the suite's shared project, via `@supabase/ssr`, with email and password or Google. A suite account alone isn't enough: only emails in `ALLOWED_EMAILS` get in (an empty list lets nobody in), since the Anthropic key is ours to spend. Someone signed in to the suite but not on the list sees a "not on the list" page with a sign-out button. New accounts can be created from `/login`, but only for listed emails.
+
+`lib/supabase/cookie-options.ts` is the suite's cross-app SSO contract and must stay identical to the copy in the other suite apps (see `aaronOS/docs/supabase.md`). In production, set `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN=.doneintentionally.com` and serve Dolomite from a `*.doneintentionally.com` host: a sign-in anywhere in the suite then signs you in here too. Leave it unset on localhost and `*.vercel.app` previews. Add `https://<host>/auth/callback` (and the localhost one for dev) to the Supabase project's Auth → URL Configuration → Redirect URLs, or Google sign-in and email confirmation won't return.
+
+Without `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` the app is open to anyone with the URL, everyone acts as one local user, and the home page says so.
 
 ### Regenerating the frequency list
 
@@ -105,14 +109,14 @@ python db/seed/build-frequency.py
 1. Import the GitHub repo in Vercel; the Next.js preset is detected automatically.
 2. In the project's **Storage** tab, create a **Neon** Postgres database and connect it. This injects `DATABASE_URL`.
 3. Redeploy. The build applies migrations and loads the seed atoms; no terminal needed.
-4. Set `APP_SECRET` (sign-in) and `ANTHROPIC_API_KEY` (glosses, later explanations and generation), then redeploy. `NLP_SERVICE_URL` and `NLP_SERVICE_TOKEN` are not needed until milestone 3.
+4. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ALLOWED_EMAILS` and `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN` (sign-in, see above) and `ANTHROPIC_API_KEY` (glosses, later explanations and generation), then redeploy. `NLP_SERVICE_URL` and `NLP_SERVICE_TOKEN` are not needed until milestone 3.
 
 ## Layout
 
 ```
 app/            Next.js routes: home, /scenario, /read, /review, /goal, /stats, /login, server actions, shell + tab bar
 lib/atoms/      types, seed-row builders, home-screen counts
-lib/auth.ts     APP_SECRET cookie auth (proxy.ts enforces it)
+lib/auth.ts     suite sign-in (Supabase) + ALLOWED_EMAILS; proxy.ts enforces it, actions call requireUser()
 lib/scheduler/  planSession, applyReview, replay, FSRS wrapper + tests
 lib/review/     session builder, review recording, lenient answer matching, produce cards, new-atom order
 lib/scenarios/  seed validation, visits (store, start, suggest), visit generation

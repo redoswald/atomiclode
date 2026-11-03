@@ -4,7 +4,7 @@ import { and, asc, count, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { atoms } from "@/db/schema";
-import { requireAuth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { glossLemmas } from "@/lib/llm/gloss";
 
@@ -18,7 +18,7 @@ const BATCH = 40;
 
 /** Gloss the next batch of unglossed French word atoms, most frequent first. The Greek seeds ship glossed. */
 export async function glossNextBatch(): Promise<GlossBatchResult> {
-  await requireAuth();
+  await requireUser();
   if (!hasAnthropicKey()) {
     return { filled: 0, remaining: await unglossedCount(), error: "ANTHROPIC_API_KEY is not set." };
   }

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { requireAuth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { GENRES, type Genre } from "@/lib/llm/generate";
@@ -11,7 +11,7 @@ import { dueLemmas, reuseOrGenerate } from "@/lib/reader/library";
 
 /** Form action for /read: serve a matching passage from the library or generate one. */
 export async function generateOrReuse(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const genre = parseGenre(formData.get("genre"));
   const stretch = Number(formData.get("stretch"));
   const targetCoverage = Number.isFinite(stretch) ? Math.min(0.98, Math.max(0.9, stretch / 100)) : 0.95;
