@@ -111,3 +111,91 @@ export function CoverageChart({ series, title = "Estimated coverage over time", 
     </div>
   );
 }
+
+/**
+ * Experience by week: one series of bars (no legend), 4px rounded tops on the
+ * baseline, a 2px gap between bars, a faint line at a week of the daily goal,
+ * per-bar hover with a hit area the full column, and a table view (SPEC §18).
+ */
+export function XpChart({ weeks, goal }: { weeks: Array<{ week: string; xp: number }>; goal: number }) {
+  const id = useId();
+  const [hover, setHover] = useState<number | null>(null);
+  const [table, setTable] = useState(false);
+  const W = 560;
+  const H = 180;
+  const pad = { l: 36, r: 12, t: 12, b: 28 };
+  const weekGoal = goal * 7;
+  const yMax = Math.max(weekGoal, ...weeks.map((w) => w.xp), 1) * 1.1;
+  const slot = (W - pad.l - pad.r) / weeks.length;
+  const barW = Math.min(36, slot - 2);
+  const Y = (v: number) => pad.t + (1 - v / yMax) * (H - pad.t - pad.b);
+  const base = Y(0);
+  const fmt = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const h = hover !== null ? weeks[hover] : null;
+  const r = 4;
+  const bar = (x: number, top: number, w: number) => {
+    const ht = base - top;
+    if (ht <= 0) return "";
+    const rr = Math.min(r, ht, w / 2);
+    return `M${x},${base}V${top + rr}Q${x},${top} ${x + rr},${top}H${x + w - rr}Q${x + w},${top} ${x + w},${top + rr}V${base}Z`;
+  };
+
+  return (
+    <div className="mt-4">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full select-none" role="img" aria-labelledby={`${id}-title`} onPointerLeave={() => setHover(null)}>
+        <title id={`${id}-title`}>Experience by week, last {weeks.length} weeks</title>
+        {[0, Math.round(yMax / 2)].map((v) => (
+          <g key={v}>
+            <line x1={pad.l} x2={W - pad.r} y1={Y(v)} y2={Y(v)} stroke="var(--line)" strokeWidth={1} />
+            <text x={pad.l - 6} y={Y(v) + 4} textAnchor="end" fontSize={11} fill="var(--muted)">
+              {v}
+            </text>
+          </g>
+        ))}
+        <line x1={pad.l} x2={W - pad.r} y1={Y(weekGoal)} y2={Y(weekGoal)} stroke="var(--muted)" strokeWidth={1} strokeDasharray="3 3" />
+        <text x={W - pad.r} y={Y(weekGoal) - 4} textAnchor="end" fontSize={11} fill="var(--muted)">
+          goal every day ({weekGoal})
+        </text>
+        {weeks.map((w, i) => {
+          const x = pad.l + i * slot + (slot - barW) / 2;
+          return (
+            <g key={w.week} onPointerEnter={() => setHover(i)} onPointerDown={() => setHover(i)}>
+              <rect x={pad.l + i * slot} y={pad.t} width={slot} height={H - pad.t - pad.b} fill="transparent" />
+              <path d={bar(x, Y(w.xp), barW)} fill="var(--chart)" opacity={hover === null || hover === i ? 1 : 0.55} />
+            </g>
+          );
+        })}
+        <text x={pad.l} y={H - 8} fontSize={11} fill="var(--muted)">
+          {fmt(weeks[0].week)}
+        </text>
+        <text x={W - pad.r} y={H - 8} fontSize={11} fill="var(--muted)" textAnchor="end">
+          this week
+        </text>
+      </svg>
+      <div className="mt-1 flex min-h-5 items-baseline justify-between text-xs text-muted">
+        <span>{h ? `Week of ${fmt(h.week)} · ${h.xp} XP` : "Hover or touch a bar for details."}</span>
+        <button onClick={() => setTable((t) => !t)} className="underline">
+          {table ? "Hide table" : "Table"}
+        </button>
+      </div>
+      {table && (
+        <table className="mt-2 w-full text-xs">
+          <thead className="text-left text-muted">
+            <tr>
+              <th className="py-1 font-normal">Week of</th>
+              <th className="py-1 font-normal">XP</th>
+            </tr>
+          </thead>
+          <tbody>
+            {weeks.map((w) => (
+              <tr key={w.week} className="border-t border-line">
+                <td className="py-1">{w.week}</td>
+                <td className="py-1 tabular-nums">{w.xp}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

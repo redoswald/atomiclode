@@ -13,6 +13,8 @@ import { introducedMemoryState, spreadFirstReviews } from "@/lib/scheduler/intro
 import { spokenText } from "@/lib/speech/say";
 import { buildExercises, type Exercise, type ItemStats, type LessonItemView } from "./exercises";
 import { completedLessons, courseFor } from "./index";
+import { fadedLessons } from "./fading";
+import { recordReview } from "@/lib/review/record";
 import { pathStates, type LessonOnPath } from "./path";
 import type { Lesson } from "./types";
 
@@ -25,6 +27,8 @@ export interface LessonPayload {
   total: number;
   /** A replay of a finished lesson: nothing is handed off again. */
   replay: boolean;
+  /** A Refresh of a faded lesson: practice on its slipping words only, recorded as reviews. */
+  refresh: boolean;
   items: LessonItemView[];
   /** Items from the two lessons before that some exercises revisit. */
   recent: LessonItemView[];
@@ -55,7 +59,7 @@ function exampleFor(me: Learner, key: string): { text: string; gloss: string } |
   return hit ? { text: hit.key, gloss: hit.gloss } : undefined;
 }
 
-export async function buildLesson(d: Db, me: Learner, lessonId: string, opts: { canSay: boolean; rnd?: () => number }): Promise<LessonPayload> {
+export async function buildLesson(d: Db, me: Learner, lessonId: string, opts: { canSay: boolean; rnd?: () => number; refresh?: boolean; now?: Date }): Promise<LessonPayload> {
   const done = await completedLessons(d, me);
   const at = findOnPath(me, done, lessonId);
   const { lesson, unit } = at;
@@ -110,7 +114,12 @@ export async function buildLesson(d: Db, me: Learner, lessonId: string, opts: { 
     };
   };
   const defined = <T>(x: T | undefined): x is T => x !== undefined;
-  const items = lessonKeys(lesson).map(view).filter(defined);
+  let items = lessonKeys(lesson).map(view).filter(defined);
+  if (opts.refresh) {
+    const slip = new Set((await fadedLessons(d, me, opts.now)).get(lesson.id) ?? []);
+    items = items.filter((i) => slip.has(i.atomId));
+    if (items.length === 0) throw new Error("Nothing in this lesson needs a refresh.");
+  }
   const recent = recentLessons.flatMap((l) => l.items.map((i) => view(i.key))).filter(defined);
   const pool = keys.map(view).filter(defined);
 
@@ -122,6 +131,7 @@ export async function buildLesson(d: Db, me: Learner, lessonId: string, opts: { 
     n: at.n,
     total: unit.lessons.length,
     replay: at.state === "done",
+    refresh: Boolean(opts.refresh),
     items,
     recent,
     exercises: buildExercises({ items, recent, pool, canSay: opts.canSay }, opts.rnd),
@@ -195,6 +205,23 @@ export async function completeLesson(d: Db, me: Learner, lessonId: string, stats
     .onConflictDoUpdate({ target: [lessonProgress.userId, lessonProgress.lessonId], set: { plays: sql`${lessonProgress.plays} + 1` } });
 
   return { added: fresh.length, alreadyKnown: rows.length - fresh.length, replay };
+}
+
+/**
+ * A Refresh done (SPEC §17 Pacing): each slipping word practised counts as a
+ * review, Good if it was right first time, Hard if not.
+ */
+export async function completeRefresh(d: Db, me: Learner, lessonId: string, stats: Record<string, ItemStats>, now = new Date()): Promise<{ reviewed: number }> {
+  const done = await completedLessons(d, me);
+  if (!done.has(lessonId)) throw new Error("Only a finished lesson can be refreshed.");
+  const slip = new Set((await fadedLessons(d, me, now)).get(lessonId) ?? []);
+  let reviewed = 0;
+  for (const [atomId, s] of Object.entries(stats)) {
+    if (!slip.has(atomId)) continue;
+    await recordReview(d, me.userId, { atomId, modality: "recognize", grade: s.firstTimeRight ? 3 : 2, responseMs: 0 }, now);
+    reviewed++;
+  }
+  return { reviewed };
 }
 
 /** The checkpoint lesson that is current and plays this scene, if any. */

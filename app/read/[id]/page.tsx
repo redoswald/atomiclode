@@ -9,6 +9,7 @@ import { hasAnthropicKey } from "@/lib/llm/client";
 import { adaptationsOf } from "@/lib/reader/library";
 import { openPassage } from "@/lib/reader/passages";
 import { learner } from "@/lib/learner";
+import { awardXp, dayIn, getSettings, XP } from "@/lib/progress/xp";
 import { readingMinutes } from "@/lib/reader/reading";
 import { Reader } from "./reader";
 
@@ -22,6 +23,10 @@ export default async function PassagePage({ params, searchParams }: PageProps<"/
   const me = await learner();
   const view = await openPassage(db(), me.userId, id);
   if (!view) notFound();
+  // Reading earns XP once a day per passage; a goal section counts double (SPEC §18).
+  const { timeZone } = await getSettings(db(), me.userId);
+  const goalSection = view.genre === "goal-section";
+  await awardXp(db(), { userId: me.userId, lang: view.lang }, goalSection ? "goal-section" : "passage", goalSection ? XP.goalSection : XP.passage, `passage:${id}:${dayIn(new Date(), timeZone)}`);
   const isAdaptation = view.sourceRef?.startsWith("passage:") ?? false;
   const originalId = isAdaptation ? view.sourceRef!.slice("passage:".length).split("#")[0] : undefined;
   const adaptations = isAdaptation ? {} : await adaptationsOf(db(), me.userId, id);

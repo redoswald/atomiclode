@@ -564,7 +564,7 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 
 13. **Course model and Greek Unit 1:** `course-el.json` with validation (readable, decodable with the taught sound rules, items resolve, no repeats), the new seed words, `lesson_progress`, the locked path, scenes opening with their unit, and review no longer introducing words on its own for a track with a course.
 14. **Lesson player:** Warm-up, Meet, Practice (the seven exercise types), Done; the `introduced` event and the hand-off (skipping items already known); first-review spreading. Built: introductions are their own log (`introductions`), applied by replay before an atom's reviews.
-15. **Progress:** `xp_events`, the daily goal and streak (with rest days), review rounds, fading lessons and Refresh, path and level progress, the v4 home screen, Stats additions.
+15. **Progress:** `xp_events`, the daily goal and streak (with rest days), review rounds, fading lessons and Refresh, path and level progress, the v4 home screen, Stats additions. Built: reviews earn fractional XP by expected seconds; passage XP on opening (once a day), not on scrolling through.
 16. **Unit 2** (β ζ ψ οι αυ γκ τζ; getting around; checkpoint the taxi), and a French course to replace the frequency-led start.
 
 Later: a JSON API and an iOS app for the daily loop.

@@ -52,6 +52,12 @@ export function sceneOpen(course: Course, done: Set<string>, slug: string): bool
   return lastCheckpoint !== undefined && done.has(lastCheckpoint.id);
 }
 
+/** Progress through a CEFR level ("A1 · 35%"): lessons done across the units whose label starts with it. */
+export function levelProgress(course: Course, done: Set<string>, level: string): number {
+  const lessons = course.units.filter((u) => u.cefr.startsWith(level)).flatMap((u) => u.lessons);
+  return lessons.length ? lessons.filter((l) => done.has(l.id)).length / lessons.length : 0;
+}
+
 /** Progress through a unit, for "Unit 1 · 7 of 14". */
 export function unitProgress(unit: Unit, done: Set<string>): { done: number; total: number } {
   return { done: unit.lessons.filter((l) => done.has(l.id)).length, total: unit.lessons.length };

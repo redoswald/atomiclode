@@ -34,6 +34,8 @@ export interface PassageView {
   title: string | null;
   origin: PassageOrigin;
   sourceRef: string | null;
+  /** "goal-section" for a goal text's section (SPEC §11). */
+  genre: string | null;
   sentences: string[];
   tokens: ViewToken[];
   coverage: number;
@@ -178,6 +180,7 @@ export async function openPassage(d: Db, userId: string, id: string, now = new D
     title: row.title,
     origin: row.origin,
     sourceRef: row.sourceRef,
+    genre: row.genre,
     sentences: row.sentenceTexts,
     tokens,
     coverage: report.coverage,

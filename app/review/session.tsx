@@ -12,6 +12,7 @@ import { LOOKALIKES, lookalikeMisread } from "@/lib/greek/script";
 import { lenientMatch } from "@/lib/review/match";
 import { displayKey } from "@/lib/atoms/display";
 import { spokenText } from "@/lib/speech/say";
+import { reviewXp } from "@/lib/progress/rules";
 import type { ProduceCheck } from "@/lib/review/produce";
 import type { BuiltSession, SessionCard } from "@/lib/review/session";
 
@@ -29,7 +30,7 @@ const GRADES: Array<{ grade: Grade; label: string; hint: string; key: string; ti
   { grade: 4, label: "Easy", hint: "Felt easy", key: "4", tint: "bg-tint-moss" },
 ];
 
-export function ReviewSession({ session, canWhy, onDone }: { session: BuiltSession; canWhy: boolean; onDone?: () => void }) {
+export function ReviewSession({ session, canWhy, onDone, round }: { session: BuiltSession; canWhy: boolean; onDone?: () => void; round?: number }) {
   const { cards, plan, intensity } = session;
   const [index, setIndex] = useState(0);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
@@ -100,13 +101,22 @@ export function ReviewSession({ session, canWhy, onDone }: { session: BuiltSessi
   if (!card) {
     const reviewed = outcomes.length;
     const again = outcomes.filter((o) => o.grade === 1).length;
+    const xp = Math.round(outcomes.reduce((s, o) => s + reviewXp(o.card.modality), 0));
+    const left = session.left;
+    const roundsLeft = Math.ceil(left.minutes / 5);
     return (
       <section className="card p-5">
-        <h2 className="font-display text-2xl">Session done</h2>
+        <h2 className="font-display text-2xl">{round ? `Round ${round} done` : "Session done"}</h2>
         <p className="mt-2 text-sm">
-          {reviewed} reviewed · {fresh} new{plan.deferred > 0 && ` · ${plan.deferred} deferred`}
-          {plan.skipped > 0 && ` · ${plan.skipped} didn't fit`}
+          {reviewed} reviewed · {fresh} new · +{xp} XP{plan.deferred > 0 && ` · ${plan.deferred} deferred`}
         </p>
+        {round && (
+          <p className="mt-1 text-sm">
+            {left.cards > 0
+              ? `${left.cards} still due, about ${Math.max(1, left.minutes)} min (${roundsLeft} more ${roundsLeft === 1 ? "round" : "rounds"}). Stop whenever you like; the most urgent are always first.`
+              : "All caught up."}
+          </p>
+        )}
         <p className="mt-1 text-sm text-muted">{again === 0 ? "Nothing missed." : `${again} to see again soon.`}</p>
         {unsavedCount > 0 && (
           <div className="mt-3 flex items-baseline justify-between gap-3 text-sm text-bad">
@@ -119,9 +129,11 @@ export function ReviewSession({ session, canWhy, onDone }: { session: BuiltSessi
           </div>
         )}
         <div className="mt-6 flex gap-2 text-sm">
-          <Link href={`/review?intensity=${intensity}`} className="btn-primary">
-            Continue
-          </Link>
+          {(!round || left.cards > 0) && (
+            <Link href={`/review?intensity=${intensity}${round ? `&round=${round + 1}` : ""}`} className="btn-primary">
+              {round ? "Next round" : "Continue"}
+            </Link>
+          )}
           <Link href="/" className="btn-secondary">
             Home
           </Link>

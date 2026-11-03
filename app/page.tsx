@@ -10,7 +10,8 @@ import { activeGoal, goalCoverageWeekAgo, goalView, type GoalView } from "@/lib/
 import { langName } from "@/lib/lang";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { listPassages } from "@/lib/reader/passages";
-import { BUDGETS, DEFAULT_NEW_PER_DAY } from "@/lib/review/session";
+import { BUDGETS, DEFAULT_NEW_PER_DAY, ROUND_MIN } from "@/lib/review/session";
+import { progressFor } from "@/lib/progress/xp";
 import { scenarioStates, suggestVisit, type ScenarioState } from "@/lib/scenarios/visits";
 import { MODALITY_SECONDS } from "@/lib/scheduler";
 import { Shell } from "./components/shell";
@@ -82,6 +83,8 @@ export default async function Home() {
   const glossedNew = Math.max(0, counts.newAvailable.word - counts.unglossed);
   const newTotal = glossedNew + counts.newAvailable.chunk + counts.newAvailable.grammar;
   const refreshMin = Math.round((counts.dueNow * MODALITY_SECONDS.recall) / 60);
+  const rounds = Math.max(1, Math.ceil(refreshMin / ROUND_MIN));
+  const habit = await progressFor(db(), me.userId);
   const learnMin = Math.round((Math.min(newTotal, DEFAULT_NEW_PER_DAY) * MODALITY_SECONDS.recognize * 2) / 60);
   const recommended = recommend(refreshMin + learnMin);
   const hasKey = hasAnthropicKey();
@@ -93,11 +96,18 @@ export default async function Home() {
   return (
     <Shell
       aside={
-        <p className="flex items-baseline justify-between text-sm">
+        <div className="flex items-center justify-between gap-3 text-sm">
           <span>
-            {langName(lang)} · Day {counts.day} <span className="text-muted">· {counts.reviewsTotal} reviews so far</span>
+            {langName(lang)} · Day {counts.day}
+            <span className="text-muted">
+              {habit.streak.days > 0 ? ` · ${habit.streak.days}-day streak` : ` · ${counts.reviewsTotal} reviews so far`}
+            </span>
           </span>
-        </p>
+          <Link href="/stats" className="flex shrink-0 items-center gap-2 text-xs tabular-nums" aria-label={`${habit.todayXp} of ${habit.settings.dailyGoal} XP today`}>
+            <GoalRing value={habit.todayXp} goal={habit.settings.dailyGoal} />
+            {habit.todayXp} / {habit.settings.dailyGoal} XP today
+          </Link>
+        </div>
       }
     >
       {!authEnabled() && (
@@ -151,8 +161,10 @@ export default async function Home() {
           ))}
         </div>
 
-        <Row href="/review?intensity=steady" title="Refresh" note={counts.dueNow === 0 ? "nothing due" : `~${Math.max(1, refreshMin)} min`}>
-          {counts.dueNow} {plural(counts.dueNow, "concept")} ready
+        <Row href="/review?intensity=steady" title="Review" note={counts.dueNow === 0 ? "nothing due" : `~${Math.max(1, refreshMin)} min`}>
+          {counts.dueNow === 0
+            ? "Nothing due"
+            : `${counts.dueNow} due · ${rounds === 1 ? "one round" : `${rounds} rounds of about 5 min`}`}
         </Row>
         {underWay?.latest ? (
           <Row href="/review?intensity=steady" title="Learn" note={`~${Math.max(1, learnMin)} min`}>
@@ -163,7 +175,7 @@ export default async function Home() {
             <span lang={lang}>{offered.scenario.title}</span>, visit {offered.n}
             {offered.visit && ` · ${offered.visit.bundle.length} new`}
           </Row>
-        ) : (
+        ) : course ? null : (
           <Row href="/review?intensity=steady" title="Learn" note={newTotal === 0 ? "all introduced" : `~${Math.max(1, learnMin)} min`}>
             {glossedNew} new {plural(glossedNew, "word")} · {counts.newAvailable.chunk} {plural(counts.newAvailable.chunk, "phrase")} ·{" "}
             {counts.newAvailable.grammar} grammar {plural(counts.newAvailable.grammar, "idea")}
@@ -234,6 +246,29 @@ function Stat({ label, value }: { label: string; value: number }) {
       <dt className="eyebrow">{label}</dt>
       <dd className="font-display text-2xl tabular-nums">{value}</dd>
     </div>
+  );
+}
+
+/** Today's XP toward the daily goal (SPEC §18): a thin ring, full at the goal. */
+function GoalRing({ value, goal }: { value: number; goal: number }) {
+  const r = 9;
+  const c = 2 * Math.PI * r;
+  const share = Math.min(1, goal ? value / goal : 0);
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
+      <circle cx="11" cy="11" r={r} fill="none" stroke="var(--line)" strokeWidth="2.5" />
+      <circle
+        cx="11"
+        cy="11"
+        r={r}
+        fill="none"
+        stroke="var(--chart)"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeDasharray={`${share * c} ${c}`}
+        transform="rotate(-90 11 11)"
+      />
+    </svg>
   );
 }
 

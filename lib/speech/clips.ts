@@ -25,8 +25,11 @@ export const blobStore: StoreFn = async (pathname, audio) => {
   return blob.url;
 };
 
+/** Bumped when every clip should be voiced again (v2: clips start with a silent lead-in). */
+export const CLIP_VERSION = 2;
+
 export function clipKey(lang: Lang, voice: string, rate: SpeechRate, text: string): string {
-  return createHash("sha256").update(`${lang}|${voice}|${rate}|${text}`).digest("hex");
+  return createHash("sha256").update(`v${CLIP_VERSION}|${lang}|${voice}|${rate}|${text}`).digest("hex");
 }
 
 export interface ClipRequest {

@@ -362,6 +362,35 @@ export const introductions = pgTable(
   (t) => [uniqueIndex("introductions_atom_idx").on(t.atomId), index("introductions_user_due_idx").on(t.userId, t.due)],
 );
 
+// ---- experience (§18) ---------------------------------------------------------------
+// Append-only; totals, daily sums and the streak are derived. `ref` makes an award
+// idempotent where it should be (a lesson play, a passage read once a day).
+
+export const xpEvents = pgTable(
+  "xp_events",
+  {
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id").notNull(),
+    lang: text("lang").notNull(),
+    kind: text("kind").$type<"review" | "lesson" | "refresh" | "scene" | "passage" | "goal-section">().notNull(),
+    /** Fractional for reviews, which earn by time: about 2 XP a minute. */
+    amount: real("amount").notNull(),
+    ref: text("ref"),
+    at: timestamptz("at").notNull().defaultNow(),
+  },
+  (t) => [index("xp_events_user_at_idx").on(t.userId, t.at), uniqueIndex("xp_events_user_kind_ref_idx").on(t.userId, t.kind, t.ref)],
+);
+
+/** Per learner, across tracks. */
+export const userSettings = pgTable("user_settings", {
+  userId: uuid("user_id").primaryKey(),
+  /** Daily goal in XP: casual 20, steady 40, serious 80 (§18). */
+  dailyGoal: integer("daily_goal").notNull().default(40),
+  /** IANA zone from the browser, for day boundaries; UTC until it is known. */
+  timeZone: text("time_zone").notNull().default("UTC"),
+  updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+});
+
 // ---- course progress (§17) ------------------------------------------------------
 
 export const lessonProgress = pgTable(

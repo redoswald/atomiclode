@@ -132,6 +132,7 @@ export default async function ScenarioPage({ params, searchParams }: PageProps<"
             lang={lang}
             prompts={prompts.map((p) => ({ id: p.id, situation: p.situation, exampleAnswer: p.exampleAnswer }))}
             checkpointLessonId={checkpoint}
+            visitId={current.visit.id}
           />
         </section>
       )}
