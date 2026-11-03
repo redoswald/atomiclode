@@ -1,0 +1,51 @@
+{
+  "user": {
+    "id": "00000000-0000-4000-8000-000000000000",
+    "email": "learner@example.com",
+    "name": "Learner"
+  },
+  "lang": "el",
+  "tracks": [
+    {
+      "lang": "fr",
+      "name": "French",
+      "nativeName": "Français",
+      "courseLive": false
+    },
+    {
+      "lang": "el",
+      "name": "Greek",
+      "nativeName": "Ελληνικά",
+      "courseLive": true
+    }
+  ],
+  "settings": {
+    "dailyGoal": 40,
+    "timeZone": "UTC"
+  },
+  "dailyGoals": [
+    {
+      "xp": 20,
+      "label": "Casual",
+      "minutes": 10
+    },
+    {
+      "xp": 40,
+      "label": "Steady",
+      "minutes": 20
+    },
+    {
+      "xp": 80,
+      "label": "Serious",
+      "minutes": 40
+    }
+  ],
+  "today": "2026-11-10",
+  "todayXp": 25,
+  "totalXp": 25,
+  "streak": {
+    "days": 0,
+    "restDays": [],
+    "today": false
+  }
+}

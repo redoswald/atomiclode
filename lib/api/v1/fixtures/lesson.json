@@ -1,0 +1,233 @@
+{
+  "lesson": {
+    "lessonId": "el-1-01",
+    "title": "Letters: Τ Α Ξ Ι Ο",
+    "kind": "letters",
+    "unitTitle": "First steps",
+    "n": 1,
+    "total": 14,
+    "replay": false,
+    "refresh": false,
+    "items": [
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "key": "letter:τ",
+        "display": "Τ τ",
+        "gloss": "taf · t",
+        "romanization": "t",
+        "speak": "τώρα, τέλος",
+        "type": "word",
+        "isLetter": true,
+        "unit": "τ",
+        "decodable": false,
+        "known": false,
+        "lang": "el"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "key": "letter:α",
+        "display": "Α α",
+        "gloss": "alpha · a as in father",
+        "romanization": "a",
+        "speak": "άλλο, αέρας",
+        "type": "word",
+        "isLetter": true,
+        "unit": "α",
+        "decodable": false,
+        "known": false,
+        "lang": "el"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "key": "letter:ξ",
+        "display": "Ξ ξ",
+        "gloss": "ksi · x as in box",
+        "romanization": "x",
+        "speak": "ξύλο, ξανά",
+        "type": "word",
+        "isLetter": true,
+        "unit": "ξ",
+        "decodable": false,
+        "known": false,
+        "lang": "el"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "key": "letter:ι",
+        "display": "Ι ι",
+        "gloss": "iota · ee as in see",
+        "romanization": "i",
+        "speak": "ίδιο, Ιταλία",
+        "type": "word",
+        "isLetter": true,
+        "unit": "ι",
+        "decodable": false,
+        "known": false,
+        "lang": "el"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "key": "letter:ο",
+        "display": "Ο ο",
+        "gloss": "omikron · o as in hot",
+        "romanization": "o",
+        "speak": "όνομα, όλα",
+        "type": "word",
+        "isLetter": true,
+        "unit": "ο",
+        "decodable": false,
+        "known": false,
+        "lang": "el"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "key": "ταξί",
+        "display": "ΤΑΞΙ",
+        "gloss": "taxi",
+        "romanization": "taxí",
+        "speak": "ταξί",
+        "type": "word",
+        "isLetter": false,
+        "decodable": true,
+        "known": false,
+        "lang": "el"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "key": "τι",
+        "display": "τι",
+        "gloss": "what",
+        "romanization": "ti",
+        "speak": "τι",
+        "type": "word",
+        "isLetter": false,
+        "decodable": true,
+        "known": false,
+        "example": {
+          "text": "τι κάνετε;",
+          "gloss": "how are you? (polite)"
+        },
+        "lang": "el"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "key": "ο",
+        "display": "ο",
+        "gloss": "the",
+        "romanization": "o / i / to",
+        "speak": "ο",
+        "type": "word",
+        "isLetter": false,
+        "decodable": true,
+        "known": false,
+        "lang": "el"
+      }
+    ],
+    "recent": [],
+    "exercises": [
+      {
+        "kind": "sound",
+        "letter": "00000000-0000-4000-8000-000000000000",
+        "options": [
+          "τι",
+          "ο",
+          "ΤΑΞΙ"
+        ],
+        "answer": 2
+      },
+      {
+        "kind": "decode",
+        "item": "00000000-0000-4000-8000-000000000000"
+      },
+      {
+        "kind": "hear",
+        "item": "00000000-0000-4000-8000-000000000000",
+        "options": [
+          "ο",
+          "τι",
+          "ΤΑΞΙ"
+        ],
+        "answer": 0
+      },
+      {
+        "kind": "meaning",
+        "item": "00000000-0000-4000-8000-000000000000",
+        "options": [
+          "the",
+          "what",
+          "taxi"
+        ],
+        "answer": 1
+      },
+      {
+        "kind": "decode",
+        "item": "00000000-0000-4000-8000-000000000000"
+      },
+      {
+        "kind": "decode",
+        "item": "00000000-0000-4000-8000-000000000000"
+      },
+      {
+        "kind": "sound",
+        "letter": "00000000-0000-4000-8000-000000000000",
+        "options": [
+          "ο",
+          "τι",
+          "ΤΑΞΙ"
+        ],
+        "answer": 0
+      },
+      {
+        "kind": "hear",
+        "item": "00000000-0000-4000-8000-000000000000",
+        "options": [
+          "ΤΑΞΙ",
+          "τι",
+          "ο"
+        ],
+        "answer": 1
+      },
+      {
+        "kind": "sound",
+        "letter": "00000000-0000-4000-8000-000000000000",
+        "options": [
+          "ο",
+          "ΤΑΞΙ",
+          "τι"
+        ],
+        "answer": 1
+      },
+      {
+        "kind": "meaning",
+        "item": "00000000-0000-4000-8000-000000000000",
+        "options": [
+          "what",
+          "taxi",
+          "the"
+        ],
+        "answer": 1
+      },
+      {
+        "kind": "meaning",
+        "item": "00000000-0000-4000-8000-000000000000",
+        "options": [
+          "the",
+          "taxi",
+          "what"
+        ],
+        "answer": 0
+      },
+      {
+        "kind": "hear",
+        "item": "00000000-0000-4000-8000-000000000000",
+        "options": [
+          "ΤΑΞΙ",
+          "ο",
+          "τι"
+        ],
+        "answer": 0
+      }
+    ]
+  },
+  "warmup": null
+}

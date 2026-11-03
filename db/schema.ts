@@ -362,6 +362,22 @@ export const introductions = pgTable(
   (t) => [uniqueIndex("introductions_atom_idx").on(t.atomId), index("introductions_user_due_idx").on(t.userId, t.due)],
 );
 
+// ---- API receipts (§19) ------------------------------------------------------------
+// Phones retry. A submission carries a client-generated id; a repeat gets the stored
+// response back instead of being applied twice.
+
+export const apiReceipts = pgTable(
+  "api_receipts",
+  {
+    userId: uuid("user_id").notNull(),
+    clientId: uuid("client_id").notNull(),
+    kind: text("kind").notNull(),
+    response: jsonb("response").$type<unknown>().notNull(),
+    at: timestamptz("at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.clientId] })],
+);
+
 // ---- experience (§18) ---------------------------------------------------------------
 // Append-only; totals, daily sums and the streak are derived. `ref` makes an award
 // idempotent where it should be (a lesson play, a passage read once a day).

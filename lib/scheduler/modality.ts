@@ -25,3 +25,14 @@ export function bestEstablished(stats: Record<Modality, ModalityStat>): Modality
   }
   return best;
 }
+
+/**
+ * A modality a client can't draw goes down the cascade (SPEC §19): produce → recall →
+ * recognize, cloze → recall, listen / decode → recognize. Recognize is the floor.
+ */
+export function degradeModality(m: Modality, supported: Set<Modality>): Modality {
+  const next: Partial<Record<Modality, Modality>> = { produce: "recall", cloze: "recall", recall: "recognize", listen: "recognize", decode: "recognize" };
+  let cur: Modality = m;
+  while (!supported.has(cur) && next[cur]) cur = next[cur]!;
+  return supported.has(cur) ? cur : "recognize";
+}

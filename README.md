@@ -98,6 +98,10 @@ Experience, a daily goal and a streak (SPEC §18), in an adult register: no masc
 
 Reviews come in rounds of about five minutes ("Round 2 of 4"); the comeback triage still measures against the intensity's full budget, so rounds don't defer a pile the learner would work through. A finished lesson whose words are mostly overdue or lapsing fades on the path and offers **Refresh**: practice on just those words, recorded as reviews.
 
+### API v1 (for the iOS app)
+
+`/api/v1/` (SPEC §19): JSON for the iOS app, authenticated with `Authorization: Bearer <Supabase access token>` and held to `ALLOWED_EMAILS` (`lib/api/v1/auth.ts`); `?lang=` picks the track (default `el`). The app says what it can draw in `X-Dolomite-Client: ios/1.0; exercises=…; cards=…`, and lessons and review rounds are built only from those kinds. Submissions carry a `clientId` (a repeat returns the first response, `api_receipts`) and an `answeredAt` (offline answers land at their own time; one older than the atom's latest event rebuilds the atom from its log, `lib/review/rebuild.ts`). Endpoint logic lives in `lib/api/v1/handlers.ts`; the route files only parse and call it. Contract fixtures for the app's tests: `npm run api:fixtures` → `lib/api/v1/fixtures/`.
+
 ### Sound
 
 Every word, phrase, letter and dialogue line can be played (SPEC §15). Clips come from Google Cloud Text-to-Speech, are voiced the first time something is played, stored in Vercel Blob, and shared by every learner (`speech_clips`, `lib/speech/`). `GET /api/speech?lang&text[&voice=1][&rate=slow]` redirects to the clip. The voices are picked by ear and live in `LANG_SPECS` (`lib/lang.ts`): one for words, two taking turns in a dialogue. Letters say their name and an example word (`LETTER_SAY` in `lib/speech/say.ts`).

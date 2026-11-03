@@ -1,0 +1,506 @@
+{
+  "lang": "el",
+  "live": true,
+  "units": [
+    {
+      "id": "el-1",
+      "cefr": "A1.1",
+      "title": "First steps",
+      "canDo": [
+        "Read letters, signs and simple words",
+        "Greet and say goodbye",
+        "Say please, thanks and sorry",
+        "Count to ten and understand a price",
+        "Order a coffee or a water",
+        "Say your name and where you're from"
+      ],
+      "progress": {
+        "done": 1,
+        "total": 14
+      },
+      "level": {
+        "name": "A1",
+        "share": 0.038461538461538464
+      },
+      "lessons": [
+        {
+          "id": "el-1-01",
+          "n": 1,
+          "title": "Letters: Τ Α Ξ Ι Ο",
+          "kind": "letters",
+          "state": "done",
+          "faded": false,
+          "letters": [
+            "τ",
+            "α",
+            "ξ",
+            "ι",
+            "ο"
+          ],
+          "preview": [
+            "ταξί",
+            "τι",
+            "ο"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-02",
+          "n": 2,
+          "title": "Letters: Μ Ε Ρ",
+          "kind": "letters",
+          "state": "current",
+          "faded": false,
+          "letters": [
+            "μ",
+            "ε",
+            "ρ"
+          ],
+          "preview": [
+            "μετρό",
+            "μέρα",
+            "έξι",
+            "τρία"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-03",
+          "n": 3,
+          "title": "Hello and goodbye",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [
+            "γεια σας",
+            "γεια σου",
+            "καλημέρα",
+            "καλησπέρα"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-04",
+          "n": 4,
+          "title": "Letters: Κ Φ Σ",
+          "kind": "letters",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "κ",
+            "φ",
+            "σ"
+          ],
+          "preview": [
+            "καφές",
+            "κρασί",
+            "φέτα",
+            "κάρτα"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-05",
+          "n": 5,
+          "title": "Letters: ΟΥ Λ Π",
+          "kind": "letters",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "ου",
+            "λ",
+            "π"
+          ],
+          "preview": [
+            "τουαλέτα",
+            "στοπ",
+            "σαλάτα",
+            "πατάτα"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-06",
+          "n": 6,
+          "title": "Letters: ΕΙ Ν Η",
+          "kind": "letters",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "ει",
+            "ν",
+            "η"
+          ],
+          "preview": [
+            "πόλη",
+            "φαρμακείο",
+            "μουσείο",
+            "νερό"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-07",
+          "n": 7,
+          "title": "Letters: Χ Ω Υ ΑΙ ΕΥ",
+          "kind": "letters",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "χ",
+            "ω",
+            "υ",
+            "αι",
+            "ευ"
+          ],
+          "preview": [
+            "όχι",
+            "ναι",
+            "και",
+            "πολύ"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-08",
+          "n": 8,
+          "title": "Please, thanks, sorry",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "γγ"
+          ],
+          "preview": [
+            "ευχαριστώ πολύ",
+            "καλά, ευχαριστώ",
+            "μιλάτε αγγλικά;",
+            "συγγνώμη"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-09",
+          "n": 9,
+          "title": "Letters: ΝΤ ΜΠ ΤΣ Θ",
+          "kind": "letters",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "ντ",
+            "μπ",
+            "τσ",
+            "θ"
+          ],
+          "preview": [
+            "ντομάτα",
+            "τσάι",
+            "πίτσα",
+            "μια μπίρα"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-10",
+          "n": 10,
+          "title": "Numbers 1–5",
+          "kind": "letters",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "δ"
+          ],
+          "preview": [
+            "ένα",
+            "δύο",
+            "τέσσερα",
+            "πέντε"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-11",
+          "n": 11,
+          "title": "Numbers 6–10 and the price",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [
+            "εφτά",
+            "οχτώ",
+            "εννιά",
+            "δέκα"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-12",
+          "n": 12,
+          "title": "At the café",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "γ"
+          ],
+          "preview": [
+            "γάλα",
+            "θα ήθελα",
+            "έναν καφέ, παρακαλώ",
+            "ένα νερό, παρακαλώ"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-13",
+          "n": 13,
+          "title": "Who are you?",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [
+            "με λένε",
+            "πώς σας λένε;",
+            "χαίρω πολύ",
+            "είμαι από την Αμερική"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-1-14",
+          "n": 14,
+          "title": "Checkpoint: the café",
+          "kind": "checkpoint",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [],
+          "sceneId": "00000000-0000-4000-8000-000000000000"
+        }
+      ]
+    },
+    {
+      "id": "el-2",
+      "cefr": "A1.2",
+      "title": "Getting around",
+      "canDo": [
+        "Read the rest of the alphabet",
+        "Ask where something is and follow left, right, straight on",
+        "Use buses, stations and tickets",
+        "Count to a hundred and pay a fare",
+        "Take a taxi to your hotel",
+        "Say when you don't understand"
+      ],
+      "progress": {
+        "done": 0,
+        "total": 12
+      },
+      "level": {
+        "name": "A1",
+        "share": 0.038461538461538464
+      },
+      "lessons": [
+        {
+          "id": "el-2-01",
+          "n": 1,
+          "title": "Letters: Β Ζ Ψ",
+          "kind": "letters",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "β",
+            "ζ",
+            "ψ"
+          ],
+          "preview": [
+            "βαλίτσα",
+            "βουνό",
+            "ψωμί",
+            "ψάρι"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-02",
+          "n": 2,
+          "title": "Where is it?",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [
+            "πού είναι…;",
+            "εδώ",
+            "εκεί",
+            "κοντά"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-03",
+          "n": 3,
+          "title": "Left, right, straight on",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [
+            "αριστερά",
+            "δεξιά",
+            "στα αριστερά",
+            "στα δεξιά"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-04",
+          "n": 4,
+          "title": "Letters: ΑΥ ΟΙ",
+          "kind": "letters",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "αυ",
+            "οι"
+          ],
+          "preview": [
+            "αυτοκίνητο",
+            "αύριο",
+            "αυτός",
+            "ποιος"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-05",
+          "n": 5,
+          "title": "Getting about",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [
+            "στάση",
+            "λεωφορείο",
+            "σταθμός",
+            "αεροδρόμιο"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-06",
+          "n": 6,
+          "title": "Letters: ΓΚ, and γ before ι and ε",
+          "kind": "letters",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "γκ"
+          ],
+          "preview": [
+            "πάρκινγκ",
+            "γιατρός",
+            "γιατί",
+            "τι ώρα φεύγει;"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-07",
+          "n": 7,
+          "title": "Tickets",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [
+            "ένα εισιτήριο για",
+            "με επιστροφή",
+            "απλή διαδρομή",
+            "πού πάει αυτό το λεωφορείο;"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-08",
+          "n": 8,
+          "title": "Numbers 15–100",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [
+            "δεκαπέντε",
+            "είκοσι",
+            "τριάντα",
+            "πενήντα"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-09",
+          "n": 9,
+          "title": "In the taxi",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [
+            "ξενοδοχείο",
+            "εντάξει",
+            "ορίστε",
+            "καλή διαμονή"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-10",
+          "n": 10,
+          "title": "Letter ΤΖ, and a good evening",
+          "kind": "letters",
+          "state": "locked",
+          "faded": false,
+          "letters": [
+            "τζ"
+          ],
+          "preview": [
+            "τζατζίκι",
+            "καλή όρεξη",
+            "καλό βράδυ"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-11",
+          "n": 11,
+          "title": "When you don't understand",
+          "kind": "phrases",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [
+            "δεν καταλαβαίνω",
+            "πιο σιγά, παρακαλώ",
+            "δεν μιλάω ελληνικά",
+            "λίγο"
+          ],
+          "sceneId": null
+        },
+        {
+          "id": "el-2-12",
+          "n": 12,
+          "title": "Checkpoint: the taxi",
+          "kind": "checkpoint",
+          "state": "locked",
+          "faded": false,
+          "letters": [],
+          "preview": [],
+          "sceneId": "00000000-0000-4000-8000-000000000000"
+        }
+      ]
+    }
+  ]
+}

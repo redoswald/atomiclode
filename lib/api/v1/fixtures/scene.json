@@ -1,0 +1,151 @@
+{
+  "lang": "el",
+  "scenario": {
+    "id": "00000000-0000-4000-8000-000000000000",
+    "slug": "el-cafe",
+    "title": "Στο καφέ",
+    "brief": "A café on a square, 9am, already warm. The waiter comes over with a notepad."
+  },
+  "visit": {
+    "id": "00000000-0000-4000-8000-000000000000",
+    "n": 1,
+    "of": 1,
+    "brief": "Order a coffee the Greek way, say how you take it, and ask for the bill.",
+    "lines": [
+      {
+        "text": "Καλημέρα! Τι θα πάρετε;",
+        "voice": 0,
+        "translation": "Good morning! What will you have?"
+      },
+      {
+        "text": "Καλημέρα. Έναν καφέ, παρακαλώ. Και ένα νερό.",
+        "voice": 1,
+        "translation": "Good morning. A coffee, please. And a water."
+      },
+      {
+        "text": "Ζεστό ή κρύο τον καφέ;",
+        "voice": 0,
+        "translation": "Hot or cold, the coffee?"
+      },
+      {
+        "text": "Κρύο, παρακαλώ. Ένα φραπέ.",
+        "voice": 1,
+        "translation": "Cold, please. A frappé."
+      },
+      {
+        "text": "Με ζάχαρη; Με γάλα;",
+        "voice": 0,
+        "translation": "With sugar? With milk?"
+      },
+      {
+        "text": "Με λίγη ζάχαρη, χωρίς γάλα.",
+        "voice": 1,
+        "translation": "With a little sugar, no milk."
+      },
+      {
+        "text": "Εντάξει. Τίποτα άλλο;",
+        "voice": 0,
+        "translation": "Okay. Anything else?"
+      },
+      {
+        "text": "Όχι, ευχαριστώ. Αυτό είναι όλο.",
+        "voice": 1,
+        "translation": "No, thank you. That's all."
+      },
+      {
+        "text": "Ορίστε, ο καφές σας και το νερό.",
+        "voice": 0,
+        "translation": "Here you are, your coffee and the water."
+      },
+      {
+        "text": "Ευχαριστώ πολύ. Τον λογαριασμό, παρακαλώ.",
+        "voice": 1,
+        "translation": "Thank you very much. The bill, please."
+      },
+      {
+        "text": "Τρία ευρώ.",
+        "voice": 0,
+        "translation": "Three euros."
+      }
+    ],
+    "bundle": [
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "display": "τι θα πάρετε;",
+        "gloss": "what will you have? (waiter)",
+        "romanization": "ti tha párete?",
+        "speak": "τι θα πάρετε;",
+        "status": "new"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "display": "έναν καφέ, παρακαλώ",
+        "gloss": "a coffee, please",
+        "romanization": "énan kafé, parakaló",
+        "speak": "έναν καφέ, παρακαλώ",
+        "status": "new"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "display": "το νερό",
+        "gloss": "water",
+        "romanization": "neró",
+        "speak": "το νερό",
+        "status": "new"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "display": "η ζάχαρη",
+        "gloss": "sugar",
+        "romanization": "záchari",
+        "speak": "η ζάχαρη",
+        "status": "new"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "display": "το γάλα",
+        "gloss": "milk",
+        "romanization": "gála",
+        "speak": "το γάλα",
+        "status": "new"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "display": "τίποτα άλλο;",
+        "gloss": "anything else?",
+        "romanization": "típota állo?",
+        "speak": "τίποτα άλλο;",
+        "status": "new"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "display": "αυτό είναι όλο",
+        "gloss": "that's all",
+        "romanization": "aftó íne ólo",
+        "speak": "αυτό είναι όλο",
+        "status": "new"
+      },
+      {
+        "atomId": "00000000-0000-4000-8000-000000000000",
+        "display": "τον λογαριασμό, παρακαλώ",
+        "gloss": "the bill, please",
+        "romanization": "ton logariasmó, parakaló",
+        "speak": "τον λογαριασμό, παρακαλώ",
+        "status": "new"
+      }
+    ],
+    "prompts": [
+      {
+        "id": "00000000-0000-4000-8000-000000000000",
+        "situation": "The waiter asks what you'll have. Order a coffee and a water.",
+        "exampleAnswer": "Έναν καφέ, παρακαλώ. Και ένα νερό."
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000000",
+        "situation": "You're done. Ask for the bill.",
+        "exampleAnswer": "Τον λογαριασμό, παρακαλώ."
+      }
+    ],
+    "checkpointLessonId": null
+  }
+}

@@ -16,7 +16,8 @@
     "seed:gloss": "tsx scripts/gloss-seed.ts",
     "db:prepare": "tsx scripts/db-prepare.ts",
     "seed:export": "tsx scripts/export-glosses.ts",
-    "db:replay": "tsx scripts/replay.ts"
+    "db:replay": "tsx scripts/replay.ts",
+    "api:fixtures": "tsx scripts/api-fixtures.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

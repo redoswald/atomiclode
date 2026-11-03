@@ -571,7 +571,7 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 
 **v5** (the iOS app)
 
-17. **API v1** (§19): bearer-token auth with the suite account, the capability header, the endpoints, idempotent submissions (`client_id` on review events and lesson completions), the three offline-ready rules (answers carry their time, late answers rebuild the atom from its log, self-contained payloads), contract tests against the shared types.
+17. **API v1** (§19): bearer-token auth with the suite account, the capability header, the endpoints, idempotent submissions (`api_receipts`), the three offline-ready rules (answers carry their time, late answers rebuild the atom from its log, self-contained payloads), contract tests against the shared types.
 18. **iOS, the daily loop:** the app shell, sign-in, Home, Review rounds with every card modality, audio. TestFlight build for the two of us.
 19. **iOS, the course:** the path, the lesson player (Meet, the seven exercises, Done, Refresh), scenes and checkpoints, the mic, Stats; then the App Store.
 20. **Offline:** `GET /offline-pack` (lessons built ahead, a week of review cards, their clips voiced ahead), the rolling pack and *Going offline*, running lessons and rounds from the pack, hiding what needs the network, and replaying the queue on return. The API is offline-ready from milestone 17 (§19), so this is app work plus one endpoint.
@@ -900,9 +900,9 @@ Every request carries `X-Dolomite-Client: ios/<version>; exercises=meaning,hear,
 | `GET /speech` | redirect to a clip (§15) | `/api/speech` |
 | `POST /transcribe` | speak-your-answer (§15) | `/api/transcribe` |
 
-**Shapes.** The TypeScript types are the contract (`lib/api/v1/types.ts`, re-exporting `LessonPayload`, `Exercise`, `SessionCard`, …). The app mirrors them as Swift `Codable` structs; contract tests build real payloads from PGlite and check them against JSON fixtures the iOS tests decode, so a server change that would break the app fails a test on one side or the other.
+**Shapes.** The TypeScript types are the contract (`lib/api/v1/types.ts`, re-exporting `LessonPayload`, `Exercise`, `SessionCard`, …). The app mirrors them as Swift `Codable` structs. `npm run api:fixtures` builds one real response per endpoint against PGlite (fixed times and seed, ids and times as placeholders) into `lib/api/v1/fixtures/`; the API tests fail when those are stale, and the iOS tests decode them, so a change to a response's shape fails a test on one side or the other.
 
-**Idempotent submissions.** Phones retry. `POST /reviews` and `POST /lessons/:id/complete` carry a client-generated `clientId` (UUID); the server records it (`review_events.client_id`, `lesson_progress.last_client_id`, unique per user) and returns the original result for a repeat instead of logging twice. The web keeps its current behaviour.
+**Idempotent submissions.** Phones retry. `POST /reviews`, `POST /produce` and `POST /lessons/:id/complete` carry a client-generated `clientId` (UUID); the server keeps the first response in `api_receipts` (keyed by user and `clientId`) and returns it for a repeat instead of applying the submission twice. A `clientId` reused for a different kind of submission is refused (`client_id_reused`). The web keeps its current behaviour.
 
 **Errors** are `{ "error": { "code": "lesson_locked", "message": "…" } }` with the right status; `code` is stable, `message` is for people.
 

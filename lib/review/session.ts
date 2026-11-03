@@ -9,6 +9,7 @@ import { hasAnthropicKey } from "@/lib/llm/client";
 import { hasTts } from "@/lib/speech/tts";
 import { applyExposure } from "@/lib/scheduler/exposure";
 import { normalizeFor } from "@/lib/lang";
+import { degradeModality } from "@/lib/scheduler/modality";
 import { MODALITY_SECONDS, planSession, type Intensity, type SessionPlan, type SessionReason } from "@/lib/scheduler";
 import { newAtomOrder } from "./newOrder";
 import { promptsFor, writePrompts, type WritePromptFn } from "./produce";
@@ -67,6 +68,8 @@ export interface BuildOptions {
   courseLive?: boolean;
   /** A five-minute round of a longer review: triage still measured against the intensity's budget. */
   round?: boolean;
+  /** Card modalities the client can draw (SPEC §19); others go down the cascade. */
+  modalities?: Set<Modality>;
   /** Produce needs a model to grade it; defaults to whether an API key is set. */
   produce?: boolean;
   /** Listen cards need consistent audio; defaults to whether a speech provider is set (SPEC §15). */
@@ -176,6 +179,7 @@ export async function buildSession(d: Db, me: Learner, intensity: Intensity, now
     };
   });
 
+  if (opts.modalities) for (const c of cards) c.modality = degradeModality(c.modality, opts.modalities);
   return { plan, cards, intensity, timeBudgetMin, left: { cards: plan.dueLeft, minutes: Math.round((plan.dueLeft * MODALITY_SECONDS.recall) / 60) } };
 }
 
