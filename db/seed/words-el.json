@@ -349,5 +349,6 @@
 {"rank": 408, "lemma": "ορίστε", "pos": "INTJ", "gender": null, "forms": ["ΟΡΙΣΤΕ"], "gloss": "here you are / pardon?", "romanization": "oríste"},
 {"rank": 409, "lemma": "έλα", "pos": "INTJ", "gender": null, "forms": ["ελάτε", "ΕΛΑ"], "gloss": "come (on); hello (on the phone)", "romanization": "éla"},
 {"rank": 410, "lemma": "αντίο", "pos": "INTJ", "gender": null, "forms": ["ΑΝΤΙΟ"], "gloss": "goodbye", "romanization": "andío"},
-{"rank": 411, "lemma": "πίτσα", "pos": "NOUN", "gender": "f", "forms": ["πίτσες", "ΠΙΤΣΑ"], "gloss": "pizza", "romanization": "pítsa", "domains": ["food"]}
+{"rank": 411, "lemma": "πίτσα", "pos": "NOUN", "gender": "f", "forms": ["πίτσες", "ΠΙΤΣΑ"], "gloss": "pizza", "romanization": "pítsa", "domains": ["food"]},
+{"rank": 412, "lemma": "τζατζίκι", "pos": "NOUN", "gender": "n", "forms": ["ΤΖΑΤΖΙΚΙ"], "gloss": "tzatziki", "romanization": "tzatzíki", "domains": ["food"]}
 ]
