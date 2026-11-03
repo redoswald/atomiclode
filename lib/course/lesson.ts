@@ -59,7 +59,7 @@ function exampleFor(me: Learner, key: string): { text: string; gloss: string } |
   return hit ? { text: hit.key, gloss: hit.gloss } : undefined;
 }
 
-export async function buildLesson(d: Db, me: Learner, lessonId: string, opts: { canSay: boolean; rnd?: () => number; refresh?: boolean; now?: Date }): Promise<LessonPayload> {
+export async function buildLesson(d: Db, me: Learner, lessonId: string, opts: { canSay: boolean; rnd?: () => number; refresh?: boolean; now?: Date; exercises?: Set<Exercise["kind"]> }): Promise<LessonPayload> {
   const done = await completedLessons(d, me);
   const at = findOnPath(me, done, lessonId);
   const { lesson, unit } = at;
@@ -134,7 +134,10 @@ export async function buildLesson(d: Db, me: Learner, lessonId: string, opts: { 
     refresh: Boolean(opts.refresh),
     items,
     recent,
-    exercises: buildExercises({ items, recent, pool, canSay: opts.canSay }, opts.rnd),
+    // Only the kinds the client can draw (SPEC §19); "say" also needs speaking to be available.
+    exercises: buildExercises({ items, recent, pool, canSay: opts.canSay && (!opts.exercises || opts.exercises.has("say")) }, opts.rnd).filter(
+      (e) => !opts.exercises || opts.exercises.has(e.kind),
+    ),
   };
 }
 

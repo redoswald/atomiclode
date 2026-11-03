@@ -13,7 +13,7 @@ import { claimLegacy, ensureLearner, type Learner } from "@/lib/learners/provisi
 export type { Learner } from "@/lib/learners/provision";
 
 /** LEGACY_OWNER_EMAIL gets the data written before per-user accounts, on their first sign-in. */
-function isLegacyOwner(user: AppUser): boolean {
+export function isLegacyOwner(user: AppUser): boolean {
   const owner = process.env.LEGACY_OWNER_EMAIL?.trim().toLowerCase();
   return Boolean(owner) && user.email.toLowerCase() === owner;
 }

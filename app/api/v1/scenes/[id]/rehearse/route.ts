@@ -1,0 +1,7 @@
+import { postProduceCheck } from "@/lib/api/v1/handlers";
+import { api, body } from "@/lib/api/v1/route";
+
+export const maxDuration = 60;
+
+/** "Your turn": checked like a produce answer, nothing logged (SPEC §10). */
+export const POST = (request: Request) => api(request, async ({ d, me }) => postProduceCheck(d, me, await body(request)));

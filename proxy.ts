@@ -7,6 +7,8 @@ export async function proxy(request: NextRequest) {
   if (!authEnabled()) return NextResponse.next();
   // Preflights carry no cookies; redirecting one only turns the real request into "Failed to fetch".
   if (request.method === "OPTIONS" || request.method === "HEAD") return NextResponse.next();
+  // API v1 authenticates with a bearer token, not the cookie (SPEC §19); its routes check it.
+  if (request.nextUrl.pathname.startsWith("/api/v1/")) return NextResponse.next();
 
   const { pathname, search } = request.nextUrl;
   const { claims, response } = await updateSession(request);

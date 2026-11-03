@@ -1,0 +1,138 @@
+{
+  "round": 1,
+  "intensity": "steady",
+  "minutes": 5,
+  "cards": [
+    {
+      "atomId": "00000000-0000-4000-8000-000000000000",
+      "modality": "recognize",
+      "reason": "due",
+      "type": "word",
+      "key": "letter:α",
+      "gloss": "alpha · a as in father",
+      "forms": [
+        "letter:α",
+        "α",
+        "Α"
+      ],
+      "pos": "LETTER",
+      "romanization": "a",
+      "lang": "el"
+    },
+    {
+      "atomId": "00000000-0000-4000-8000-000000000000",
+      "modality": "recognize",
+      "reason": "due",
+      "type": "word",
+      "key": "letter:ι",
+      "gloss": "iota · ee as in see",
+      "forms": [
+        "letter:ι",
+        "ι",
+        "Ι"
+      ],
+      "pos": "LETTER",
+      "romanization": "i",
+      "lang": "el"
+    },
+    {
+      "atomId": "00000000-0000-4000-8000-000000000000",
+      "modality": "recognize",
+      "reason": "due",
+      "type": "word",
+      "key": "letter:ξ",
+      "gloss": "ksi · x as in box",
+      "forms": [
+        "letter:ξ",
+        "ξ",
+        "Ξ"
+      ],
+      "pos": "LETTER",
+      "romanization": "x",
+      "lang": "el"
+    },
+    {
+      "atomId": "00000000-0000-4000-8000-000000000000",
+      "modality": "recognize",
+      "reason": "due",
+      "type": "word",
+      "key": "letter:ο",
+      "gloss": "omikron · o as in hot",
+      "forms": [
+        "letter:ο",
+        "ο",
+        "Ο"
+      ],
+      "pos": "LETTER",
+      "romanization": "o",
+      "lang": "el"
+    },
+    {
+      "atomId": "00000000-0000-4000-8000-000000000000",
+      "modality": "recognize",
+      "reason": "due",
+      "type": "word",
+      "key": "letter:τ",
+      "gloss": "taf · t",
+      "forms": [
+        "letter:τ",
+        "τ",
+        "Τ"
+      ],
+      "pos": "LETTER",
+      "romanization": "t",
+      "lang": "el"
+    },
+    {
+      "atomId": "00000000-0000-4000-8000-000000000000",
+      "modality": "decode",
+      "reason": "due",
+      "type": "word",
+      "key": "ο",
+      "gloss": "the",
+      "forms": [
+        "ο",
+        "η",
+        "το",
+        "οι",
+        "τα",
+        "τον",
+        "την",
+        "τη",
+        "του",
+        "της",
+        "των",
+        "τους",
+        "τις",
+        "Ο",
+        "Η",
+        "ΤΟ"
+      ],
+      "pos": "DET",
+      "gender": "m",
+      "romanization": "o / i / to",
+      "lang": "el"
+    },
+    {
+      "atomId": "00000000-0000-4000-8000-000000000000",
+      "modality": "decode",
+      "reason": "due",
+      "type": "word",
+      "key": "τι",
+      "gloss": "what",
+      "forms": [
+        "τι",
+        "ΤΙ"
+      ],
+      "pos": "PRON",
+      "romanization": "ti",
+      "lang": "el"
+    }
+  ],
+  "left": {
+    "cards": 0,
+    "minutes": 0,
+    "rounds": 0
+  },
+  "deferred": 0
+}
