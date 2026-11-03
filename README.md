@@ -41,7 +41,7 @@ npm run db:prepare             # apply migrations and refresh learners' seed con
 npm run dev                    # http://localhost:3000
 ```
 
-`npm run build` runs `db:prepare` first, so a Vercel build with `DATABASE_URL` set migrates and refreshes learners' starter content on its own. Without `DATABASE_URL` the step is skipped and the build still succeeds.
+`npm run build` runs `db:prepare` first, so a Vercel build with `DATABASE_URL` set migrates and refreshes learners' starter content on its own. Preview builds have their own database: the Neon branch `preview` (a copy-on-write clone of production, project `hidden-cloud-28651661`), set as Preview's `DATABASE_URL`. `db:prepare` refuses to touch a database on a preview build unless `PREVIEW_HAS_OWN_DATABASE=1` (set for Preview only), so a preview can never migrate production again. It logs the host it targets. To refresh the branch from production: `npx neonctl branches reset preview --parent --project-id hidden-cloud-28651661`. Without `DATABASE_URL` the step is skipped and the build still succeeds.
 
 For `DATABASE_URL`, create a free Neon project and use its connection string. Or skip Neon entirely for local work: `DATABASE_URL=pglite://./.pglite` runs an embedded Postgres in that folder (dev only; the folder is gitignored).
 
