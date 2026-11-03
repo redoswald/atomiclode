@@ -92,6 +92,8 @@ Every word, phrase, letter and dialogue line can be played (SPEC §15). Clips co
 
 Cards speak on reveal (never before, or a recall card would say its answer); the review screen voices the current and next card ahead of time so that is instant. "Sound on/off" in the review header is remembered per device. A second tap on a play button within two seconds plays it slowly. Without `GOOGLE_TTS_API_KEY` the app falls back to the browser's own voice where one exists for the language.
 
+**Listen cards** ("What do you hear?") play a word or phrase with no text; reveal shows it written, with its meaning, and you grade yourself. They are scheduled only with a speech provider, for words in review that have held at least 3 days (never letters or signs): on steady when listening has had under half the practice recognition has, on push ahead of cloze, never on light.
+
 ### Regenerating the frequency list
 
 `db/seed/frequency-fr.json` is derived from Lexique 3.83 (CC BY-SA 4.0, New, Pallier, Brysbaert & Ferrand) by `db/seed/build-frequency.py`. Run it in a conda env, with pip inside that env for the PyPI-only package:

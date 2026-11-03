@@ -553,7 +553,7 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 **v3** (accounts and per-learner data landed first: suite sign-in, `ALLOWED_EMAILS`, `user_id` on every learner table)
 
 9. **Sound:** `lib/speech` with the Google provider and the browser fallback, `speech_clips` + Blob storage, `/api/speech`, play buttons on cards, the reader and dialogue lines, slow replay, the auto-play setting, letter texts. `speech:warm` is deferred: the review screen voices the current and next card ahead of time, which hides first-play latency.
-10. **Listen cards:** the modality in `chooseModality` and the review screen.
+10. **Listen cards:** the modality in `chooseModality` (`listenable`, `listenAllowed` from the session builder when a provider is set) and the review screen. Built.
 11. **Greek script:** script units and the four new letter atoms, the unlock rule and `scriptOrder` in place of the alphabet primer, decode cards, lookalike hints.
 
 Later: speak-your-answer (speech-to-text into the existing answer checks; no pronunciation scoring), then a JSON API and an iOS app for the daily loop.

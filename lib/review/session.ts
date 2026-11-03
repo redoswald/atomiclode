@@ -6,6 +6,7 @@ import type { Atom, AtomType, Encounter, Modality, Sentence } from "@/lib/atoms/
 import type { Gender, Lang } from "@/lib/lang";
 import type { Learner } from "@/lib/learners/provision";
 import { hasAnthropicKey } from "@/lib/llm/client";
+import { hasTts } from "@/lib/speech/tts";
 import { applyExposure } from "@/lib/scheduler/exposure";
 import { normalizeFor } from "@/lib/lang";
 import { planSession, type Intensity, type SessionPlan, type SessionReason } from "@/lib/scheduler";
@@ -56,6 +57,8 @@ export function parseIntensity(v: unknown): Intensity {
 export interface BuildOptions {
   /** Produce needs a model to grade it; defaults to whether an API key is set. */
   produce?: boolean;
+  /** Listen cards need consistent audio; defaults to whether a speech provider is set (SPEC §15). */
+  listen?: boolean;
   writePrompt?: WritePromptFn;
 }
 
@@ -106,6 +109,7 @@ export async function buildSession(d: Db, me: Learner, intensity: Intensity, now
     newAtomsIntroducedToday: introduced,
     intensity,
     produceMax: produce ? PRODUCE_MAX[intensity] : 0,
+    listenAllowed: opts.listen ?? hasTts(),
     newOrder: order.newOrder,
     noFrequencyFallback: order.noFrequencyFallback,
     blockedNew: order.blocked,

@@ -15,6 +15,11 @@ export interface SessionRequest {
    */
   produceMax?: number;
   /**
+   * Listen cards need consistent audio, so the caller allows them only when a speech
+   * provider is configured (SPEC §15). Defaults to false.
+   */
+  listenAllowed?: boolean;
+  /**
    * New atoms to introduce first, in order: the bundles of scenario visits in progress and
    * the active goal text's unknowns (SPEC §10, §11). Hand-mined atoms still come before these.
    */
@@ -115,7 +120,7 @@ export function planSession(atoms: Atom[], sentences: Sentence[], req: SessionRe
 
   for (const { atom, reason } of due) {
     const sentence = sentenceFor.get(atom.id)?.[0];
-    const modality = chooseModality(atom, sentence !== undefined, req.intensity, produceLeft > 0);
+    const modality = chooseModality(atom, sentence !== undefined, req.intensity, produceLeft > 0, req.listenAllowed ?? false);
     const cost = MODALITY_SECONDS[modality];
     if (seconds + cost <= budgetSec) {
       items.push({ atomId: atom.id, modality, sentenceId: modality === "cloze" ? sentence?.id : undefined, reason });
@@ -203,7 +208,25 @@ export const DECODE_SOLID = 0.8;
 /** A Greek word's first reps alternate decode and recognize. */
 export const DECODE_EARLY_REPS = 3;
 
-export function chooseModality(atom: Atom, hasSentence: boolean, intensity: Intensity, produceAllowed = false): Modality {
+/** Listen cards (SPEC §15) start once a word has held for this long. */
+export const LISTEN_MIN_STABILITY_DAYS = 3;
+
+/**
+ * Can this atom be a listen card? A word or phrase in review that has held for a
+ * few days. Not a letter (its clip is a name and an example, not the letter), not
+ * a sign (signs are read, not heard), never grammar.
+ */
+export function listenable(atom: Atom): boolean {
+  return (
+    (atom.type === "word" || atom.type === "chunk") &&
+    atom.pos !== "LETTER" &&
+    !atom.domains.includes("signs") &&
+    atom.memory.status === "review" &&
+    atom.memory.stability >= LISTEN_MIN_STABILITY_DAYS
+  );
+}
+
+export function chooseModality(atom: Atom, hasSentence: boolean, intensity: Intensity, produceAllowed = false, listenAllowed = false): Modality {
   const s = atom.modality;
   const m = atom.memory;
   if (m.status === "new" || atom.type === "grammar") return "recognize";
@@ -221,15 +244,22 @@ export function chooseModality(atom: Atom, hasSentence: boolean, intensity: Inte
   const recallWanted = s.recall.attempts < 0.6 * s.recognize.attempts;
   const clozeOk = hasSentence && (s.cloze.lastAt === undefined || (m.lastReview !== undefined && s.cloze.lastAt < m.lastReview));
   const produceOk = produceAllowed && !atom.receptiveOnly && m.stability > PRODUCE_MIN_STABILITY_DAYS;
+  // Listening is receptive, so receptive-only atoms may have it too. Steady wants it at half
+  // the recognize count; push catches it up to recognize.
+  const listen = s.listen ?? { attempts: 0, correct: 0 };
+  const listenOk = listenAllowed && listenable(atom);
+  const listenWanted = listenOk && listen.attempts < 0.5 * s.recognize.attempts;
 
   if (intensity === "light") return "recognize";
-  if (atom.receptiveOnly) return clozeOk ? "cloze" : "recognize";
+  if (atom.receptiveOnly) return listenWanted ? "listen" : clozeOk ? "cloze" : "recognize";
   if (intensity === "push") {
     if (produceOk) return "produce";
+    if (listenOk && listen.attempts < s.recognize.attempts) return "listen";
     if (clozeOk) return "cloze";
     return "recall";
   }
   if (recallWanted) return "recall";
+  if (listenWanted) return "listen";
   if (clozeOk) return "cloze";
   if (produceOk && s.produce.attempts < s.recall.attempts) return "produce";
   return "recognize";
