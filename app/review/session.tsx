@@ -29,21 +29,55 @@ export function ReviewSession({ session, canWhy }: { session: BuiltSession; canW
   const [index, setIndex] = useState(0);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [error, setError] = useState<string | undefined>();
+  // Answers whose save failed (a network blip, an expired session). Kept and retried, never dropped.
+  const unsaved = useRef<Array<() => Promise<unknown>>>([]);
+  const [unsavedCount, setUnsavedCount] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+  const flushing = useRef(false);
 
   const card = cards[index];
+
+  /**
+   * Run the queued saves in order, one loop at a time (a grade made while it runs is picked up
+   * by it), and stop at the first failure so the review log keeps its order.
+   */
+  async function flush(): Promise<void> {
+    if (flushing.current) return;
+    flushing.current = true;
+    try {
+      while (unsaved.current.length) {
+        try {
+          await unsaved.current[0]();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : String(err));
+          return;
+        }
+        unsaved.current.shift();
+        setUnsavedCount(unsaved.current.length);
+      }
+      setError(undefined);
+    } finally {
+      flushing.current = false;
+      setUnsavedCount(unsaved.current.length);
+    }
+  }
 
   async function onGrade(grade: Grade, responseMs: number, usedAtomIds: string[] = []) {
     setOutcomes((o) => [...o, { card, grade }]);
     setIndex((i) => i + 1);
-    try {
-      if (card.modality === "produce" && card.produce) {
-        await submitProduce({ atomId: card.atomId, promptId: card.produce.promptId, grade, responseMs, usedAtomIds });
-      } else {
-        await submitReview({ atomId: card.atomId, modality: card.modality, grade, responseMs, sentenceId: card.sentence?.id });
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
+    const save =
+      card.modality === "produce" && card.produce
+        ? () => submitProduce({ atomId: card.atomId, promptId: card.produce!.promptId, grade, responseMs, usedAtomIds })
+        : () => submitReview({ atomId: card.atomId, modality: card.modality, grade, responseMs, sentenceId: card.sentence?.id });
+    unsaved.current.push(save);
+    setUnsavedCount(unsaved.current.length);
+    await flush();
+  }
+
+  async function retry() {
+    setRetrying(true);
+    await flush();
+    setRetrying(false);
   }
 
   const fresh = outcomes.filter((o) => o.card.reason === "new").length;
@@ -59,7 +93,16 @@ export function ReviewSession({ session, canWhy }: { session: BuiltSession; canW
           {plan.skipped > 0 && ` · ${plan.skipped} didn't fit`}
         </p>
         <p className="mt-1 text-sm text-muted">{again === 0 ? "Nothing missed." : `${again} to see again soon.`}</p>
-        {error && <p className="mt-3 text-sm text-bad">Some answers failed to save: {error}</p>}
+        {unsavedCount > 0 && (
+          <div className="mt-3 flex items-baseline justify-between gap-3 text-sm text-bad">
+            <span>
+              {unsavedCount} {unsavedCount === 1 ? "answer isn't" : "answers aren't"} saved yet{error ? ` (${error})` : ""}.
+            </span>
+            <button type="button" onClick={retry} disabled={retrying} className="btn-secondary shrink-0">
+              {retrying ? "Saving…" : "Retry"}
+            </button>
+          </div>
+        )}
         <div className="mt-6 flex gap-2 text-sm">
           <Link href={`/review?intensity=${intensity}`} className="btn-primary">
             Continue
