@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { rehearse } from "@/app/actions/scenario";
+import { MicButton } from "@/app/components/mic";
 import { LANG_SPECS, type Lang } from "@/lib/lang";
 import type { ProduceCheck } from "@/lib/review/produce";
 
@@ -57,6 +58,7 @@ function One({ prompt, lang }: { prompt: RehearsalPrompt; lang: Lang }) {
           lang={lang}
           className="field min-w-0 flex-1"
         />
+        <MicButton lang={lang} onTranscript={(t) => setTyped((cur) => (cur.trim() ? `${cur.trim()} ${t}` : t))} />
         <button className="btn-secondary shrink-0 text-sm" disabled={busy || !typed.trim()}>
           {busy ? "…" : "Check"}
         </button>
