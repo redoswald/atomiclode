@@ -92,6 +92,12 @@ Greek has a course (SPEC §17): a locked path of short lessons under **Learn** (
 
 A lesson is a two-minute warm-up of due reviews, Meet (each new letter and word with its sound), Practice (pick the meaning, hear it, sound it out, match pairs, build the phrase, say it, which word has this sound; a miss comes back at the end), and Done. Done writes an `introductions` row per new word (not a graded review: the word's start, with the lesson's stats) and gives it its first review on a later day, spreading a heavy day's first reviews past 15 a day; words the learner already had keep their history. The checkpoint passes when the café scene's "your turn" prompts are all answered. Scenes open with their unit; the rest open after Unit 1. `COURSE_LIVE` in `lib/course/index.ts` switches a track's course on.
 
+### Progress
+
+Experience, a daily goal and a streak (SPEC §18), in an adult register: no mascots, hearts or leagues. XP is calibrated to time, about 2 XP a minute: review cards earn by their expected seconds (a five-minute round is about 10), a lesson 20 (+5 if nothing was missed; a replay or a Refresh 5), a scene's "your turn" 15, a passage opened 5 a day and a goal section 10. It is an append-only `xp_events` log (`lib/progress/xp.ts`); today's total, weekly sums and the streak are derived in the learner's own time zone (sent by the browser). The daily goal (20 / 40 / 80) is set on Stats; the streak counts days at goal and forgives one missed day a week as a rest day.
+
+Reviews come in rounds of about five minutes ("Round 2 of 4"); the comeback triage still measures against the intensity's full budget, so rounds don't defer a pile the learner would work through. A finished lesson whose words are mostly overdue or lapsing fades on the path and offers **Refresh**: practice on just those words, recorded as reviews.
+
 ### Sound
 
 Every word, phrase, letter and dialogue line can be played (SPEC §15). Clips come from Google Cloud Text-to-Speech, are voiced the first time something is played, stored in Vercel Blob, and shared by every learner (`speech_clips`, `lib/speech/`). `GET /api/speech?lang&text[&voice=1][&rate=slow]` redirects to the clip. The voices are picked by ear and live in `LANG_SPECS` (`lib/lang.ts`): one for words, two taking turns in a dialogue. Letters say their name and an example word (`LETTER_SAY` in `lib/speech/say.ts`).

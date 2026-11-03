@@ -7,7 +7,7 @@
  */
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { finishLesson } from "@/app/actions/course";
+import { finishLesson, finishRefresh } from "@/app/actions/course";
 import { MicButton } from "@/app/components/mic";
 import { playSpeech, SpeakButton, stopSpeech, useSpeechSettings } from "@/app/components/speech";
 import { ReviewSession } from "@/app/review/session";
@@ -17,11 +17,13 @@ import { lookalikeMisread } from "@/lib/greek/script";
 import { lenientMatch } from "@/lib/review/match";
 import type { BuiltSession } from "@/lib/review/session";
 import { LETTER_SAY } from "@/lib/speech/say";
+import { XP } from "@/lib/progress/rules";
 
 type Stage = "warmup" | "meet" | "practice" | "done";
 
 export function LessonPlayer({ lesson, warmup, canWhy }: { lesson: LessonPayload; warmup?: BuiltSession; canWhy: boolean }) {
-  const [stage, setStage] = useState<Stage>(warmup ? "warmup" : "meet");
+  // A Refresh goes straight to practice: the words are known, just slipping.
+  const [stage, setStage] = useState<Stage>(lesson.refresh ? "practice" : warmup ? "warmup" : "meet");
   const [stats, setStats] = useState<Record<string, ItemStats>>({});
   const byId = useMemo(() => new Map([...lesson.items, ...lesson.recent].map((i) => [i.atomId, i])), [lesson]);
 
@@ -30,10 +32,10 @@ export function LessonPlayer({ lesson, warmup, canWhy }: { lesson: LessonPayload
       <header>
         <p className="eyebrow">
           {lesson.unitTitle} · lesson {lesson.n} of {lesson.total}
-          {lesson.replay ? " · replay" : ""}
+          {lesson.refresh ? " · refresh" : lesson.replay ? " · replay" : ""}
         </p>
         <h1 className="font-display mt-1 text-3xl leading-tight">{lesson.title}</h1>
-        <Steps stage={stage} hasWarmup={Boolean(warmup)} />
+        {!lesson.refresh && <Steps stage={stage} hasWarmup={Boolean(warmup)} />}
       </header>
       {stage === "warmup" && warmup && (
         <div className="mt-2">
@@ -450,24 +452,28 @@ function Pairs({ items, onAnswer }: { items: LessonItemView[]; onAnswer: Answer 
 
 // ---- Done ----------------------------------------------------------------------
 
+type DoneResult = LessonResult | { reviewed: number } | { error: string };
+
 function Done({ lesson, stats }: { lesson: LessonPayload; stats: Record<string, ItemStats> }) {
-  const [result, setResult] = useState<LessonResult | { error: string } | null>(null);
+  const [result, setResult] = useState<DoneResult | null>(null);
   const sent = useRef(false);
+  const finish = () => (lesson.refresh ? finishRefresh({ lessonId: lesson.lessonId, stats }) : finishLesson({ lessonId: lesson.lessonId, stats }));
 
   async function send() {
     setResult(null);
-    setResult(await finishLesson({ lessonId: lesson.lessonId, stats }));
+    setResult(await finish());
   }
 
   useEffect(() => {
     if (sent.current) return;
     sent.current = true;
-    finishLesson({ lessonId: lesson.lessonId, stats }).then(setResult);
-  }, [lesson.lessonId, stats]);
+    finish().then(setResult);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sent once, on arrival
+  }, []);
 
   return (
     <section className="card mt-6 p-6 text-center">
-      <h2 className="font-display text-3xl">Lesson done</h2>
+      <h2 className="font-display text-3xl">{lesson.refresh ? "Refreshed" : "Lesson done"}</h2>
       {!result ? (
         <p className="mt-3 text-sm text-muted">Saving…</p>
       ) : "error" in result ? (
@@ -476,6 +482,15 @@ function Done({ lesson, stats }: { lesson: LessonPayload; stats: Record<string, 
           <button type="button" onClick={send} className="btn-secondary mt-3">
             Try again
           </button>
+        </>
+      ) : "reviewed" in result ? (
+        <>
+          <p className="mt-3 text-lg">
+            {result.reviewed} {result.reviewed === 1 ? "word" : "words"} back on track · +5 XP
+          </p>
+          <Link href="/learn" className="btn-primary mt-6 inline-block">
+            Back to the path
+          </Link>
         </>
       ) : (
         <>
@@ -486,7 +501,7 @@ function Done({ lesson, stats }: { lesson: LessonPayload; stats: Record<string, 
           </p>
           {!result.replay && result.alreadyKnown > 0 && <p className="mt-1 text-sm text-muted">{result.alreadyKnown} you already had keep their place.</p>}
           <p className="mt-1 text-sm text-muted">
-            {lesson.unitTitle}: lesson {lesson.n} of {lesson.total}
+            +{result.replay ? XP.lessonReplay : XP.lesson + (Object.values(stats).every((s) => s.firstTimeRight) ? XP.lessonClean : 0)} XP · {lesson.unitTitle}: lesson {lesson.n} of {lesson.total}
           </p>
           <div className="mt-6 grid grid-cols-2 gap-2 text-sm">
             <Link href="/learn" className="btn-primary">

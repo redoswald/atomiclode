@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { finishCheckpoint } from "@/app/actions/course";
+import { sceneTurnDone } from "@/app/actions/progress";
 import { rehearse } from "@/app/actions/scenario";
 import { MicButton } from "@/app/components/mic";
 import { LANG_SPECS, type Lang } from "@/lib/lang";
@@ -15,8 +16,12 @@ export interface RehearsalPrompt {
 }
 
 /** "Your turn": say it once now, with nothing at stake. The same prompts come back as graded cards weeks later. */
-export function Rehearsal({ prompts, lang = "fr", checkpointLessonId }: { prompts: RehearsalPrompt[]; lang?: Lang; checkpointLessonId?: string }) {
+export function Rehearsal({ prompts, lang = "fr", checkpointLessonId, visitId }: { prompts: RehearsalPrompt[]; lang?: Lang; checkpointLessonId?: string; visitId?: string }) {
   const [answered, setAnswered] = useState<string[]>([]);
+  // Every "your turn" answered: the visit's XP (SPEC §18), once.
+  useEffect(() => {
+    if (visitId && prompts.length > 0 && answered.length === prompts.length) sceneTurnDone(visitId).catch(() => {});
+  }, [answered.length, prompts.length, visitId]);
   return (
     <>
       <ol className="mt-4 space-y-6">
