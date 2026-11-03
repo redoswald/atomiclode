@@ -22,7 +22,8 @@ export function DialoguePlayer({ lang, text }: { lang: Lang; text: string }) {
       if (run.current !== me) return;
       setLine(i);
       await playSpeech(cloud, lang, lines[i].text, { voice: lines[i].voice });
-      await new Promise((r) => setTimeout(r, 350));
+      // Each clip opens with its own short lead-in of silence, so only a small gap is added.
+      await new Promise((r) => setTimeout(r, 100));
     }
     if (run.current === me) setLine(null);
   }
