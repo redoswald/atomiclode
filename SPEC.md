@@ -28,7 +28,7 @@ Target language for v1: French. Base language: English.
 
 **In (v2, milestones 6–8):** situational produce cards, scenarios, goal texts.
 
-**In (v5):** a native iOS app (§20) on a versioned JSON API (§19); the course and its lessons are server-driven, so new units reach the app with no app update.
+**In (v5):** a native iOS app (§20) on a versioned JSON API (§19); the course and its lessons are server-driven, so new units reach the app with no app update; lessons and reviews work offline from a downloaded pack.
 
 **In (v4):** a course per track (§17) and progress you can see (§18), starting with Greek Unit 1.
 
@@ -571,9 +571,10 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 
 **v5** (the iOS app)
 
-17. **API v1** (§19): bearer-token auth with the suite account, the capability header, the endpoints, idempotent submissions (`client_id` on review events and lesson completions), contract tests against the shared types.
+17. **API v1** (§19): bearer-token auth with the suite account, the capability header, the endpoints, idempotent submissions (`client_id` on review events and lesson completions), the three offline-ready rules (answers carry their time, late answers rebuild the atom from its log, self-contained payloads), contract tests against the shared types.
 18. **iOS, the daily loop:** the app shell, sign-in, Home, Review rounds with every card modality, audio. TestFlight build for the two of us.
 19. **iOS, the course:** the path, the lesson player (Meet, the seven exercises, Done, Refresh), scenes and checkpoints, the mic, Stats; then the App Store.
+20. **Offline:** `GET /offline-pack` (lessons built ahead, a week of review cards, their clips voiced ahead), the rolling pack and *Going offline*, running lessons and rounds from the pack, hiding what needs the network, and replaying the queue on return. The API is offline-ready from milestone 17 (§19), so this is app work plus one endpoint.
 
 French stays scene- and reading-led for now; its course waits.
 
@@ -595,7 +596,7 @@ French stays scene- and reading-led for now; its course waits.
 - Daily goal values and the XP table are calibrated to about 2 XP a minute; check against the log after two weeks.
 - Whether the first-review spreading threshold (about 15 a day) and the round length (about five minutes) are right.
 - The iOS app's name: "Dolomite", or a suite name in the house pattern (Tend, Intend, Attend, Wend…)?
-- How much offline the app should do beyond finishing what's loaded: download the next lessons and their clips ahead?
+- Offline pack sizing: is a week of reviews and three lessons the right default for *Going offline*, or should the learner pick the number of days?
 - On-device speech recognition for Greek vs. the server's transcriber: worth comparing once the app exists.
 
 ---
@@ -905,6 +906,14 @@ Every request carries `X-Dolomite-Client: ios/<version>; exercises=meaning,hear,
 
 **Errors** are `{ "error": { "code": "lesson_locked", "message": "…" } }` with the right status; `code` is stable, `message` is for people.
 
+### Offline-ready from day one
+
+Three rules hold for every endpoint, so the offline pack (§20) needs no change to them later:
+
+1. **Answers carry the time they were given.** Every `POST /reviews`, produce answer and lesson completion has an `answeredAt` (the device's clock, ISO with offset). The server logs it as the event's `at` and awards XP on that day in the learner's zone, so a day spent on a plane still counts for the streak. A time in the future, or more than 30 days back, is clamped and flagged.
+2. **Late and out-of-order answers are rebuilt, not appended.** When an answer arrives older than the atom's last logged event, the server inserts it in time order and rebuilds that atom's memory state from its log (`replay` for one atom, with its introduction and encounters). A card reviewed on the web on Tuesday and on the phone offline on Monday ends up as if both happened in order.
+3. **What the app is given is self-contained.** A lesson payload or a review round carries everything needed to finish it: items, exercises, options, answers, readings, and the clip text for every sound. Nothing in it needs another request except the clips, which are fetched by URL and cached.
+
 ## 20. iOS app
 
 A native SwiftUI app for the daily loop: the course, reviews, scenes, sound and speaking. The web app stays the place for reading, importing, goal texts and writing new scenes.
@@ -938,9 +947,26 @@ Each exercise kind and each card modality is one SwiftUI view, chosen by the `ki
 - Clips play with `AVPlayer` from the `/speech` redirect, cached on disk by URL (a clip never changes); the next card's and the lesson's clips are fetched ahead, as on the web. The audio session is `.playback` with spoken-audio mode, so lessons play with the ringer off; the 0.35 s lead-in in every clip (§15) covers Bluetooth wake-up.
 - Speak-your-answer records with `AVAudioRecorder` (AAC in `.m4a`) and posts to `/transcribe`; microphone permission is asked the first time the mic is tapped, with a plain reason. On-device recognition (`SFSpeechRecognizer`, which has Greek) is a later option, not v1: the server path is already tested for Greek.
 
-### Reliability
+### Offline
 
-Online first, but nothing is lost: every answer and every lesson completion is queued with its `clientId` and sent in order, retried with backoff, and the queue survives the app being closed (a small file in Application Support). A lesson or round already loaded can be finished offline; its results go up when the network is back. Fetching new lessons needs a connection.
+Online first, offline on purpose: a learner on a plane can do lessons and reviews, and nothing is lost.
+
+**What's on the phone.** An *offline pack*, from `GET /offline-pack`:
+
+- the next two or three lessons, built ahead (the path is linear, so the server can build lesson *n*+1 as it will be once *n* is done);
+- every review card due in the next seven days, with a few extra cards for practice beyond that;
+- every clip those use, voiced on the server first where it doesn't exist yet, listed by URL and downloaded.
+
+A week of reviews and three lessons with their audio is a few MB (clips are 4–15 KB). Two ways in:
+
+- **Always:** a small rolling pack (the next lesson, the next day or two of reviews) is kept fresh in the background, so a surprise dead zone just works.
+- **Before a trip:** *Going offline* on Home downloads the full week, shows its size, and says what won't work offline.
+
+**On the plane.** Lessons and review rounds run from the pack. A missed card comes back later in the same round, as in a lesson. Scheduling is not done on the phone: the round is what was packed, and real scheduling happens when the answers reach the server. That keeps one scheduler, the server's, rather than a Swift port of FSRS that could drift.
+
+**What waits for the network,** hidden while offline with the same capability header an old app uses (§19): speak-your-answer and "say it" (server transcription), produce cards (graded by the model), "why?", new scene visits, and any lesson beyond the pack. On-device recognition (`SFSpeechRecognizer`) could bring speaking back offline if it handles Greek on the device; that is to be tested, not assumed.
+
+**Back online.** Every answer and lesson completion was queued with its `clientId` and `answeredAt` (a file in Application Support that survives the app being closed). The queue goes up in order, retried with backoff; the server inserts each answer at its time and rebuilds the atoms it touches (§19 rule 2), so the phone and the web reconcile by time. XP lands on the days it was earned. The pack is then refreshed.
 
 ### Notifications
 
