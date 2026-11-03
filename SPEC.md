@@ -899,6 +899,7 @@ Every request carries `X-Dolomite-Client: ios/<version>; exercises=meaning,hear,
 | `POST /scenes/:id/rehearse`, `POST /scenes/:id/checkpoint` | "your turn" checks; passing a checkpoint | `checkProduce`, `completeCheckpoint` |
 | `GET /speech` | redirect to a clip (§15) | `/api/speech` |
 | `POST /transcribe` | speak-your-answer (§15) | `/api/transcribe` |
+| `DELETE /account` | deletes every row with the caller's `user_id` (one statement); shared caches and Blob clips stay. Any signed-in suite account, `ALLOWED_EMAILS` not required; refused when sign-in is off. `200 {"deleted":true}` (also when nothing was there), `401`, `500 {"error",…,"retryable":true}`. Called by the suite's "delete my account" and the app's "delete my Dolomite data" | `deleteAccountData` (`lib/account`) |
 
 **Shapes.** The TypeScript types are the contract (`lib/api/v1/types.ts`, re-exporting `LessonPayload`, `Exercise`, `SessionCard`, …). The app mirrors them as Swift `Codable` structs. `npm run api:fixtures` builds one real response per endpoint against PGlite (fixed times and seed, ids and times as placeholders) into `lib/api/v1/fixtures/`; the API tests fail when those are stale, and the iOS tests decode them, so a change to a response's shape fails a test on one side or the other.
 

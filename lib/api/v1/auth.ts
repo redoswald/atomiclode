@@ -38,6 +38,22 @@ export async function apiUser(request: Request, verify: VerifyFn = verifyToken):
   return user;
 }
 
+/**
+ * The signed-in user behind a DELETE /account, or a 401. Unlike apiUser this skips
+ * ALLOWED_EMAILS: anyone with a suite account may delete what Dolomite holds for
+ * them. With auth off there is no real user to delete (LOCAL_USER is the local
+ * learner), so it refuses rather than wiping local data.
+ */
+export async function deletingUser(request: Request, verify: VerifyFn = verifyToken): Promise<AppUser> {
+  if (!authEnabled()) throw new ApiError(403, "auth_off", "Sign-in is off here, so there is no account to delete.");
+  const header = request.headers.get("authorization") ?? "";
+  const token = /^Bearer\s+(.+)$/i.exec(header)?.[1];
+  if (!token) throw new ApiError(401, "unauthenticated", "Sign in first.");
+  const user = await verify(token);
+  if (!user) throw new ApiError(401, "unauthenticated", "Your session has expired; sign in again.");
+  return user;
+}
+
 /** The track a request is about: `?lang=`, default Greek (the app's first course). */
 export function trackOf(request: Request): Lang {
   const lang = new URL(request.url).searchParams.get("lang");
