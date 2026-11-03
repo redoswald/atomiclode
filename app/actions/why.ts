@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { requireAuth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { addGrammarAtom, askWhy, type WhyAnswer, type WhyRequest } from "@/lib/reader/why";
@@ -10,7 +10,7 @@ import { addGrammarAtom, askWhy, type WhyAnswer, type WhyRequest } from "@/lib/r
 export type WhyResponse = (WhyAnswer & { error?: undefined }) | { error: string };
 
 export async function why(req: WhyRequest): Promise<WhyResponse> {
-  await requireAuth();
+  await requireUser();
   if (!hasAnthropicKey()) return { error: "Set ANTHROPIC_API_KEY in Vercel to enable explanations." };
   try {
     return await askWhy(db(), { ...req, lang: await currentLang() });
@@ -20,7 +20,7 @@ export async function why(req: WhyRequest): Promise<WhyResponse> {
 }
 
 export async function addGrammar(input: { key: string; title: string; explanation: string; fromAtomId?: string }) {
-  await requireAuth();
+  await requireUser();
   const result = await addGrammarAtom(db(), { ...input, lang: await currentLang() });
   revalidatePath("/");
   return result;

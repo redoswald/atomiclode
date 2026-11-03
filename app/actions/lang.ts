@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { requireAuth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { isLang, LANG_COOKIE } from "@/lib/lang";
 
 /** Header switch: which track (French or Greek) the app shows. Progress in each is kept apart by `atoms.lang`. */
 export async function setLanguage(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const lang = String(formData.get("lang") ?? "");
   const back = String(formData.get("back") ?? "/");
   if (isLang(lang)) {

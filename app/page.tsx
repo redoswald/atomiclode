@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { db, hasDatabase } from "@/db";
 import { homeCounts, type HomeCounts } from "@/lib/atoms/stats";
-import { authEnabled } from "@/lib/auth";
+import { signOut } from "@/app/actions/auth";
+import { authEnabled, getUser } from "@/lib/auth";
 import { activeGoal, goalCoverageWeekAgo, goalView, type GoalView } from "@/lib/goals/goals";
 import { langName } from "@/lib/lang";
 import { currentLang } from "@/lib/lang-server";
@@ -36,6 +37,7 @@ export default async function Home() {
   let goal: GoalView | undefined;
   let goalWeekAgo: number | undefined;
   const lang = await currentLang();
+  const user = await getUser();
   try {
     const active = await activeGoal(db(), lang);
     [counts, [latest], scenes, goal] = await Promise.all([
@@ -90,8 +92,9 @@ export default async function Home() {
     >
       {!authEnabled() && (
         <p className="mb-5 rounded-xl border border-tint-sand bg-tint-sand/50 px-3 py-2 text-xs">
-          Open to anyone with the URL. Set <code className="font-mono">APP_SECRET</code> in Vercel and redeploy to require a
-          sign-in.
+          Open to anyone with the URL. Set <code className="font-mono">NEXT_PUBLIC_SUPABASE_URL</code>,{" "}
+          <code className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> and{" "}
+          <code className="font-mono">ALLOWED_EMAILS</code> in Vercel and redeploy to require a suite sign-in.
         </p>
       )}
 
@@ -159,6 +162,14 @@ export default async function Home() {
         {counts.byType.word} words · {counts.byType.chunk} chunks · {counts.byType.grammar} grammar
         {counts.byStatus.suspended > 0 && ` · ${counts.byStatus.suspended} suspended`}
       </p>
+      {user && authEnabled() && (
+        <form action={signOut} className="mt-8 flex items-baseline justify-between text-xs text-muted">
+          <span>Signed in as {user.email}</span>
+          <button type="submit" className="underline">
+            Sign out
+          </button>
+        </form>
+      )}
     </Shell>
   );
 }

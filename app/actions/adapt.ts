@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { requireAuth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { LEVELS, type Level } from "@/lib/llm/adapt";
 import { adaptPassage } from "@/lib/reader/library";
 
 /** Form action on a passage page: rewrite it at a level and open the result. */
 export async function adapt(formData: FormData): Promise<void> {
-  await requireAuth();
+  await requireUser();
   const passageId = String(formData.get("passageId") ?? "");
   const level = String(formData.get("level") ?? "balanced") as Level;
   if (!(level in LEVELS) || !/^[0-9a-f-]{36}$/i.test(passageId)) redirect("/read");
