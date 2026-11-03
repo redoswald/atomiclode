@@ -5,6 +5,8 @@
   "cards": [
     {
       "atomId": "00000000-0000-4000-8000-000000000000",
+      "display": "Α α",
+      "speak": "άλλο, αέρας",
       "modality": "recognize",
       "reason": "due",
       "type": "word",
@@ -21,6 +23,8 @@
     },
     {
       "atomId": "00000000-0000-4000-8000-000000000000",
+      "display": "Ι ι",
+      "speak": "ίδιο, Ιταλία",
       "modality": "recognize",
       "reason": "due",
       "type": "word",
@@ -37,6 +41,8 @@
     },
     {
       "atomId": "00000000-0000-4000-8000-000000000000",
+      "display": "Ξ ξ",
+      "speak": "ξύλο, ξανά",
       "modality": "recognize",
       "reason": "due",
       "type": "word",
@@ -53,6 +59,8 @@
     },
     {
       "atomId": "00000000-0000-4000-8000-000000000000",
+      "display": "Ο ο",
+      "speak": "όνομα, όλα",
       "modality": "recognize",
       "reason": "due",
       "type": "word",
@@ -69,6 +77,8 @@
     },
     {
       "atomId": "00000000-0000-4000-8000-000000000000",
+      "display": "Τ τ",
+      "speak": "τώρα, τέλος",
       "modality": "recognize",
       "reason": "due",
       "type": "word",
@@ -85,6 +95,8 @@
     },
     {
       "atomId": "00000000-0000-4000-8000-000000000000",
+      "display": "ο",
+      "speak": "ο",
       "modality": "decode",
       "reason": "due",
       "type": "word",
@@ -115,6 +127,8 @@
     },
     {
       "atomId": "00000000-0000-4000-8000-000000000000",
+      "display": "τι",
+      "speak": "τι",
       "modality": "decode",
       "reason": "due",
       "type": "word",

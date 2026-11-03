@@ -10,6 +10,8 @@ import { hasTts } from "@/lib/speech/tts";
 import { applyExposure } from "@/lib/scheduler/exposure";
 import { normalizeFor } from "@/lib/lang";
 import { degradeModality } from "@/lib/scheduler/modality";
+import { displayKey } from "@/lib/atoms/display";
+import { spokenText } from "@/lib/speech/say";
 import { MODALITY_SECONDS, planSession, type Intensity, type SessionPlan, type SessionReason } from "@/lib/scheduler";
 import { newAtomOrder } from "./newOrder";
 import { promptsFor, writePrompts, type WritePromptFn } from "./produce";
@@ -28,6 +30,10 @@ export interface SessionCard {
   reason: SessionReason;
   type: AtomType;
   key: string;
+  /** How it is shown (lib/atoms/display.ts): a noun with its article, a sign in capitals, a letter in both cases. */
+  display: string;
+  /** What its audio says (lib/speech/say.ts); absent for grammar. */
+  speak?: string;
   gloss: string;
   forms: string[];
   pos?: string;
@@ -152,6 +158,8 @@ export async function buildSession(d: Db, me: Learner, intensity: Intensity, now
     const prompt = item.modality === "produce" ? prompts.get(a.id) : undefined;
     return {
       atomId: a.id,
+      display: displayKey(a),
+      speak: spokenText(a),
       // A cloze with no findable gap degrades to recognize-in-context; a produce with no situation, to recall.
       modality: item.modality === "cloze" && !cloze ? "recognize" : item.modality === "produce" && !prompt ? "recall" : item.modality,
       cloze,
