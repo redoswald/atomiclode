@@ -556,7 +556,9 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 10. **Listen cards:** the modality in `chooseModality` (`listenable`, `listenAllowed` from the session builder when a provider is set) and the review screen. Built.
 11. **Greek script:** script units and the four new letter atoms, the unlock rule and `scriptOrder` in place of the alphabet primer, decode cards, lookalike hints.
 
-Later: speak-your-answer (speech-to-text into the existing answer checks; no pronunciation scoring), then a JSON API and an iOS app for the daily loop.
+12. **Speak your answer:** a mic on recall, cloze, produce and rehearsal; OpenAI `gpt-transcribe` with the track's language as a hint; the transcript fills the answer box and is checked like typed text. No pronunciation scoring.
+
+Later: a JSON API and an iOS app for the daily loop.
 
 ## 14. Open questions
 

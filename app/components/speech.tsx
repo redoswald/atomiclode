@@ -17,13 +17,15 @@ const SLOW_TAP_MS = 2000;
 interface SpeechState {
   /** Clips from the server (true) or the browser's voice (false). */
   cloud: boolean;
+  /** Speak-your-answer is available (a transcription provider is set). */
+  stt: boolean;
   autoplay: boolean;
   setAutoplay: (on: boolean) => void;
 }
 
-const SpeechContext = createContext<SpeechState>({ cloud: false, autoplay: false, setAutoplay: () => {} });
+const SpeechContext = createContext<SpeechState>({ cloud: false, stt: false, autoplay: false, setAutoplay: () => {} });
 
-export function SpeechProvider({ cloud, children }: { cloud: boolean; children: React.ReactNode }) {
+export function SpeechProvider({ cloud, stt = false, children }: { cloud: boolean; stt?: boolean; children: React.ReactNode }) {
   const [autoplay, setAutoplayState] = useState(true);
   useEffect(() => {
     try {
@@ -38,7 +40,7 @@ export function SpeechProvider({ cloud, children }: { cloud: boolean; children: 
       localStorage.setItem(AUTOPLAY_KEY, on ? "1" : "0");
     } catch {}
   }, []);
-  return <SpeechContext.Provider value={{ cloud, autoplay, setAutoplay }}>{children}</SpeechContext.Provider>;
+  return <SpeechContext.Provider value={{ cloud, stt, autoplay, setAutoplay }}>{children}</SpeechContext.Provider>;
 }
 
 export function useSpeechSettings(): SpeechState {

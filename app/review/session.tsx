@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { checkProduceAnswer, submitProduce, submitReview } from "@/app/actions/review";
+import { MicButton } from "@/app/components/mic";
 import { AutoplayToggle, playSpeech, prefetchSpeech, SpeakButton, stopSpeech, useSpeechSettings } from "@/app/components/speech";
 import { WhyPanel } from "@/app/why-panel";
 import type { Grade } from "@/lib/atoms/types";
@@ -386,14 +387,14 @@ interface TypedProps {
   onSubmit: () => void;
 }
 
-function AnswerInput({ card, phase, typed, setTyped, inputRef, onSubmit, placeholder }: TypedProps & { placeholder: string }) {
+function AnswerInput({ card, phase, typed, setTyped, inputRef, onSubmit, placeholder, mic = false }: TypedProps & { placeholder: string; mic?: boolean }) {
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
       }}
-      className="mt-6"
+      className="mt-6 flex items-start gap-2"
     >
       <input
         ref={inputRef}
@@ -406,8 +407,9 @@ function AnswerInput({ card, phase, typed, setTyped, inputRef, onSubmit, placeho
         autoCorrect="off"
         spellCheck={false}
         lang={card.lang}
-        className="field w-full text-center text-xl disabled:opacity-70"
+        className="field min-w-0 flex-1 text-center text-xl disabled:opacity-70"
       />
+      {mic && phase !== "revealed" && <MicButton lang={card.lang} onTranscript={setTyped} />}
     </form>
   );
 }
@@ -427,7 +429,7 @@ function RecallPrompt(props: TypedProps) {
           {card.gender ? ` · ${card.gender}` : ""}
         </p>
       )}
-      <AnswerInput {...props} placeholder={LANG_SPECS[card.lang].typePlaceholder} />
+      <AnswerInput {...props} placeholder={LANG_SPECS[card.lang].typePlaceholder} mic />
       {phase === "revealed" && (
         <div className="mt-6 border-t border-line pt-5">
           <Verdict correct={correct} />
@@ -550,7 +552,7 @@ function ClozePrompt(props: TypedProps) {
         {c.after}
       </p>
       {card.gloss && <p className="mt-2 text-sm text-muted">{card.gloss}</p>}
-      <AnswerInput {...props} placeholder={CLOZE_PLACEHOLDER[card.lang]} />
+      <AnswerInput {...props} placeholder={CLOZE_PLACEHOLDER[card.lang]} mic />
       {phase === "revealed" && (
         <div className="mt-6 border-t border-line pt-5">
           <Verdict correct={correct} />
@@ -610,6 +612,11 @@ function ProducePrompt({
           lang={card.lang}
           className="field w-full resize-none text-lg disabled:opacity-70"
         />
+        {phase === "prompt" && (
+          <div className="mt-2 flex justify-end">
+            <MicButton lang={card.lang} onTranscript={(t) => setTyped(typed.trim() ? `${typed.trim()} ${t}` : t)} />
+          </div>
+        )}
       </form>
       {phase === "revealed" && (
         <div className="mt-6 border-t border-line pt-5 text-left">

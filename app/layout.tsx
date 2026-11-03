@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import { hasStt } from "@/lib/speech/stt";
 import { hasTts } from "@/lib/speech/tts";
 import { SpeechProvider } from "./components/speech";
 import "./globals.css";
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-paper text-ink">
-        <SpeechProvider cloud={hasTts()}>{children}</SpeechProvider>
+        <SpeechProvider cloud={hasTts()} stt={hasStt()}>{children}</SpeechProvider>
       </body>
     </html>
   );
