@@ -10,6 +10,7 @@ import type { Grade } from "@/lib/atoms/types";
 import { LANG_SPECS, langName, type Lang } from "@/lib/lang";
 import { LOOKALIKES, lookalikeMisread } from "@/lib/greek/script";
 import { lenientMatch } from "@/lib/review/match";
+import { displayKey } from "@/lib/atoms/display";
 import { spokenText } from "@/lib/speech/say";
 import type { ProduceCheck } from "@/lib/review/produce";
 import type { BuiltSession, SessionCard } from "@/lib/review/session";
@@ -28,7 +29,7 @@ const GRADES: Array<{ grade: Grade; label: string; hint: string; key: string; ti
   { grade: 4, label: "Easy", hint: "Felt easy", key: "4", tint: "bg-tint-moss" },
 ];
 
-export function ReviewSession({ session, canWhy }: { session: BuiltSession; canWhy: boolean }) {
+export function ReviewSession({ session, canWhy, onDone }: { session: BuiltSession; canWhy: boolean; onDone?: () => void }) {
   const { cards, plan, intensity } = session;
   const [index, setIndex] = useState(0);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
@@ -92,6 +93,10 @@ export function ReviewSession({ session, canWhy }: { session: BuiltSession; canW
 
   const fresh = outcomes.filter((o) => o.card.reason === "new").length;
 
+  if (!card && onDone) {
+    return <WarmupDone unsaved={unsavedCount} onDone={onDone} retry={retry} retrying={retrying} />;
+  }
+
   if (!card) {
     const reviewed = outcomes.length;
     const again = outcomes.filter((o) => o.grade === 1).length;
@@ -145,6 +150,23 @@ export function ReviewSession({ session, canWhy }: { session: BuiltSession; canW
       <CardView key={index} card={card} onGrade={onGrade} canWhy={canWhy} />
       {error && <p className="mt-3 text-xs text-bad">{error}</p>}
     </div>
+  );
+}
+
+/** End of a lesson's warm-up: straight on to the lesson once every answer is saved. */
+function WarmupDone({ unsaved, onDone, retry, retrying }: { unsaved: number; onDone: () => void; retry: () => void; retrying: boolean }) {
+  useEffect(() => {
+    if (unsaved === 0) onDone();
+  }, [unsaved, onDone]);
+  return (
+    <section className="card mt-5 p-5 text-center">
+      <p className="text-sm text-muted">{unsaved ? `${unsaved} answers aren't saved yet.` : "Warm-up done."}</p>
+      {unsaved > 0 && (
+        <button type="button" onClick={retry} disabled={retrying} className="btn-secondary mt-3">
+          {retrying ? "Saving…" : "Retry"}
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -288,25 +310,6 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
       )}
     </>
   );
-}
-
-/**
- * How the atom is shown: nouns with their article (le marché, η έξοδος); a Greek
- * letter as both cases ("Α α"); a sign word in capitals, the way it is met.
- */
-function displayKey(card: SessionCard): string {
-  if (card.pos === "LETTER") {
-    const letters = card.forms.filter((f) => f !== card.key);
-    const upper = letters.filter((f) => f === f.toUpperCase());
-    const lower = letters.filter((f) => f !== f.toUpperCase());
-    return [...upper, ...lower].join(" ") || card.key.replace(/^letter:/, "");
-  }
-  if (card.type === "word" && card.domains?.includes("signs")) {
-    const caps = card.forms.find((f) => f === f.toUpperCase() && f !== f.toLowerCase());
-    if (caps) return caps;
-  }
-  if (card.type === "word" && card.pos === "NOUN" && card.gender) return `${LANG_SPECS[card.lang].article(card.key, card.gender)}${card.key}`;
-  return card.key;
 }
 
 /** The Latin-letter reading under a Greek card. */

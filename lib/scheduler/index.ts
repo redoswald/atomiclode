@@ -14,4 +14,5 @@ export {
   type SessionReason,
   type SessionRequest,
 } from "./planSession";
+export { FIRST_REVIEWS_PER_DAY, introducedMemoryState, spreadFirstReviews, type Introduction } from "./introduce";
 export { KNOWN_STABILITY_DAYS, knownMemoryState, replay } from "./replay";

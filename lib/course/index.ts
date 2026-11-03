@@ -17,7 +17,7 @@ export const COURSES: Partial<Record<Lang, Course>> = {
 };
 
 /** Flipped to true for a track when its lessons can be played. */
-export const COURSE_LIVE: Record<Lang, boolean> = { fr: false, el: false };
+export const COURSE_LIVE: Record<Lang, boolean> = { fr: false, el: true };
 
 export function courseFor(lang: Lang): Course | undefined {
   return COURSES[lang];

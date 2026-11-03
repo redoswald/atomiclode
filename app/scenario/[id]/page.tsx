@@ -13,6 +13,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { learner } from "@/lib/learner";
 import { DialoguePlayer } from "./dialogue-player";
 import { Rehearsal } from "./rehearsal";
+import { courseLive } from "@/lib/course";
+import { currentCheckpoint } from "@/lib/course/lesson";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -51,6 +53,8 @@ export default async function ScenarioPage({ params, searchParams }: PageProps<"
 
   // Opening a visit is what starts it: the bundle joins the queue.
   await startVisit(d, me.userId, current.visit.id);
+  // Is this scene the unit checkpoint the learner is on? (SPEC §17)
+  const checkpoint = courseLive(lang) ? await currentCheckpoint(d, { userId: me.userId, lang }, scenario.slug) : undefined;
   const [view, bundle, prompts] = await Promise.all([
     current.visit.passageId ? openPassage(d, me.userId, current.visit.passageId) : undefined,
     current.visit.bundle.length
@@ -124,7 +128,11 @@ export default async function ScenarioPage({ params, searchParams }: PageProps<"
         <section className="card mt-4 p-5">
           <h2 className="font-display text-2xl">Your turn</h2>
           <p className="eyebrow mt-1">A rehearsal. Nothing is graded.</p>
-          <Rehearsal lang={lang} prompts={prompts.map((p) => ({ id: p.id, situation: p.situation, exampleAnswer: p.exampleAnswer }))} />
+          <Rehearsal
+            lang={lang}
+            prompts={prompts.map((p) => ({ id: p.id, situation: p.situation, exampleAnswer: p.exampleAnswer }))}
+            checkpointLessonId={checkpoint}
+          />
         </section>
       )}
 

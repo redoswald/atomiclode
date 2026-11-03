@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { finishCheckpoint } from "@/app/actions/course";
 import { rehearse } from "@/app/actions/scenario";
 import { MicButton } from "@/app/components/mic";
 import { LANG_SPECS, type Lang } from "@/lib/lang";
@@ -13,19 +15,57 @@ export interface RehearsalPrompt {
 }
 
 /** "Your turn": say it once now, with nothing at stake. The same prompts come back as graded cards weeks later. */
-export function Rehearsal({ prompts, lang = "fr" }: { prompts: RehearsalPrompt[]; lang?: Lang }) {
+export function Rehearsal({ prompts, lang = "fr", checkpointLessonId }: { prompts: RehearsalPrompt[]; lang?: Lang; checkpointLessonId?: string }) {
+  const [answered, setAnswered] = useState<string[]>([]);
   return (
-    <ol className="mt-4 space-y-6">
-      {prompts.map((p) => (
-        <li key={p.id}>
-          <One prompt={p} lang={lang} />
-        </li>
-      ))}
-    </ol>
+    <>
+      <ol className="mt-4 space-y-6">
+        {prompts.map((p) => (
+          <li key={p.id}>
+            <One prompt={p} lang={lang} onAnswered={() => setAnswered((a) => (a.includes(p.id) ? a : [...a, p.id]))} />
+          </li>
+        ))}
+      </ol>
+      {checkpointLessonId && <Checkpoint lessonId={checkpointLessonId} left={prompts.length - answered.length} />}
+    </>
   );
 }
 
-function One({ prompt, lang }: { prompt: RehearsalPrompt; lang: Lang }) {
+/** This scene is the unit's checkpoint (SPEC §17): it passes once every "your turn" is answered. */
+function Checkpoint({ lessonId, left }: { lessonId: string; left: number }) {
+  const [state, setState] = useState<"idle" | "busy" | "done" | string>("idle");
+  async function finish() {
+    setState("busy");
+    const r = await finishCheckpoint(lessonId);
+    setState("error" in r ? r.error : "done");
+  }
+  return (
+    <div className="card mt-6 p-5 text-center">
+      <p className="eyebrow">Checkpoint</p>
+      {state === "done" ? (
+        <>
+          <p className="font-display mt-1 text-2xl">Unit passed</p>
+          <Link href="/learn" className="btn-primary mt-3 inline-block">
+            Back to the path
+          </Link>
+        </>
+      ) : left > 0 ? (
+        <p className="mt-1 text-sm text-muted">
+          Answer {left === 1 ? "the last “your turn”" : `the ${left} “your turn” prompts`} above to pass this unit.
+        </p>
+      ) : (
+        <>
+          <button type="button" onClick={finish} disabled={state === "busy"} className="btn-primary mt-2 w-full">
+            {state === "busy" ? "Saving…" : "Finish the checkpoint"}
+          </button>
+          {state !== "idle" && state !== "busy" && <p className="mt-2 text-sm text-bad">{state}</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function One({ prompt, lang, onAnswered }: { prompt: RehearsalPrompt; lang: Lang; onAnswered: () => void }) {
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ProduceCheck | { error: string } | undefined>();
@@ -36,6 +76,7 @@ function One({ prompt, lang }: { prompt: RehearsalPrompt; lang: Lang }) {
     setBusy(true);
     setResult(await rehearse({ promptId: prompt.id, answer: typed }));
     setBusy(false);
+    onAnswered();
   }
 
   return (

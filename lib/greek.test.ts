@@ -127,7 +127,8 @@ describe("Greek track in the database", () => {
   });
 
   it("seeds the scenes with Greek dialogue passages", async () => {
-    const states = await scenarioStates(d, el);
+    // Every scene, as before the course; with the course live, scenes follow the path (lib/course).
+    const states = await scenarioStates(d, el, { courseLive: false });
     expect(states.length).toBe(scenes.length);
     expect(await scenarioStates(d, fr)).toHaveLength(0);
     const taxi = states.find((s) => s.scenario.slug === "el-taxi");
@@ -142,8 +143,13 @@ describe("Greek track in the database", () => {
     expect(rows.every((r) => r.lang === "el")).toBe(true);
   });
 
-  it("builds a session that starts with the alphabet and shows signs receptively", async () => {
-    const session = await buildSession(d, el, "steady", NOW);
+  it("introduces no words in review once the course is live: lessons do", async () => {
+    expect((await buildSession(d, el, "steady", NOW)).cards).toEqual([]);
+    expect((await scenarioStates(d, el)).map((s) => s.scenario.slug)).toEqual(["el-cafe"]);
+  });
+
+  it("without the course, builds a session that starts with the alphabet and shows signs receptively", async () => {
+    const session = await buildSession(d, el, "steady", NOW, { courseLive: false });
     expect(session.cards.length).toBeGreaterThan(0);
     expect(session.cards.every((c) => c.lang === "el")).toBe(true);
     const first = session.cards.find((c) => c.reason === "new");

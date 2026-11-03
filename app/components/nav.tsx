@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/", label: "Home", icon: HomeIcon },
+  { href: "/learn", label: "Learn", icon: PathIcon },
   { href: "/scenario", label: "Scenes", icon: SceneIcon },
   { href: "/read", label: "Read", icon: BookIcon },
   { href: "/review", label: "Review", icon: RefreshIcon },
@@ -23,7 +24,7 @@ export function Nav() {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex w-14 flex-col items-center gap-1 text-[11px] ${active ? "text-ink" : "text-muted"}`}
+                className={`flex w-12 flex-col items-center gap-1 text-[11px] ${active ? "text-ink" : "text-muted"}`}
               >
                 <Icon />
                 {label}
@@ -38,6 +39,15 @@ export function Nav() {
 
 const svg = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
+function PathIcon() {
+  return (
+    <svg {...svg} aria-hidden>
+      <circle cx="6" cy="18" r="2" />
+      <circle cx="18" cy="6" r="2" />
+      <path d="M8 18h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6" />
+    </svg>
+  );
+}
 function HomeIcon() {
   return (
     <svg {...svg} aria-hidden>

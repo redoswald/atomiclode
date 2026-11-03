@@ -86,6 +86,12 @@ A learner's starter content (the seed atoms and visit 1 of each seed scene) is c
 
 Data from before accounts existed belongs to a placeholder learner (the nil uuid, also the local user when auth is off). Set `LEGACY_OWNER_EMAIL` to your email and your first sign-in claims all of it, in one statement. It only works for an account with no Dolomite data yet, so set it before you first sign in.
 
+### Course (Greek)
+
+Greek has a course (SPEC §17): a locked path of short lessons under **Learn** (`/learn`), whose only job is to introduce words; review no longer introduces Greek words on its own, only what lessons, scenes and the learner's own mining bring in. Unit 1 (13 lessons and the café checkpoint) lives in `db/seed/course-el.json` and is checked before every build (`lib/course/validate.ts`): every item resolves to a seed word, nothing repeats, every item is readable with the letters taught so far and sounds out to its stored Latin reading (`lib/course/reading.ts`), except words marked sight or heard-first.
+
+A lesson is a two-minute warm-up of due reviews, Meet (each new letter and word with its sound), Practice (pick the meaning, hear it, sound it out, match pairs, build the phrase, say it, which word has this sound; a miss comes back at the end), and Done. Done writes an `introductions` row per new word (not a graded review: the word's start, with the lesson's stats) and gives it its first review on a later day, spreading a heavy day's first reviews past 15 a day; words the learner already had keep their history. The checkpoint passes when the café scene's "your turn" prompts are all answered. Scenes open with their unit; the rest open after Unit 1. `COURSE_LIVE` in `lib/course/index.ts` switches a track's course on.
+
 ### Sound
 
 Every word, phrase, letter and dialogue line can be played (SPEC §15). Clips come from Google Cloud Text-to-Speech, are voiced the first time something is played, stored in Vercel Blob, and shared by every learner (`speech_clips`, `lib/speech/`). `GET /api/speech?lang&text[&voice=1][&rate=slow]` redirects to the clip. The voices are picked by ear and live in `LANG_SPECS` (`lib/lang.ts`): one for words, two taking turns in a dialogue. Letters say their name and an example word (`LETTER_SAY` in `lib/speech/say.ts`).

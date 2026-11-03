@@ -45,7 +45,7 @@ describe("provisioning", () => {
   it("copies the starter content on first visit, once", async () => {
     await ensureLearner(d, A, "el", noWait);
     expect(await atomCount(A)).toBeGreaterThanOrEqual(EL_ATOMS);
-    const scenes = await scenarioStates(d, meA);
+    const scenes = await scenarioStates(d, meA, { courseLive: false });
     expect(scenes).toHaveLength(SEEDS.el.scenarios.length);
     expect(scenes.every((s) => s.visits.length === 1)).toBe(true);
     const [row] = await d.select().from(learners).where(eq(learners.userId, A));
@@ -103,7 +103,8 @@ describe("isolation", () => {
   });
 
   it("builds a session from the learner's own atoms only", async () => {
-    const session = await buildSession(d, meB, "push", new Date(), { produce: false });
+    // Without the course, so review introduces words and the session has cards to check.
+    const session = await buildSession(d, meB, "push", new Date(), { produce: false, courseLive: false });
     expect(session.cards.length).toBeGreaterThan(0);
     const ids = session.cards.map((c) => c.atomId);
     const owners = await d.select({ userId: atoms.userId }).from(atoms).where(sql`${atoms.id} in ${ids}`);
@@ -117,9 +118,9 @@ describe("isolation", () => {
     const [p] = await d.select().from(passages).where(eq(passages.id, passageId));
     expect(p.reads).toBe(1); // B's attempt didn't count a read
 
-    const visit = (await scenarioStates(d, meA))[0].latest!.visit;
+    const visit = (await scenarioStates(d, meA, { courseLive: false }))[0].latest!.visit;
     await startVisit(d, B, visit.id);
-    expect((await scenarioStates(d, meA))[0].latest!.visit.startedAt).toBeNull();
+    expect((await scenarioStates(d, meA, { courseLive: false }))[0].latest!.visit.startedAt).toBeNull();
 
     const [prompt] = await d.select().from(producePrompts).where(eq(producePrompts.userId, A)).limit(1);
     await expect(checkProduce(d, B, prompt.id, "ένα καφέ", async () => ({ ok: true, natural: "", note: "", used: [] }))).rejects.toThrow("unknown prompt");
