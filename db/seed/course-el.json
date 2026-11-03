@@ -1,0 +1,373 @@
+{
+ "lang": "el",
+ "units": [
+  {
+   "id": "el-1",
+   "cefr": "A1.1",
+   "title": "First steps",
+   "canDo": [
+    "Read letters, signs and simple words",
+    "Greet and say goodbye",
+    "Say please, thanks and sorry",
+    "Count to ten and understand a price",
+    "Order a coffee or a water",
+    "Say your name and where you're from"
+   ],
+   "scenes": [
+    "el-cafe"
+   ],
+   "lessons": [
+    {
+     "id": "el-1-01",
+     "title": "Letters: Τ Α Ξ Ι Ο",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "ταξί"
+      },
+      {
+       "key": "τι"
+      },
+      {
+       "key": "ο"
+      }
+     ],
+     "letters": [
+      "τ",
+      "α",
+      "ξ",
+      "ι",
+      "ο"
+     ]
+    },
+    {
+     "id": "el-1-02",
+     "title": "Letters: Μ Ε Ρ",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "μετρό"
+      },
+      {
+       "key": "μέρα"
+      },
+      {
+       "key": "έξι"
+      },
+      {
+       "key": "τρία"
+      }
+     ],
+     "letters": [
+      "μ",
+      "ε",
+      "ρ"
+     ]
+    },
+    {
+     "id": "el-1-03",
+     "title": "Hello and goodbye",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "γεια σας",
+       "mode": "sight"
+      },
+      {
+       "key": "γεια σου",
+       "mode": "sight"
+      },
+      {
+       "key": "καλημέρα",
+       "mode": "heard"
+      },
+      {
+       "key": "καλησπέρα",
+       "mode": "heard"
+      },
+      {
+       "key": "τα λέμε",
+       "mode": "heard"
+      }
+     ]
+    },
+    {
+     "id": "el-1-04",
+     "title": "Letters: Κ Φ Σ",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "καφές"
+      },
+      {
+       "key": "κρασί"
+      },
+      {
+       "key": "φέτα"
+      },
+      {
+       "key": "κάρτα"
+      },
+      {
+       "key": "κάστρο"
+      }
+     ],
+     "letters": [
+      "κ",
+      "φ",
+      "σ"
+     ]
+    },
+    {
+     "id": "el-1-05",
+     "title": "Letters: ΟΥ Λ Π",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "τουαλέτα"
+      },
+      {
+       "key": "στοπ"
+      },
+      {
+       "key": "σαλάτα"
+      },
+      {
+       "key": "πατάτα"
+      },
+      {
+       "key": "πού"
+      },
+      {
+       "key": "πόσο"
+      }
+     ],
+     "letters": [
+      "ου",
+      "λ",
+      "π"
+     ]
+    },
+    {
+     "id": "el-1-06",
+     "title": "Letters: ΕΙ Ν Η",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "πόλη"
+      },
+      {
+       "key": "φαρμακείο"
+      },
+      {
+       "key": "μουσείο"
+      },
+      {
+       "key": "νερό"
+      },
+      {
+       "key": "λεμόνι"
+      },
+      {
+       "key": "κλειστό"
+      }
+     ],
+     "letters": [
+      "ει",
+      "ν",
+      "η"
+     ]
+    },
+    {
+     "id": "el-1-07",
+     "title": "Letters: Χ Ω Υ ΑΙ ΕΥ",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "όχι"
+      },
+      {
+       "key": "ναι"
+      },
+      {
+       "key": "και"
+      },
+      {
+       "key": "πολύ"
+      },
+      {
+       "key": "παρακαλώ"
+      },
+      {
+       "key": "ευχαριστώ"
+      }
+     ],
+     "letters": [
+      "χ",
+      "ω",
+      "υ",
+      "αι",
+      "ευ"
+     ]
+    },
+    {
+     "id": "el-1-08",
+     "title": "Please, thanks, sorry",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "ευχαριστώ πολύ"
+      },
+      {
+       "key": "καλά, ευχαριστώ"
+      },
+      {
+       "key": "μιλάτε αγγλικά;"
+      },
+      {
+       "key": "συγγνώμη",
+       "mode": "sight"
+      },
+      {
+       "key": "με συγχωρείτε",
+       "mode": "sight"
+      }
+     ],
+     "letters": [
+      "γγ"
+     ]
+    },
+    {
+     "id": "el-1-09",
+     "title": "Letters: ΝΤ ΜΠ ΤΣ Θ",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "ντομάτα"
+      },
+      {
+       "key": "τσάι"
+      },
+      {
+       "key": "πίτσα"
+      },
+      {
+       "key": "μια μπίρα"
+      },
+      {
+       "key": "θέλω"
+      }
+     ],
+     "letters": [
+      "ντ",
+      "μπ",
+      "τσ",
+      "θ"
+     ]
+    },
+    {
+     "id": "el-1-10",
+     "title": "Numbers 1–5",
+     "kind": "letters",
+     "items": [
+      {
+       "key": "ένα"
+      },
+      {
+       "key": "δύο"
+      },
+      {
+       "key": "τέσσερα"
+      },
+      {
+       "key": "πέντε"
+      },
+      {
+       "key": "δεν ξέρω"
+      }
+     ],
+     "letters": [
+      "δ"
+     ]
+    },
+    {
+     "id": "el-1-11",
+     "title": "Numbers 6–10 and the price",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "εφτά"
+      },
+      {
+       "key": "οχτώ"
+      },
+      {
+       "key": "εννιά"
+      },
+      {
+       "key": "δέκα"
+      },
+      {
+       "key": "ευρώ"
+      }
+     ]
+    },
+    {
+     "id": "el-1-12",
+     "title": "At the café",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "γάλα"
+      },
+      {
+       "key": "θα ήθελα"
+      },
+      {
+       "key": "έναν καφέ, παρακαλώ"
+      },
+      {
+       "key": "ένα νερό, παρακαλώ"
+      },
+      {
+       "key": "πόσο κάνει;"
+      },
+      {
+       "key": "τον λογαριασμό, παρακαλώ",
+       "mode": "sight"
+      }
+     ],
+     "letters": [
+      "γ"
+     ]
+    },
+    {
+     "id": "el-1-13",
+     "title": "Who are you?",
+     "kind": "phrases",
+     "items": [
+      {
+       "key": "με λένε"
+      },
+      {
+       "key": "πώς σας λένε;"
+      },
+      {
+       "key": "χαίρω πολύ"
+      },
+      {
+       "key": "είμαι από την Αμερική"
+      }
+     ]
+    },
+    {
+     "id": "el-1-14",
+     "title": "Checkpoint: the café",
+     "kind": "checkpoint",
+     "items": [],
+     "scene": "el-cafe"
+    }
+   ]
+  }
+ ]
+}

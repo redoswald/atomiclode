@@ -8,6 +8,8 @@ import type { Db } from "@/db";
 import { atoms, passages, producePrompts, scenarios, scenarioVisits, sentences, type ScenarioRow, type ScenarioVisitRow } from "@/db/schema";
 import type { AtomType, MemoryStatus } from "@/lib/atoms/types";
 import { isLang, normalizeFor, type Lang } from "@/lib/lang";
+import { completedLessons, courseFor, courseLive } from "@/lib/course";
+import { sceneOpen } from "@/lib/course/path";
 import type { Learner } from "@/lib/learners/provision";
 import { buildLexicon, frLexicon, type Lexicon } from "@/lib/reader/lexicon";
 import { createPassage } from "@/lib/reader/passages";
@@ -190,15 +192,17 @@ export interface ScenarioState {
   lastStartedAt?: string;
 }
 
-export async function scenarioStates(d: Db, me: Learner): Promise<ScenarioState[]> {
-  const [all, visits] = await Promise.all([
+export async function scenarioStates(d: Db, me: Learner, opts: { courseLive?: boolean } = {}): Promise<ScenarioState[]> {
+  const [rows, visits, open] = await Promise.all([
     d
       .select()
       .from(scenarios)
       .where(and(eq(scenarios.userId, me.userId), eq(scenarios.lang, me.lang)))
       .orderBy(asc(scenarios.createdAt)),
     d.select().from(scenarioVisits).where(eq(scenarioVisits.userId, me.userId)).orderBy(asc(scenarioVisits.n)),
+    openSceneFilter(d, me, opts.courseLive),
   ]);
+  const all = rows.filter((s) => open(s.slug));
   const bundleIds = Array.from(new Set(visits.flatMap((v) => v.bundle)));
   const statusRows = bundleIds.length
     ? await d
@@ -220,6 +224,17 @@ export async function scenarioStates(d: Db, me: Learner): Promise<ScenarioState[
     const lastStartedAt = mine.map((m) => m.visit.startedAt).filter((x): x is string => Boolean(x)).sort().pop();
     return { scenario, visits: mine, latest, state, lastStartedAt };
   });
+}
+
+/**
+ * With a live course, scenes follow the path (SPEC §17): a scene shows once its
+ * unit is open. Custom and goal scenes are the learner's own and always show.
+ */
+async function openSceneFilter(d: Db, me: Learner, live = courseLive(me.lang)): Promise<(slug: string) => boolean> {
+  const course = courseFor(me.lang);
+  if (!live || !course) return () => true;
+  const done = await completedLessons(d, me);
+  return (slug) => /^(custom|goal)-/.test(slug) || sceneOpen(course, done, slug);
 }
 
 export interface VisitSuggestion {

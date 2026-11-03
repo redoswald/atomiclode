@@ -80,5 +80,6 @@
 {"key":"ιδιωτικός χώρος","gloss":"private property","romanization":"idiotikós chóros","words":[],"grammar":["signs-capitals"]},
 {"key":"μην πατάτε","gloss":"keep off (don't step)","romanization":"min patáte","words":["μην"],"grammar":["signs-capitals"]},
 {"key":"σούπερ μάρκετ","gloss":"supermarket","romanization":"soúper márket","words":[],"grammar":["signs-capitals"]},
-{"key":"αρχαιολογικός χώρος","gloss":"archaeological site","romanization":"archeoloyikós chóros","words":[],"grammar":["signs-capitals"]}
+{"key":"αρχαιολογικός χώρος","gloss":"archaeological site","romanization":"archeoloyikós chóros","words":[],"grammar":["signs-capitals"]},
+{"key":"είμαι από την Αμερική","gloss":"I'm from America (the US)","words":["είμαι","από"],"grammar":[],"romanization":"íme apó tin Amerikí"}
 ]

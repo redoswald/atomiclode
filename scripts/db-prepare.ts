@@ -15,12 +15,16 @@ import { drizzle } from "drizzle-orm/neon-http";
 import { migrate as migrateNeon } from "drizzle-orm/neon-http/migrator";
 import { db, isPglite } from "@/db";
 import * as schema from "@/db/schema";
+import { courseProblems } from "@/lib/course/check";
 import { refreshLearners } from "@/lib/learners/provision";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
 
 async function main() {
+  // The course is seed data too: a lesson that can't be read or sounded out fails the build.
+  const problems = courseProblems();
+  if (problems.length) throw new Error("course-el.json is invalid:\n  " + problems.join("\n  "));
   const url = process.env.DATABASE_URL;
   if (!url) {
     console.log("db:prepare — DATABASE_URL not set, skipping migrations and seed.");
