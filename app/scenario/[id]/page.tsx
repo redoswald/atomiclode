@@ -11,6 +11,7 @@ import { openPassage } from "@/lib/reader/passages";
 import { scenarioStates, startVisit } from "@/lib/scenarios/visits";
 import { and, eq, inArray } from "drizzle-orm";
 import { learner } from "@/lib/learner";
+import { DialoguePlayer } from "./dialogue-player";
 import { Rehearsal } from "./rehearsal";
 
 export const dynamic = "force-dynamic";
@@ -81,7 +82,14 @@ export default async function ScenarioPage({ params, searchParams }: PageProps<"
       <p className="mt-2 text-base">{current.visit.brief}</p>
       {typeof error === "string" && <p className="mt-3 text-sm text-bad">{error}</p>}
 
-      {view ? <Reader view={view} canGloss={hasKey} /> : <p className="mt-6 text-sm text-muted">The dialogue for this visit is gone.</p>}
+      {view ? (
+        <>
+          <DialoguePlayer lang={lang} text={view.tokens.map((t) => t.pre + t.surface).join("")} />
+          <Reader view={view} canGloss={hasKey} />
+        </>
+      ) : (
+        <p className="mt-6 text-sm text-muted">The dialogue for this visit is gone.</p>
+      )}
 
       {current.visit.translation && (
         <details className="mt-6 text-sm">

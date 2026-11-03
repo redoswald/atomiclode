@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { alreadyKnow, mine, tapWord } from "@/app/actions/reader";
+import { SpeakButton } from "@/app/components/speech";
 import { WhyPanel } from "@/app/why-panel";
 import { normalizeFor } from "@/lib/lang";
 import type { PassageView, ViewToken } from "@/lib/reader/passages";
@@ -133,9 +134,12 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line" />
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="font-display text-3xl leading-none" lang={view.lang}>
-                  {sel.token.surface}
-                </p>
+                <div className="flex items-center gap-3">
+                  <p className="font-display text-3xl leading-none" lang={view.lang}>
+                    {sel.token.surface}
+                  </p>
+                  <SpeakButton lang={view.lang} text={sel.token.surface} label={`Say ${sel.token.surface}`} />
+                </div>
                 <p className="mt-1 text-sm text-muted">
                   {sel.romanization && <span className="mr-2 text-ink">{sel.romanization}</span>}
                   <span lang={view.lang}>{baseForm(sel.token, view.lang) ?? ""}</span>
@@ -155,9 +159,12 @@ export function Reader({ view, canGloss }: { view: PassageView; canGloss: boolea
             {sel.error && <p className="mt-1 text-xs text-muted">{sel.error}</p>}
 
             <div className="mt-3 border-t border-line pt-3">
-              <p className="text-sm" lang={view.lang}>
-                <SentenceWithMark sentence={sentence} surface={sel.token.surface} />
-              </p>
+              <div className="flex items-start gap-3">
+                <p className="min-w-0 flex-1 text-sm" lang={view.lang}>
+                  <SentenceWithMark sentence={sentence} surface={sel.token.surface} />
+                </p>
+                <SpeakButton lang={view.lang} text={sentence.replace(/^[—–-]\s*/, "")} label="Say the sentence" />
+              </div>
               {sel.translation && <p className="mt-1 text-sm italic text-muted">{sel.translation}</p>}
               {selState === "unknown" && selUnknowns >= 3 && (
                 <p className="mt-2 text-xs text-muted">This sentence has {selUnknowns} new words; the cloze card will be harder.</p>

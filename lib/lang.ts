@@ -34,6 +34,11 @@ export interface LangSpec {
   topicExample: string;
   /** Example custom scene. */
   scenePlaceholder: string;
+  /**
+   * Text-to-speech voices (Google Cloud, §15), picked by ear. `voices[0]` says words and
+   * phrases; dialogue lines alternate `voices[0]` and `voices[1]` (one female, one male).
+   */
+  speech: { languageCode: string; voices: [string, string]; alternates: string[] };
 }
 
 const VOWEL_START_FR = /^[aeiouyâàéèêëîïôöûüœh]/i;
@@ -52,6 +57,7 @@ export const LANG_SPECS: Record<Lang, LangSpec> = {
     pastePlaceholder: "Collez un texte en français…",
     topicExample: "un marché à Lyon, mon trajet en train…",
     scenePlaceholder: "Meeting her grandmother on Sunday. She speaks no English and loves her garden.",
+    speech: { languageCode: "fr-FR", voices: ["fr-FR-Chirp3-HD-Aoede", "fr-FR-Chirp3-HD-Orus"], alternates: ["fr-FR-Chirp3-HD-Leda", "fr-FR-Chirp3-HD-Puck"] },
   },
   el: {
     code: "el",
@@ -66,6 +72,7 @@ export const LANG_SPECS: Record<Lang, LangSpec> = {
     pastePlaceholder: "Επικολλήστε ένα ελληνικό κείμενο… (a menu, a sign, a ferry notice)",
     topicExample: "a taverna in Naxos, the ferry to Paros…",
     scenePlaceholder: "Renting a scooter in Paros. The owner wants a deposit and my passport.",
+    speech: { languageCode: "el-GR", voices: ["el-GR-Chirp3-HD-Leda", "el-GR-Chirp3-HD-Charon"], alternates: ["el-GR-Chirp3-HD-Orus"] },
   },
 };
 

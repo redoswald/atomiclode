@@ -86,6 +86,12 @@ A learner's starter content (the seed atoms and visit 1 of each seed scene) is c
 
 Data from before accounts existed belongs to a placeholder learner (the nil uuid, also the local user when auth is off). Set `LEGACY_OWNER_EMAIL` to your email and your first sign-in claims all of it, in one statement. It only works for an account with no Dolomite data yet, so set it before you first sign in.
 
+### Sound
+
+Every word, phrase, letter and dialogue line can be played (SPEC §15). Clips come from Google Cloud Text-to-Speech, are voiced the first time something is played, stored in Vercel Blob, and shared by every learner (`speech_clips`, `lib/speech/`). `GET /api/speech?lang&text[&voice=1][&rate=slow]` redirects to the clip. The voices are picked by ear and live in `LANG_SPECS` (`lib/lang.ts`): one for words, two taking turns in a dialogue. Letters say their name and an example word (`LETTER_SAY` in `lib/speech/say.ts`).
+
+Cards speak on reveal (never before, or a recall card would say its answer); the review screen voices the current and next card ahead of time so that is instant. "Sound on/off" in the review header is remembered per device. A second tap on a play button within two seconds plays it slowly. Without `GOOGLE_TTS_API_KEY` the app falls back to the browser's own voice where one exists for the language.
+
 ### Regenerating the frequency list
 
 `db/seed/frequency-fr.json` is derived from Lexique 3.83 (CC BY-SA 4.0, New, Pallier, Brysbaert & Ferrand) by `db/seed/build-frequency.py`. Run it in a conda env, with pip inside that env for the PyPI-only package:
