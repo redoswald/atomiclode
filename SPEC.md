@@ -552,7 +552,7 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 
 **v3** (accounts and per-learner data landed first: suite sign-in, `ALLOWED_EMAILS`, `user_id` on every learner table)
 
-9. **Sound:** `lib/speech` with the Azure provider and the browser fallback, `speech_clips` + Blob storage, `/api/speech`, play buttons on cards, the reader and dialogue lines, slow replay, the auto-play setting, `speech:warm`, letter `say` texts.
+9. **Sound:** `lib/speech` with the Google provider and the browser fallback, `speech_clips` + Blob storage, `/api/speech`, play buttons on cards, the reader and dialogue lines, slow replay, the auto-play setting, `speech:warm`, letter `say` texts.
 10. **Listen cards:** the modality in `chooseModality` and the review screen.
 11. **Greek script:** script units and the four new letter atoms, the unlock rule and `scriptOrder` in place of the alphabet primer, decode cards, lookalike hints.
 
@@ -569,7 +569,7 @@ Later: speak-your-answer (speech-to-text into the existing answer checks; no pro
 - The lookup lemmatizer reads *j'ai marché* as the noun *marché* and *fatiguée* as *fatiguer*. Seed bundles are written around it; generated ones lose the odd word to it. Does it matter enough to make the spaCy service the default?
 - More than one active goal, and what happens to the ordering when there are two.
 - Greek as the second language: no spaCy model of equal quality; likely model-based lemmatization.
-- Which voice provider sounds best in Greek (Azure, Google, OpenAI). Decide by ear before milestone 9 builds on one.
+- Which Google voices sound best in Greek and French. Decide by ear before milestone 9 fixes them in `LANG_SPECS`.
 - Decode before meaning, or both on one card? The spec alternates them; a combined card ("say it, then what it means") may be faster once the alphabet is in.
 - Whether the one-unknown-letter rule is too strict for long words late in the alphabet, when most letters are known anyway.
 
@@ -583,9 +583,11 @@ The app has been silent. Hearing a word is half of learning it, and for Greek it
 
 Neural text-to-speech from a hosted provider, generated the first time a clip is asked for, stored, and shared by every learner (like the "why?" cache: no `user_id`). Browser `speechSynthesis` is the fallback when no provider is configured: free, but its Greek voice ranges from good (iOS) to missing (some desktop Chrome builds), so with the fallback, play buttons work where a voice exists and listen cards are never scheduled.
 
-**Provider: Azure AI Speech**, behind `lib/speech/tts.ts` so it can be swapped. Chosen because it has natural neural voices for both tracks (Greek: Athina, Nestoras; French: Denise, Henri), SSML for slowing a clip down, and the same account covers speech-to-text when speaking lands. Cost is negligible: the whole Greek seed is roughly 10–15k characters, the French seed roughly 40k, against a free tier of 500k characters a month. Before building on it, listen to Greek samples from Azure, Google and OpenAI side by side; the provider is one file.
+**Provider: Google Cloud Text-to-Speech**, behind `lib/speech/tts.ts` so it can be swapped. Native neural voices for both tracks, chosen by ear from what `voices.list` offers for `el-GR` and `fr-FR` (prefer the newest family, Chirp 3 HD where offered, then Neural2 / WaveNet), a `speakingRate` for slow clips, and a free monthly allowance far above our use: the whole Greek seed is roughly 10–15k characters, the French seed roughly 40k. Called over REST with an API key restricted to the Text-to-Speech API.
 
-Env: `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`. Voices live in `LANG_SPECS` (`lib/lang.ts`): a primary and a second voice per language.
+Not OpenAI: its speech endpoint and all three of its TTS models shut down on 6 January 2027, the named replacement is a realtime conversational model that doesn't serve that endpoint, and its voices are tuned for English. OpenAI stays the candidate for speech-to-text when speak-your-answer lands; that side isn't affected.
+
+Env: `GOOGLE_TTS_API_KEY`. Voices live in `LANG_SPECS` (`lib/lang.ts`): a primary and a second voice per language.
 
 ### Clips
 
@@ -594,7 +596,7 @@ interface SpeechClip {
   key: string;        // sha256(lang | voice | rate | text): the primary key
   lang: Lang;
   voice: string;
-  rate: "normal" | "slow";   // slow = SSML prosody rate -30%
+  rate: "normal" | "slow";   // slow = speakingRate 0.7
   text: string;
   url: string;        // Vercel Blob, speech/<key>.mp3
   bytes: number;
