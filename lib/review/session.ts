@@ -9,12 +9,14 @@ import { hasAnthropicKey } from "@/lib/llm/client";
 import { hasTts } from "@/lib/speech/tts";
 import { applyExposure } from "@/lib/scheduler/exposure";
 import { normalizeFor } from "@/lib/lang";
-import { planSession, type Intensity, type SessionPlan, type SessionReason } from "@/lib/scheduler";
+import { MODALITY_SECONDS, planSession, type Intensity, type SessionPlan, type SessionReason } from "@/lib/scheduler";
 import { newAtomOrder } from "./newOrder";
 import { promptsFor, writePrompts, type WritePromptFn } from "./produce";
 
 export const BUDGETS: Record<Intensity, number> = { light: 5, steady: 12, push: 20 };
 export const DEFAULT_NEW_PER_DAY = 10;
+/** Long reviews come in rounds of about five minutes (SPEC §17 Pacing). */
+export const ROUND_MIN = 5;
 /** Produce cards per session. They cost a model call each, and forty seconds of the learner. */
 export const PRODUCE_MAX: Record<Intensity, number> = { light: 0, steady: 3, push: 5 };
 
@@ -48,6 +50,8 @@ export interface BuiltSession {
   cards: SessionCard[];
   intensity: Intensity;
   timeBudgetMin: number;
+  /** Due cards that didn't fit this round, and roughly how long they'd take. */
+  left: { cards: number; minutes: number };
 }
 
 export function parseIntensity(v: unknown): Intensity {
@@ -61,6 +65,8 @@ export interface BuildOptions {
   newAtomsPerDay?: number;
   /** Override whether the track's course is live (tests; see lib/course). */
   courseLive?: boolean;
+  /** A five-minute round of a longer review: triage still measured against the intensity's budget. */
+  round?: boolean;
   /** Produce needs a model to grade it; defaults to whether an API key is set. */
   produce?: boolean;
   /** Listen cards need consistent audio; defaults to whether a speech provider is set (SPEC §15). */
@@ -71,7 +77,7 @@ export interface BuildOptions {
 export async function buildSession(d: Db, me: Learner, intensity: Intensity, now = new Date(), opts: BuildOptions = {}): Promise<BuiltSession> {
   const { userId, lang } = me;
   const produce = opts.produce ?? hasAnthropicKey();
-  const timeBudgetMin = opts.timeBudgetMin ?? BUDGETS[intensity];
+  const timeBudgetMin = opts.timeBudgetMin ?? (opts.round ? ROUND_MIN : BUDGETS[intensity]);
   const [order, rows, sentenceRows, introduced, recentEncounters] = await Promise.all([
     newAtomOrder(d, me, produce, { courseLive: opts.courseLive }),
     d.select().from(atoms).where(and(eq(atoms.userId, userId), eq(atoms.lang, lang), sql`${atoms.status} <> 'suspended'`)),
@@ -119,6 +125,7 @@ export async function buildSession(d: Db, me: Learner, intensity: Intensity, now
     newOrder: order.newOrder,
     noFrequencyFallback: order.noFrequencyFallback,
     blockedNew: order.blocked,
+    triageScale: opts.round ? BUDGETS[intensity] / ROUND_MIN : 1,
   });
 
   // Triage: persist the bulk deferrals so the next plan sees them.
@@ -169,7 +176,7 @@ export async function buildSession(d: Db, me: Learner, intensity: Intensity, now
     };
   });
 
-  return { plan, cards, intensity, timeBudgetMin };
+  return { plan, cards, intensity, timeBudgetMin, left: { cards: plan.dueLeft, minutes: Math.round((plan.dueLeft * MODALITY_SECONDS.recall) / 60) } };
 }
 
 /** Atoms whose first-ever review happened since the start of today (UTC). */

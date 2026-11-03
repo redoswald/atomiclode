@@ -4,7 +4,8 @@ import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
 import { scenarios } from "@/db/schema";
 import { completedLessons, courseFor, courseLive } from "@/lib/course";
-import { pathStates, unitProgress, type LessonState } from "@/lib/course/path";
+import { fadedLessons } from "@/lib/course/fading";
+import { levelProgress, pathStates, unitProgress, type LessonState } from "@/lib/course/path";
 import { langName } from "@/lib/lang";
 import { learner } from "@/lib/learner";
 
@@ -33,6 +34,7 @@ export default async function LearnPage() {
   const d = db();
   const done = await completedLessons(d, me);
   const path = pathStates(course, done);
+  const faded = await fadedLessons(d, me);
   const slugs = course.units.flatMap((u) => u.scenes);
   const sceneRows = slugs.length
     ? await d
@@ -55,7 +57,7 @@ export default async function LearnPage() {
                   Unit {ui + 1} · {unit.title}
                 </h2>
                 <span className="text-xs text-muted">
-                  {unit.cefr} · {progress.done} of {progress.total}
+                  {unit.cefr} · {progress.done} of {progress.total} · {unit.cefr.split(".")[0]} {Math.round(levelProgress(course, done, unit.cefr.split(".")[0]) * 100)}%
                 </span>
               </div>
               <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-line" aria-hidden>
@@ -69,10 +71,12 @@ export default async function LearnPage() {
               <ol className="mt-4 flex flex-col gap-2">
                 {steps.map(({ lesson, state, n }) => {
                   const scene = lesson.scene ? sceneBySlug.get(lesson.scene) : undefined;
-                  const href = lesson.kind === "checkpoint" ? (scene ? `/scenario/${scene.id}` : undefined) : `/learn/${lesson.id}`;
+                  const fade = state === "done" && faded.has(lesson.id);
+                  const href =
+                    lesson.kind === "checkpoint" ? (scene ? `/scenario/${scene.id}` : undefined) : `/learn/${lesson.id}${fade ? "?refresh=1" : ""}`;
                   return (
                     <li key={lesson.id}>
-                      <Step n={n} title={lesson.title} kind={lesson.kind} state={state} href={state === "locked" ? undefined : href} preview={lesson.items.slice(0, 4).map((i) => i.key)} letters={lesson.letters} lang={me.lang} />
+                      <Step n={n} title={lesson.title} kind={lesson.kind} state={state} faded={fade} href={state === "locked" ? undefined : href} preview={lesson.items.slice(0, 4).map((i) => i.key)} letters={lesson.letters} lang={me.lang} />
                     </li>
                   );
                 })}
@@ -90,6 +94,7 @@ function Step({
   title,
   kind,
   state,
+  faded,
   href,
   preview,
   letters,
@@ -99,6 +104,7 @@ function Step({
   title: string;
   kind: string;
   state: LessonState;
+  faded: boolean;
   href?: string;
   preview: string[];
   letters?: string[];
@@ -108,7 +114,9 @@ function Step({
     state === "current"
       ? "border-sage bg-tint-sage"
       : state === "done"
-        ? "border-line bg-card"
+        ? faded
+          ? "border-dashed border-line bg-card opacity-75"
+          : "border-line bg-card"
         : "border-line bg-card opacity-55";
   const body = (
     <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${box}`}>
@@ -116,7 +124,7 @@ function Step({
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm tabular-nums ${state === "done" ? "bg-sage text-sage-ink" : "border border-line"}`}
         aria-hidden
       >
-        {state === "done" ? "✓" : n}
+        {state === "done" ? (faded ? "↻" : "✓") : n}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{title}</p>
@@ -125,7 +133,7 @@ function Step({
         </p>
       </div>
       <span className="shrink-0 text-sm">
-        {state === "current" ? <span className="btn-primary px-3 py-1.5 text-xs">{kind === "checkpoint" ? "Go" : "Start"}</span> : state === "done" ? <span className="text-xs text-muted">Replay</span> : <span className="text-xs text-muted">Locked</span>}
+        {state === "current" ? <span className="btn-primary px-3 py-1.5 text-xs">{kind === "checkpoint" ? "Go" : "Start"}</span> : state === "done" ? (faded ? <span className="btn-secondary px-3 py-1.5 text-xs">Refresh</span> : <span className="text-xs text-muted">Replay</span>) : <span className="text-xs text-muted">Locked</span>}
       </span>
     </div>
   );

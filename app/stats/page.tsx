@@ -5,7 +5,10 @@ import { vocabStats } from "@/lib/atoms/vocab-stats";
 import { activeGoal, goalCoverageSeries, goalView } from "@/lib/goals/goals";
 import { LANG_SPECS, langName } from "@/lib/lang";
 import { learner } from "@/lib/learner";
-import { CoverageChart } from "./chart";
+import { CoverageChart, XpChart } from "./chart";
+import { setDailyGoal } from "@/app/actions/progress";
+import { completedLessons, courseLive } from "@/lib/course";
+import { DAILY_GOALS, dailyXp, progressFor, weeklyXp } from "@/lib/progress/xp";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +28,39 @@ export default async function StatsPage() {
   const goalNow = goal ? await goalView(db(), me.userId, goal.id) : undefined;
   const goalSeries = goal ? await goalCoverageSeries(db(), me.userId, goal.id) : [];
   const pct = (x: number) => `${Math.round(x * 100)}%`;
+  const progress = await progressFor(db(), me.userId);
+  const weeks = weeklyXp(await dailyXp(db(), me.userId, progress.settings.timeZone, 70), progress.today);
+  const lessonsDone = courseLive(lang) ? (await completedLessons(db(), me)).size : undefined;
+  const goalXp = progress.settings.dailyGoal;
 
   return (
     <Shell title="Stats" eyebrow="Progress you can read.">
+      <section className="card mb-4 p-5">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">Habit</h2>
+          <span className="text-sm text-muted">{progress.totalXp} XP in all</span>
+        </div>
+        <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
+          <Stat label="Streak" value={progress.streak.days} hint={progress.streak.restDays.length ? `${progress.streak.restDays.length} rest day${progress.streak.restDays.length > 1 ? "s" : ""}` : "days at goal"} />
+          <Stat label="Today" value={progress.todayXp} hint={`of ${goalXp} XP`} />
+          {lessonsDone !== undefined ? <Stat label="Lessons" value={lessonsDone} hint="finished" /> : <Stat label="This week" value={weeks.at(-1)?.xp ?? 0} hint="XP" />}
+        </dl>
+        <XpChart weeks={weeks} goal={goalXp} />
+        <form action={setDailyGoal} className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted">Daily goal</span>
+          {DAILY_GOALS.map((g) => (
+            <button
+              key={g.xp}
+              name="goal"
+              value={g.xp}
+              className={`rounded-full px-3 py-1 text-xs ${g.xp === goalXp ? "bg-sage text-sage-ink" : "border border-line text-muted"}`}
+            >
+              {g.label} · {g.xp} XP (~{g.minutes} min)
+            </button>
+          ))}
+        </form>
+        <p className="mt-2 text-xs text-muted">About 2 XP a minute of focused work. One missed day a week is forgiven as a rest day.</p>
+      </section>
       <section className="card p-5">
         <div className="flex items-baseline justify-between">
           <h2 className="font-display text-2xl">Vocabulary</h2>

@@ -34,6 +34,12 @@ export interface SessionRequest {
    * letters aren't in, and letters not yet due (SPEC §16).
    */
   blockedNew?: string[];
+  /**
+   * Triage measures the due pile against this many sessions' worth of the budget.
+   * A five-minute review round passes its intensity's full budget over the round's
+   * (12 / 5 for steady), so rounds don't defer a pile a learner would work through.
+   */
+  triageScale?: number;
 }
 
 export type SessionReason = "due" | "overdue" | "new" | "weak-modality" | "relearn";
@@ -55,6 +61,8 @@ export interface SessionPlan {
   estimatedMin: number;
   skipped: number; // due atoms that didn't fit
   deferred: number; // bulk-deferred in triage mode
+  /** Due atoms that didn't fit and weren't deferred: what another round would hold. */
+  dueLeft: number;
   /** New due dates for bulk-deferred atoms; the caller persists these. (Not in SPEC §4.) */
   deferrals: Deferral[];
 }
@@ -148,7 +156,7 @@ export function planSession(atoms: Atom[], sentences: Sentence[], req: SessionRe
   // Comeback after time away: keep the top slice, push the rest out in proportion
   // to their stability, and report the deferral instead of a scary due count.
   const deferrals: Deferral[] = [];
-  if (dueFit > 0 && due.length > TRIAGE_RATIO * dueFit) {
+  if (dueFit > 0 && due.length > TRIAGE_RATIO * dueFit * (req.triageScale ?? 1)) {
     for (const atom of notFit) {
       const days = Math.min(14, Math.max(1, Math.round(atom.memory.stability / 4)));
       deferrals.push({ atomId: atom.id, due: new Date(now + days * DAY_MS).toISOString() });
@@ -161,6 +169,7 @@ export function planSession(atoms: Atom[], sentences: Sentence[], req: SessionRe
     estimatedMin: Math.round((seconds / 60) * 10) / 10,
     skipped,
     deferred: deferrals.length,
+    dueLeft: deferrals.length ? 0 : notFit.length,
     deferrals,
   };
 }

@@ -22,7 +22,9 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
     );
   }
 
-  const session = await buildSession(db(), await learner(), intensity);
+  // Reviews come in rounds of about five minutes (SPEC §17 Pacing).
+  const round = Math.max(1, Math.min(99, Number(params.round) || 1));
+  const session = await buildSession(db(), await learner(), intensity, new Date(), { round: true });
   if (session.cards.length === 0) {
     return (
       <Shell title="Review" eyebrow="Real usage. Lasting fluency.">
@@ -50,7 +52,11 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
 
   return (
     <Shell title="Review" eyebrow="Real usage. Lasting fluency.">
-      <ReviewSession key={`${intensity}-${session.cards.map((c) => c.atomId).join(",")}`} session={session} canWhy={hasAnthropicKey()} />
+      <p className="mb-3 text-xs text-muted">
+        Round {round}
+        {session.left.cards > 0 ? ` of about ${round + Math.ceil(session.left.minutes / 5)}` : ""} · about 5 min
+      </p>
+      <ReviewSession key={`${intensity}-${round}-${session.cards.map((c) => c.atomId).join(",")}`} session={session} canWhy={hasAnthropicKey()} round={round} />
     </Shell>
   );
 }
