@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { checkProduceAnswer, submitProduce, submitReview } from "@/app/actions/review";
 import { AutoplayToggle, playSpeech, prefetchSpeech, SpeakButton, stopSpeech, useSpeechSettings } from "@/app/components/speech";
 import { WhyPanel } from "@/app/why-panel";
@@ -227,6 +227,8 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
       ? "What do you say?"
       : card.modality === "decode"
       ? "How does it sound?"
+      : card.modality === "listen"
+      ? "What do you hear?"
       : card.modality === "recall"
       ? `Translate to ${langName(card.lang)}`
       : card.modality === "cloze"
@@ -245,6 +247,8 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
           <ProducePrompt card={card} phase={phase} typed={typed} setTyped={setTyped} check={check} onSubmit={reveal} />
         ) : card.modality === "recall" ? (
           <RecallPrompt card={card} phase={phase} typed={typed} setTyped={setTyped} correct={correct} inputRef={inputRef} onSubmit={reveal} />
+        ) : card.modality === "listen" ? (
+          <ListenPrompt card={card} phase={phase} />
         ) : card.modality === "decode" ? (
           <DecodePrompt card={card} phase={phase} typed={typed} setTyped={setTyped} correct={correct} inputRef={inputRef} onSubmit={reveal} />
         ) : card.modality === "cloze" && card.cloze ? (
@@ -433,6 +437,64 @@ function RecallPrompt(props: TypedProps) {
             </p>
           </Spoken>
           <Romanized card={card} />
+          <OtherForms card={card} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Listen (SPEC §15): sound only until reveal. It plays when the card appears,
+ * whatever the auto-play setting, since sound is the whole card.
+ */
+function ListenPrompt({ card, phase }: { card: SessionCard; phase: Phase }) {
+  const { cloud } = useSpeechSettings();
+  const text = cardSpeech(card);
+  // It starts playing as the card appears, so it starts in the playing state.
+  const [playing, setPlaying] = useState<"normal" | "slow" | null>(text ? "normal" : null);
+
+  const start = useCallback(
+    (rate: "normal" | "slow") => {
+      if (text) playSpeech(cloud, card.lang, text, { rate, onEnd: () => setPlaying(null) });
+    },
+    [cloud, card.lang, text],
+  );
+  const play = (rate: "normal" | "slow") => {
+    if (!text) return;
+    setPlaying(rate);
+    start(rate);
+  };
+
+  useEffect(() => {
+    start("normal");
+  }, [start]);
+
+  return (
+    <div>
+      <div className="mt-6 flex items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={() => play("normal")}
+          aria-label="Play again"
+          className={`flex h-20 w-20 items-center justify-center rounded-full border-2 ${playing === "normal" ? "border-sage bg-tint-sage" : "border-line bg-card"}`}
+        >
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+            <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+          </svg>
+        </button>
+        <button type="button" onClick={() => play("slow")} className={`rounded-full border px-3 py-1.5 text-sm ${playing === "slow" ? "border-sage bg-tint-sage" : "border-line text-muted"}`}>
+          Slow
+        </button>
+      </div>
+      {phase === "revealed" && (
+        <div className="mt-6 border-t border-line pt-5">
+          <p className="font-display text-3xl" lang={card.lang}>
+            {displayKey(card)}
+          </p>
+          <Romanized card={card} />
+          <p className="mt-3 text-2xl">{card.gloss}</p>
           <OtherForms card={card} />
         </div>
       )}

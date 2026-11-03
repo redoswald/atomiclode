@@ -323,3 +323,42 @@ describe("planSession", () => {
     expect(produceIdx[produceIdx.length - 1]).toBeLessThan(out.length - 1);
   });
 });
+
+describe("listen cards (SPEC §15)", () => {
+  const known = (over: Partial<Atom> = {}) =>
+    atom({
+      memory: { ...newMemoryState(T0), status: "review", stability: 10, reps: 6, lastReview: at(-1) },
+      modality: { ...emptyModalityStats(), recognize: { attempts: 6, correct: 6 }, recall: { attempts: 6, correct: 5 } },
+      ...over,
+    });
+
+  it("are only chosen when audio is allowed, never on light", () => {
+    const a = known();
+    expect(chooseModality(a, false, "steady", false, true)).toBe("listen");
+    expect(chooseModality(a, false, "steady", false, false)).not.toBe("listen");
+    expect(chooseModality(a, false, "light", false, true)).toBe("recognize");
+  });
+
+  it("wait for a word that has held, and skip letters, signs and grammar", () => {
+    expect(chooseModality(known({ memory: { ...newMemoryState(T0), status: "review", stability: 1, reps: 2 } }), false, "steady", false, true)).not.toBe("listen");
+    expect(chooseModality(known({ pos: "LETTER", key: "letter:α" }), false, "steady", false, true)).not.toBe("listen");
+    expect(chooseModality(known({ domains: ["signs"] }), false, "steady", false, true)).not.toBe("listen");
+    expect(chooseModality(known({ type: "grammar" }), false, "steady", false, true)).toBe("recognize");
+  });
+
+  it("keep to half the recognize count on steady, catch up to it on push", () => {
+    const half = known({ modality: { ...emptyModalityStats(), recognize: { attempts: 6, correct: 6 }, recall: { attempts: 6, correct: 5 }, listen: { attempts: 3, correct: 3 } } });
+    expect(chooseModality(half, false, "steady", false, true)).not.toBe("listen");
+    expect(chooseModality(half, false, "push", false, true)).toBe("listen");
+  });
+
+  it("come before cloze on push, after produce", () => {
+    const a = known();
+    expect(chooseModality(a, true, "push", false, true)).toBe("listen");
+    expect(chooseModality(known({ memory: { ...newMemoryState(T0), status: "review", stability: 10, reps: 6 } }), true, "push", true, true)).toBe("produce");
+  });
+
+  it("are allowed for receptive-only words", () => {
+    expect(chooseModality(known({ receptiveOnly: true }), false, "steady", false, true)).toBe("listen");
+  });
+});
