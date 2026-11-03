@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { requireUser } from "@/lib/auth";
-import { currentLang } from "@/lib/lang-server";
+import { learner } from "@/lib/learner";
 import { goalLemmasForScenarios } from "@/lib/goals/goals";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { checkProduce, type ProduceCheck } from "@/lib/review/produce";
@@ -14,13 +13,13 @@ const NO_KEY = "Set ANTHROPIC_API_KEY in Vercel to write new visits.";
 
 /** Form action: write the next visit of a scenario and open it. */
 export async function nextVisit(formData: FormData): Promise<void> {
-  await requireUser();
+  const me = await learner();
   const scenarioId = String(formData.get("scenarioId") ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(scenarioId)) redirect("/scenario");
   let n: number;
   try {
     const d = db();
-    ({ n } = await generateNextVisit(d, scenarioId, { goalLemmas: await goalLemmasForScenarios(d, 40, await currentLang()) }));
+    ({ n } = await generateNextVisit(d, me.userId, scenarioId, { goalLemmas: await goalLemmasForScenarios(d, me, 40) }));
   } catch (err) {
     const message = !hasAnthropicKey() ? NO_KEY : err instanceof Error ? err.message : String(err);
     redirect(`/scenario/${scenarioId}?error=${encodeURIComponent(message)}`);
@@ -31,13 +30,12 @@ export async function nextVisit(formData: FormData): Promise<void> {
 
 /** Form action: a scenario from the learner's own words. */
 export async function createScenario(formData: FormData): Promise<void> {
-  await requireUser();
+  const me = await learner();
   const situation = String(formData.get("situation") ?? "");
   let scenarioId: string;
   try {
     const d = db();
-    const lang = await currentLang();
-    ({ scenarioId } = await createCustomScenario(d, situation, { lang, goalLemmas: await goalLemmasForScenarios(d, 40, lang) }));
+    ({ scenarioId } = await createCustomScenario(d, me, situation, { goalLemmas: await goalLemmasForScenarios(d, me, 40) }));
   } catch (err) {
     const message = !hasAnthropicKey() ? NO_KEY : err instanceof Error ? err.message : String(err);
     redirect(`/scenario?error=${encodeURIComponent(message)}`);
@@ -48,10 +46,10 @@ export async function createScenario(formData: FormData): Promise<void> {
 
 /** "Your turn" on a visit: checked like a produce card, but a rehearsal. Nothing is logged (SPEC §10). */
 export async function rehearse(input: { promptId: string; answer: string }): Promise<ProduceCheck | { error: string }> {
-  await requireUser();
+  const me = await learner();
   if (!hasAnthropicKey()) return { error: "Set ANTHROPIC_API_KEY to have answers checked. Compare with the example instead." };
   try {
-    return await checkProduce(db(), input.promptId, input.answer);
+    return await checkProduce(db(), me.userId, input.promptId, input.answer);
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
   }

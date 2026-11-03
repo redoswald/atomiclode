@@ -9,7 +9,8 @@ import { isLang, LANG_SPECS } from "@/lib/lang";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { openPassage } from "@/lib/reader/passages";
 import { scenarioStates, startVisit } from "@/lib/scenarios/visits";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import { learner } from "@/lib/learner";
 import { Rehearsal } from "./rehearsal";
 
 export const dynamic = "force-dynamic";
@@ -20,10 +21,14 @@ export default async function ScenarioPage({ params, searchParams }: PageProps<"
   const { visit: visitParam, error } = await searchParams;
   if (!hasDatabase() || !/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const d = db();
-  const [row] = await d.select({ lang: scenarios.lang }).from(scenarios).where(eq(scenarios.id, id));
+  const me = await learner();
+  const [row] = await d
+    .select({ lang: scenarios.lang })
+    .from(scenarios)
+    .where(and(eq(scenarios.id, id), eq(scenarios.userId, me.userId)));
   if (!row) notFound();
   const lang = isLang(row.lang) ? row.lang : "fr";
-  const state = (await scenarioStates(d, lang)).find((s) => s.scenario.id === id);
+  const state = (await scenarioStates(d, { userId: me.userId, lang })).find((s) => s.scenario.id === id);
   if (!state) notFound();
   const hasKey = hasAnthropicKey();
   const { scenario, visits } = state;
@@ -44,11 +49,20 @@ export default async function ScenarioPage({ params, searchParams }: PageProps<"
   }
 
   // Opening a visit is what starts it: the bundle joins the queue.
-  await startVisit(d, current.visit.id);
+  await startVisit(d, me.userId, current.visit.id);
   const [view, bundle, prompts] = await Promise.all([
-    current.visit.passageId ? openPassage(d, current.visit.passageId) : undefined,
-    current.visit.bundle.length ? d.select({ id: atoms.id, type: atoms.type, key: atoms.key, gloss: atoms.gloss, status: atoms.status }).from(atoms).where(inArray(atoms.id, current.visit.bundle)) : [],
-    d.select().from(producePrompts).where(eq(producePrompts.visitId, current.visit.id)).orderBy(producePrompts.createdAt),
+    current.visit.passageId ? openPassage(d, me.userId, current.visit.passageId) : undefined,
+    current.visit.bundle.length
+      ? d
+          .select({ id: atoms.id, type: atoms.type, key: atoms.key, gloss: atoms.gloss, status: atoms.status })
+          .from(atoms)
+          .where(and(eq(atoms.userId, me.userId), inArray(atoms.id, current.visit.bundle)))
+      : [],
+    d
+      .select()
+      .from(producePrompts)
+      .where(and(eq(producePrompts.userId, me.userId), eq(producePrompts.visitId, current.visit.id)))
+      .orderBy(producePrompts.createdAt),
   ]);
   const ordered = current.visit.bundle.flatMap((bid) => bundle.filter((b) => b.id === bid));
   const isLatest = current.visit.n === state.latest?.visit.n;

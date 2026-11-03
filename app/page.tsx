@@ -3,9 +3,9 @@ import { db, hasDatabase } from "@/db";
 import { homeCounts, type HomeCounts } from "@/lib/atoms/stats";
 import { signOut } from "@/app/actions/auth";
 import { authEnabled, getUser } from "@/lib/auth";
+import { learner } from "@/lib/learner";
 import { activeGoal, goalCoverageWeekAgo, goalView, type GoalView } from "@/lib/goals/goals";
 import { langName } from "@/lib/lang";
-import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { listPassages } from "@/lib/reader/passages";
 import { BUDGETS, DEFAULT_NEW_PER_DAY } from "@/lib/review/session";
@@ -36,17 +36,19 @@ export default async function Home() {
   let scenes: ScenarioState[];
   let goal: GoalView | undefined;
   let goalWeekAgo: number | undefined;
-  const lang = await currentLang();
+  // Outside the try: a redirect to /login must not be caught as a database error.
+  const me = await learner();
+  const { lang } = me;
   const user = await getUser();
   try {
-    const active = await activeGoal(db(), lang);
+    const active = await activeGoal(db(), me);
     [counts, [latest], scenes, goal] = await Promise.all([
-      homeCounts(new Date(), db(), lang),
-      listPassages(db(), lang),
-      scenarioStates(db(), lang),
-      active ? goalView(db(), active.id) : undefined,
+      homeCounts(db(), me),
+      listPassages(db(), me),
+      scenarioStates(db(), me),
+      active ? goalView(db(), me.userId, active.id) : undefined,
     ]);
-    if (active) goalWeekAgo = await goalCoverageWeekAgo(db(), active.id);
+    if (active) goalWeekAgo = await goalCoverageWeekAgo(db(), me.userId, active.id);
   } catch (err) {
     return (
       <Shell>

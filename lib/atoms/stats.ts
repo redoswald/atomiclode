@@ -1,7 +1,7 @@
 import { and, count, eq, lte, min, sql } from "drizzle-orm";
-import { db, type Db } from "@/db";
+import type { Db } from "@/db";
 import { atoms, reviewEvents } from "@/db/schema";
-import type { Lang } from "@/lib/lang";
+import type { Learner } from "@/lib/learners/provision";
 import type { AtomType, MemoryStatus } from "./types";
 
 export interface HomeCounts {
@@ -19,8 +19,8 @@ export interface HomeCounts {
   unglossed: number;
 }
 
-export async function homeCounts(now = new Date(), d: Db = db(), lang: Lang = "fr"): Promise<HomeCounts> {
-  const inLang = eq(atoms.lang, lang);
+export async function homeCounts(d: Db, me: Learner, now = new Date()): Promise<HomeCounts> {
+  const inLang = and(eq(atoms.userId, me.userId), eq(atoms.lang, me.lang));
   const nowIso = now.toISOString();
 
   const [statusRows, typeRows, dueRows, newRows, reviewRows, unglossedRows] = await Promise.all([

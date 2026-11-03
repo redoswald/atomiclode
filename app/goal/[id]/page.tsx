@@ -8,7 +8,8 @@ import { currentPhase } from "@/lib/atoms/phase";
 import { goalLang, goalView, rungGate, type GoalSection, type Rung } from "@/lib/goals/goals";
 import { LEVELS, type Level } from "@/lib/llm/adapt";
 import { hasAnthropicKey } from "@/lib/llm/client";
-import { inArray } from "drizzle-orm";
+import { learner } from "@/lib/learner";
+import { and, eq, inArray } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -20,13 +21,14 @@ export default async function GoalPage({ params, searchParams }: PageProps<"/goa
   const { error } = await searchParams;
   if (!hasDatabase() || !/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const d = db();
-  const view = await goalView(d, id);
+  const me = await learner();
+  const view = await goalView(d, me.userId, id);
   if (!view) notFound();
   const { goal } = view;
-  const { phase } = await currentPhase(d, goalLang(goal));
+  const { phase } = await currentPhase(d, { userId: me.userId, lang: goalLang(goal) });
   const hasKey = hasAnthropicKey();
   const grammar = goal.grammarAtomIds.length
-    ? await d.select({ id: atoms.id, gloss: atoms.gloss, status: atoms.status, receptiveOnly: atoms.receptiveOnly }).from(atoms).where(inArray(atoms.id, goal.grammarAtomIds))
+    ? await d.select({ id: atoms.id, gloss: atoms.gloss, status: atoms.status, receptiveOnly: atoms.receptiveOnly }).from(atoms).where(and(eq(atoms.userId, me.userId), inArray(atoms.id, goal.grammarAtomIds)))
     : [];
   const gates = Object.fromEntries((Object.keys(LEVELS) as Level[]).map((l) => [l, rungGate(l, view.knownAtoms, phase)])) as Record<Level, string | undefined>;
   const closed = [...new Set(Object.values(gates).filter((g): g is string => Boolean(g)))];

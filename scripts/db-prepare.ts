@@ -1,13 +1,13 @@
 /**
  * Runs before `next build`. If DATABASE_URL is set, applies pending migrations
- * and upserts the seed atoms so a fresh deploy is usable with no terminal.
+ * and refreshes every learner's starter content. Learners get theirs the first
+ * time they open a language, so a fresh deploy is usable with no terminal.
  * Both steps are idempotent. Without DATABASE_URL it does nothing, so local
  * builds and previews without a database still succeed.
  *
  *   npm run db:prepare
  */
 import "dotenv/config";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { neon } from "@neondatabase/serverless";
@@ -15,15 +15,10 @@ import { drizzle } from "drizzle-orm/neon-http";
 import { migrate as migrateNeon } from "drizzle-orm/neon-http/migrator";
 import { db, isPglite } from "@/db";
 import * as schema from "@/db/schema";
-import { seedAtoms } from "@/db/seed/run";
-import { seedScenarios } from "@/db/seed/scenarios";
-import type { ChunkEntry, GrammarEntry, WordEntry } from "@/lib/atoms/seed";
-import type { ScenarioEntry } from "@/lib/scenarios/seed";
+import { refreshLearners } from "@/lib/learners/provision";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
-const load = <T>(name: string): T =>
-  JSON.parse(readFileSync(path.join(root, "db", "seed", name), "utf8")) as T;
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -45,25 +40,11 @@ async function main() {
     target = neonDb;
   }
 
-  console.log("db:prepare — seeding atoms…");
-  const result = await seedAtoms(target, {
-    freq: load<WordEntry[]>("frequency-fr.json"),
-    chunks: load<ChunkEntry[]>("chunks-fr.json"),
-    grammar: load<GrammarEntry[]>("grammar-fr.json"),
-  });
-  console.log(`db:prepare — upserted ${result.upserted} atoms, linked ${result.linked} chunks.`);
-  const seeded = await seedScenarios(target, load<ScenarioEntry[]>("scenarios-fr.json"), "fr");
-  const el = await seedAtoms(
-    target,
-    { freq: load<WordEntry[]>("words-el.json"), chunks: load<ChunkEntry[]>("chunks-el.json"), grammar: load<GrammarEntry[]>("grammar-el.json") },
-    "el",
-  );
-  const elSeeded = await seedScenarios(target, load<ScenarioEntry[]>("scenarios-el.json"), "el");
-  console.log(`db:prepare — el: ${el.upserted} atoms, ${elSeeded.scenarios} scenarios, ${elSeeded.visitsWritten} first visits written.`);
-  console.log(`db:prepare — ${seeded.scenarios} scenarios, ${seeded.visitsWritten} first visits written.`);
-  if (result.unglossed) {
-    console.log(`db:prepare — ${result.unglossed} words still have no gloss (run \`npm run seed:gloss\`).`);
-  }
+  // Starter content is per learner, copied on first visit (lib/learners/provision.ts).
+  // A deploy refreshes it for everyone already set up, so seed-file edits reach them.
+  console.log("db:prepare — refreshing learners' starter content…");
+  const n = await refreshLearners(target, (line) => console.log(`db:prepare — ${line}`));
+  console.log(`db:prepare — ${n} learner track(s) refreshed.`);
 }
 
 main().catch((err) => {

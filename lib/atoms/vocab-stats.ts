@@ -12,6 +12,7 @@ import freq from "@/db/seed/frequency-fr.json";
 import wordsEl from "@/db/seed/words-el.json";
 import type { FrequencyEntry } from "@/lib/atoms/seed";
 import type { Lang } from "@/lib/lang";
+import type { Learner } from "@/lib/learners/provision";
 import { FRAGILE_TAPS, FRAGILE_WINDOW_DAYS } from "@/lib/scheduler/exposure";
 
 export const STRONG_STABILITY_DAYS = 21;
@@ -56,17 +57,18 @@ function shareOf(lemma: string, lang: Lang): number {
   return TOTAL_SHARE ? (SHARE.get(lemma) ?? 0) / TOTAL_SHARE : 0;
 }
 
-export async function vocabStats(d: Db, now = new Date(), lang: Lang = "fr"): Promise<VocabStats> {
+export async function vocabStats(d: Db, me: Learner, now = new Date()): Promise<VocabStats> {
+  const { userId, lang } = me;
   const known = await d
     .select({ id: atoms.id, key: atoms.key, type: atoms.type, stability: atoms.stability, lapses: atoms.lapses, lastReview: atoms.lastReview })
     .from(atoms)
-    .where(and(eq(atoms.lang, lang), inArray(atoms.status, ["learning", "review"])));
+    .where(and(eq(atoms.userId, userId), eq(atoms.lang, lang), inArray(atoms.status, ["learning", "review"])));
 
   const windowStart = new Date(now.getTime() - FRAGILE_WINDOW_DAYS * DAY_MS).toISOString();
   const tapRows = await d
     .select({ atomId: encounters.atomId, n: sql<number>`count(*)::int` })
     .from(encounters)
-    .where(and(gte(encounters.at, windowStart), sql`${encounters.tapped}`))
+    .where(and(eq(encounters.userId, userId), gte(encounters.at, windowStart), sql`${encounters.tapped}`))
     .groupBy(encounters.atomId);
   const taps = new Map(tapRows.map((r) => [r.atomId, r.n]));
 
@@ -83,7 +85,7 @@ export async function vocabStats(d: Db, now = new Date(), lang: Lang = "fr"): Pr
   const [pass] = await d
     .select({ total: sql<number>`count(*)::int`, read: sql<number>`count(*) filter (where ${passages.reads} > 0)::int` })
     .from(passages)
-    .where(eq(passages.lang, lang));
+    .where(and(eq(passages.userId, userId), eq(passages.lang, lang)));
 
   return {
     total: known.length,
@@ -96,7 +98,7 @@ export async function vocabStats(d: Db, now = new Date(), lang: Lang = "fr"): Pr
     corpusCoverage: corpusCoverageOf(known.filter((a) => a.type === "word").map((a) => a.key), lang),
     passagesRead: pass?.read ?? 0,
     passagesTotal: pass?.total ?? 0,
-    series: await coverageSeries(d, now, lang),
+    series: await coverageSeries(d, me, now),
   };
 }
 
@@ -104,18 +106,20 @@ export async function vocabStats(d: Db, now = new Date(), lang: Lang = "fr"): Pr
  * Coverage over time: a word counts as known from the day of its first review
  * (or the day it was marked known). One point per day with a change, plus today.
  */
-export async function coverageSeries(d: Db, now = new Date(), lang: Lang = "fr"): Promise<VocabStats["series"]> {
+export async function coverageSeries(d: Db, me: Learner, now = new Date()): Promise<VocabStats["series"]> {
+  const { userId, lang } = me;
   const firsts = await d
     .select({ atomId: reviewEvents.atomId, first: min(reviewEvents.at) })
     .from(reviewEvents)
+    .where(eq(reviewEvents.userId, userId))
     .groupBy(reviewEvents.atomId)
     .orderBy(asc(min(reviewEvents.at)));
   const marked = await d
     .select({ id: atoms.id, key: atoms.key, at: atoms.markedKnownAt })
     .from(atoms)
-    .where(and(eq(atoms.lang, lang), sql`${atoms.type} = 'word'`, sql`${atoms.markedKnownAt} is not null`));
+    .where(and(eq(atoms.userId, userId), eq(atoms.lang, lang), sql`${atoms.type} = 'word'`, sql`${atoms.markedKnownAt} is not null`));
   const keys = new Map(
-    (await d.select({ id: atoms.id, key: atoms.key, type: atoms.type }).from(atoms).where(and(eq(atoms.lang, lang), sql`${atoms.type} = 'word'`))).map((a) => [a.id, a.key]),
+    (await d.select({ id: atoms.id, key: atoms.key, type: atoms.type }).from(atoms).where(and(eq(atoms.userId, userId), eq(atoms.lang, lang), sql`${atoms.type} = 'word'`))).map((a) => [a.id, a.key]),
   );
 
   const events: Array<{ day: string; key: string }> = [];

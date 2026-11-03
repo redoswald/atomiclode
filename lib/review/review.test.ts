@@ -14,18 +14,21 @@ import freq from "@/db/seed/frequency-fr.json";
 import grammar from "@/db/seed/grammar-fr.json";
 import { seedAtoms } from "@/db/seed/run";
 import type { ChunkEntry, FrequencyEntry, GrammarEntry } from "@/lib/atoms/seed";
+import type { Learner } from "@/lib/learners/provision";
 import { recordReview } from "./record";
 import { buildSession, newAtomsIntroducedToday } from "./session";
 
 let client: PGlite;
 let d: ReturnType<typeof drizzle<typeof schema>>;
 const NOW = new Date("2026-09-10T12:00:00Z");
+const USER = "11111111-1111-1111-1111-111111111111";
+const me: Learner = { userId: USER, lang: "fr" };
 
 beforeAll(async () => {
   client = new PGlite();
   d = drizzle(client, { schema });
   await migrate(d, { migrationsFolder: "./drizzle" });
-  await seedAtoms(d, { freq: freq as FrequencyEntry[], chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
+  await seedAtoms(d, USER, { freq: freq as FrequencyEntry[], chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
 }, 60_000);
 
 afterAll(async () => {
@@ -34,7 +37,7 @@ afterAll(async () => {
 
 describe("review flow", () => {
   it("plans new atoms only where a gloss exists, chunks and grammar first", async () => {
-    const s = await buildSession(d, "steady", NOW);
+    const s = await buildSession(d, me, "steady", NOW);
     expect(s.cards).toHaveLength(10);
     expect(s.cards.every((c) => c.reason === "new" && c.modality === "recognize")).toBe(true);
     // Frequency words have no gloss yet, so nothing new comes from them.
@@ -44,9 +47,9 @@ describe("review flow", () => {
   }, 60_000);
 
   it("records a review, updates memory, and counts toward today's new-atom allowance", async () => {
-    const s = await buildSession(d, "steady", NOW);
+    const s = await buildSession(d, me, "steady", NOW);
     const first = s.cards[0];
-    const result = await recordReview(d, { atomId: first.atomId, modality: "recognize", grade: 3, responseMs: 2500 }, NOW);
+    const result = await recordReview(d, USER, { atomId: first.atomId, modality: "recognize", grade: 3, responseMs: 2500 }, NOW);
     expect(result.status).toBe("learning");
 
     const [row] = await d.select().from(atoms).where(eq(atoms.id, first.atomId));
@@ -55,11 +58,11 @@ describe("review flow", () => {
     expect(row.modality.recognize).toMatchObject({ attempts: 1, correct: 1 });
     const [{ n }] = await d.select({ n: sql<number>`count(*)::int` }).from(reviewEvents);
     expect(n).toBe(1);
-    expect(await newAtomsIntroducedToday(d, NOW)).toBe(1);
+    expect(await newAtomsIntroducedToday(d, me, NOW)).toBe(1);
 
     // The next plan: 9 new (allowance minus one) plus the learning step, which is due within the session.
     const later = new Date(NOW.getTime() + 60_000);
-    const next = await buildSession(d, "steady", later);
+    const next = await buildSession(d, me, "steady", later);
     const learning = next.cards.filter((c) => c.atomId === first.atomId);
     expect(learning).toHaveLength(1);
     expect(learning[0].reason).toBe("due");
@@ -67,14 +70,14 @@ describe("review flow", () => {
   }, 60_000);
 
   it("light sessions review only", async () => {
-    const s = await buildSession(d, "light", new Date(NOW.getTime() + 60_000));
+    const s = await buildSession(d, me, "light", new Date(NOW.getTime() + 60_000));
     expect(s.cards.every((c) => c.reason !== "new")).toBe(true);
   }, 60_000);
 
   it("rejects bad input", async () => {
-    await expect(recordReview(d, { atomId: "00000000-0000-0000-0000-000000000000", modality: "recognize", grade: 3, responseMs: 1 })).rejects.toThrow(
+    await expect(recordReview(d, USER, { atomId: "00000000-0000-0000-0000-000000000000", modality: "recognize", grade: 3, responseMs: 1 })).rejects.toThrow(
       "unknown atom",
     );
-    await expect(recordReview(d, { atomId: "x", modality: "recognize", grade: 9 as never, responseMs: 1 })).rejects.toThrow("grade");
+    await expect(recordReview(d, USER, { atomId: "x", modality: "recognize", grade: 9 as never, responseMs: 1 })).rejects.toThrow("grade");
   });
 });

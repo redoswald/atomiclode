@@ -16,7 +16,7 @@ Milestone 5 (polish): a visual system (warm paper, serif display type, sage acce
 
 ### Greek (tourist track)
 
-The header toggle (Français / Ελληνικά) switches tracks; the choice is a cookie, and every atom, passage, scene and goal carries a `lang`, so progress in one language never touches the other. The Greek track is an intro for a visitor: the alphabet with its sounds (introduced first, recognition only), about 60 sign words shown in capitals the way they are met (ΕΞΟΔΟΣ, ΑΠΑΓΟΡΕΥΕΤΑΙ, ΦΑΡΜΑΚΕΙΟ), 80 phrases, a few hundred core words with gender and a Latin-letter reading, 20 grammar notes, and nine scenes (taxi, café, taverna, directions, ferry, hotel, pharmacy, market, reading signs). It ships fully glossed in `db/seed/{words,chunks,grammar,scenarios}-el.json`, so nothing needs filling.
+The header toggle (Français / Ελληνικά) switches tracks; the choice is a cookie, and every atom, passage, scene and goal carries a `lang`, so progress in one language never touches the other (nor one learner's another's; see *Learners*). The Greek track is an intro for a visitor: the alphabet with its sounds (introduced first, recognition only), about 60 sign words shown in capitals the way they are met (ΕΞΟΔΟΣ, ΑΠΑΓΟΡΕΥΕΤΑΙ, ΦΑΡΜΑΚΕΙΟ), 80 phrases, a few hundred core words with gender and a Latin-letter reading, 20 grammar notes, and nine scenes (taxi, café, taverna, directions, ferry, hotel, pharmacy, market, reading signs). It ships fully glossed in `db/seed/{words,chunks,grammar,scenarios}-el.json`, so nothing needs filling.
 
 Greek has no Lexique-quality table, so its lemmatizer is built from the curriculum's own forms, matched with accents first and accent-folded second: lowercase text keeps ή (or) apart from η (the), while a sign in capitals still finds its word. Typed answers may be Greek with or without accents, or Latin letters checked against the romanization (`efcharisto` for ευχαριστώ). The model prompts take the language as a parameter; the spaCy service is French-only.
 
@@ -37,11 +37,11 @@ Node is a system tool; install it with Homebrew if it is missing (`brew install 
 npm install
 cp .env.example .env.local     # fill in DATABASE_URL at minimum
 
-npm run db:prepare             # apply migrations and load seed atoms (idempotent)
+npm run db:prepare             # apply migrations and refresh learners' seed content (idempotent)
 npm run dev                    # http://localhost:3000
 ```
 
-`npm run build` runs `db:prepare` first, so a Vercel build with `DATABASE_URL` set migrates and seeds on its own. Without `DATABASE_URL` the step is skipped and the build still succeeds.
+`npm run build` runs `db:prepare` first, so a Vercel build with `DATABASE_URL` set migrates and refreshes learners' starter content on its own. Without `DATABASE_URL` the step is skipped and the build still succeeds.
 
 For `DATABASE_URL`, create a free Neon project and use its connection string. Or skip Neon entirely for local work: `DATABASE_URL=pglite://./.pglite` runs an embedded Postgres in that folder (dev only; the folder is gitignored).
 
@@ -50,7 +50,7 @@ For `DATABASE_URL`, create a free Neon project and use its connection string. Or
 The frequency list ships without English glosses, and words can't be introduced until they have one. Two ways to fill them:
 
 - **From the app** (no terminal): set `ANTHROPIC_API_KEY` in Vercel, redeploy, and press *Fill glosses* on the home page. It works through the database in batches of 40. Later, `npm run seed:export` copies those glosses back into `db/seed/frequency-fr.json` so they can be committed.
-- **From a terminal**: with `ANTHROPIC_API_KEY` in `.env.local`, `npm run seed:gloss` fills the JSON directly (resumable), then `npm run db:seed` pushes it. Commit the JSON either way.
+- **From a terminal**: with `ANTHROPIC_API_KEY` in `.env.local`, `npm run seed:gloss` fills the JSON directly (resumable), then `npm run db:seed` pushes it to every learner. Commit the JSON either way.
 
 Re-seeding never blanks a gloss that was filled in the app.
 
@@ -78,6 +78,14 @@ Dolomite signs in with the Done Intentionally suite account: Supabase Auth from 
 
 Without `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` the app is open to anyone with the URL, everyone acts as one local user, and the home page says so.
 
+### Learners
+
+Each learner has their own atoms, review log, passages, scenes and goals: every one of those rows carries a `user_id` (the Supabase `auth.users` id), and every query filters on it. Only the model caches (`why_cache`, `context_glosses`, `sentence_translations`) are shared, so an explanation one learner paid for is free for the next. Glosses count as content too: filling one in the app fills the same word for every learner who lacks it.
+
+A learner's starter content (the seed atoms and visit 1 of each seed scene) is copied in the first time they open a language: `learner()` in `lib/learner.ts` does it on the first page load, and the `learners` table records it so later requests cost one query. The French track takes several seconds to set up; the Greek one is quicker. Each deploy refreshes every learner's starter content from the seed files, so edits reach everyone.
+
+Data from before accounts existed belongs to a placeholder learner (the nil uuid, also the local user when auth is off). Set `LEGACY_OWNER_EMAIL` to your email and your first sign-in claims all of it, in one statement. It only works for an account with no Dolomite data yet, so set it before you first sign in.
+
 ### Regenerating the frequency list
 
 `db/seed/frequency-fr.json` is derived from Lexique 3.83 (CC BY-SA 4.0, New, Pallier, Brysbaert & Ferrand) by `db/seed/build-frequency.py`. Run it in a conda env, with pip inside that env for the PyPI-only package:
@@ -97,9 +105,9 @@ python db/seed/build-frequency.py
 | `npm run lint` / `typecheck` | ESLint / `tsc --noEmit` |
 | `npm test` | Vitest: seed-file checks plus an integration test that runs the real migrations and seed against in-memory Postgres (PGlite) |
 | `npm run db:generate` | Generate a migration from `db/schema.ts` |
-| `npm run db:prepare` | Apply migrations, then upsert seed atoms and seed scenarios (idempotent; runs automatically before `build`) |
+| `npm run db:prepare` | Apply migrations, then refresh every learner's seed atoms and scenes (idempotent; runs automatically before `build`) |
 | `npm run db:migrate` | Apply migrations only |
-| `npm run db:seed` | Upsert seed atoms only (never touches memory state) |
+| `npm run db:seed` | Refresh every learner's seed atoms and scenes (never touches memory state) |
 | `npm run seed:gloss` | Fill empty glosses in the JSON via the Anthropic API |
 | `npm run seed:export` | Copy glosses from the database back into the JSON |
 | `npm run db:replay` | Rebuild every atom's memory state from the review log (after a scheduler change) |
@@ -109,14 +117,16 @@ python db/seed/build-frequency.py
 1. Import the GitHub repo in Vercel; the Next.js preset is detected automatically.
 2. In the project's **Storage** tab, create a **Neon** Postgres database and connect it. This injects `DATABASE_URL`.
 3. Redeploy. The build applies migrations and loads the seed atoms; no terminal needed.
-4. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ALLOWED_EMAILS` and `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN` (sign-in, see above) and `ANTHROPIC_API_KEY` (glosses, later explanations and generation), then redeploy. `NLP_SERVICE_URL` and `NLP_SERVICE_TOKEN` are not needed until milestone 3.
+4. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ALLOWED_EMAILS`, `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN` and, if there is data from before accounts, `LEGACY_OWNER_EMAIL` (sign-in and learners, see above) and `ANTHROPIC_API_KEY` (glosses, later explanations and generation), then redeploy. `NLP_SERVICE_URL` and `NLP_SERVICE_TOKEN` are not needed until milestone 3.
 
 ## Layout
 
 ```
 app/            Next.js routes: home, /scenario, /read, /review, /goal, /stats, /login, server actions, shell + tab bar
 lib/atoms/      types, seed-row builders, home-screen counts
-lib/auth.ts     suite sign-in (Supabase) + ALLOWED_EMAILS; proxy.ts enforces it, actions call requireUser()
+lib/auth.ts     suite sign-in (Supabase) + ALLOWED_EMAILS; proxy.ts enforces it
+lib/learner.ts  learner(): the signed-in user + track for a request; pages and actions start here
+lib/learners/   per-learner starter content (provisioning), legacy-data claim
 lib/scheduler/  planSession, applyReview, replay, FSRS wrapper + tests
 lib/review/     session builder, review recording, lenient answer matching, produce cards, new-atom order
 lib/scenarios/  seed validation, visits (store, start, suggest), visit generation

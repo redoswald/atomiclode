@@ -8,6 +8,7 @@ import { LEVELS, type Level } from "@/lib/llm/adapt";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { adaptationsOf } from "@/lib/reader/library";
 import { openPassage } from "@/lib/reader/passages";
+import { learner } from "@/lib/learner";
 import { readingMinutes } from "@/lib/reader/reading";
 import { Reader } from "./reader";
 
@@ -18,11 +19,12 @@ export default async function PassagePage({ params, searchParams }: PageProps<"/
   const { id } = await params;
   const { reused, error } = await searchParams;
   if (!hasDatabase() || !/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const view = await openPassage(db(), id);
+  const me = await learner();
+  const view = await openPassage(db(), me.userId, id);
   if (!view) notFound();
   const isAdaptation = view.sourceRef?.startsWith("passage:") ?? false;
   const originalId = isAdaptation ? view.sourceRef!.slice("passage:".length).split("#")[0] : undefined;
-  const adaptations = isAdaptation ? {} : await adaptationsOf(db(), id);
+  const adaptations = isAdaptation ? {} : await adaptationsOf(db(), me.userId, id);
   const hasKey = hasAnthropicKey();
 
   return (

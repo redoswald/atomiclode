@@ -4,6 +4,7 @@ import { importPassage } from "@/app/actions/reader";
 import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
 import { LANG_SPECS } from "@/lib/lang";
+import { learner } from "@/lib/learner";
 import { currentLang } from "@/lib/lang-server";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { GENRES } from "@/lib/llm/generate";
@@ -17,8 +18,9 @@ export const maxDuration = 60;
 export default async function ReadPage({ searchParams }: PageProps<"/read">) {
   const params = await searchParams;
   const error = typeof params.error === "string" ? params.error : undefined;
-  const lang = await currentLang();
-  const list = hasDatabase() ? await listPassages(db(), lang) : [];
+  const me = hasDatabase() ? await learner() : undefined;
+  const lang = me?.lang ?? (await currentLang());
+  const list = me ? await listPassages(db(), me) : [];
   const hasKey = hasAnthropicKey();
 
   return (

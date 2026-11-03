@@ -3,15 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { requireUser } from "@/lib/auth";
-import { currentLang } from "@/lib/lang-server";
+import { learner } from "@/lib/learner";
 import { hasAnthropicKey } from "@/lib/llm/client";
 import { GENRES, type Genre } from "@/lib/llm/generate";
 import { dueLemmas, reuseOrGenerate } from "@/lib/reader/library";
 
 /** Form action for /read: serve a matching passage from the library or generate one. */
 export async function generateOrReuse(formData: FormData): Promise<void> {
-  await requireUser();
+  const me = await learner();
   const genre = parseGenre(formData.get("genre"));
   const stretch = Number(formData.get("stretch"));
   const targetCoverage = Number.isFinite(stretch) ? Math.min(0.98, Math.max(0.9, stretch / 100)) : 0.95;
@@ -22,9 +21,8 @@ export async function generateOrReuse(formData: FormData): Promise<void> {
   let reused: boolean;
   try {
     const d = db();
-    const lang = await currentLang();
-    const mustInclude = includeDue ? await dueLemmas(d, 8, new Date(), lang) : [];
-    ({ id, reused } = await reuseOrGenerate(d, { lang, targetCoverage, genre, topic, mustInclude }));
+    const mustInclude = includeDue ? await dueLemmas(d, me, 8) : [];
+    ({ id, reused } = await reuseOrGenerate(d, me, { targetCoverage, genre, topic, mustInclude }));
   } catch (err) {
     const message = !hasAnthropicKey() ? "Set ANTHROPIC_API_KEY in Vercel to generate passages." : err instanceof Error ? err.message : String(err);
     redirect(`/read?error=${encodeURIComponent(message)}`);

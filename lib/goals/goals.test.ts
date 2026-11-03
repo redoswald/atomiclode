@@ -21,10 +21,14 @@ import { createPassage, listPassages, openPassage } from "@/lib/reader/passages"
 import { newAtomOrder } from "@/lib/review/newOrder";
 import { activeGoal, goalCoverageSeries, goalLemmasForScenarios, goalNewOrder, goalView, pinGoal, prepareGoal, rungGate } from "./goals";
 import { sectionize } from "./sections";
+import type { Learner } from "@/lib/learners/provision";
 
 let client: PGlite;
 let d: ReturnType<typeof drizzle<typeof schema>>;
 const NOW = new Date("2026-09-20T12:00:00Z");
+const USER = "11111111-1111-1111-1111-111111111111";
+const me: Learner = { userId: USER, lang: "fr" };
+
 
 const PARA = (n: number) =>
   `Mon grand-père Marcel naquit en 1921 dans un petit village près de Lyon. Sa famille possédait une ferme et quelques vignes. ` +
@@ -36,7 +40,7 @@ beforeAll(async () => {
   client = new PGlite();
   d = drizzle(client, { schema });
   await migrate(d, { migrationsFolder: "./drizzle" });
-  await seedAtoms(d, { freq: freq as FrequencyEntry[], chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
+  await seedAtoms(d, USER, { freq: freq as FrequencyEntry[], chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
   await d.update(atoms).set({ status: "review", stability: 20, reps: 3 }).where(sql`${atoms.type} = 'word' and ${atoms.frequencyRank} <= 40`);
 }, 60_000);
 
@@ -63,29 +67,29 @@ describe("goal texts", () => {
   let originalId: string;
 
   it("pins an imported text: sections, one active goal, names out of coverage", async () => {
-    ({ id: originalId } = await createPassage(d, { title: "La famille Martin", text: LETTER, origin: "imported" }));
-    const { id: other } = await createPassage(d, { title: "Un autre texte", text: "Le chat est sur la table. Il est petit et il est content.", origin: "imported" });
-    const first = await pinGoal(d, other, NOW);
-    goalId = await pinGoal(d, originalId, NOW);
-    expect(await pinGoal(d, (await d.select().from(goals).where(eq(goals.id, goalId)))[0].passageIds[0], NOW)).toBe(goalId); // idempotent
-    expect((await activeGoal(d))?.id).toBe(goalId);
+    ({ id: originalId } = await createPassage(d, USER, { title: "La famille Martin", text: LETTER, origin: "imported" }));
+    const { id: other } = await createPassage(d, USER, { title: "Un autre texte", text: "Le chat est sur la table. Il est petit et il est content.", origin: "imported" });
+    const first = await pinGoal(d, USER, other, NOW);
+    goalId = await pinGoal(d, USER, originalId, NOW);
+    expect(await pinGoal(d, USER, (await d.select().from(goals).where(eq(goals.id, goalId)))[0].passageIds[0], NOW)).toBe(goalId); // idempotent
+    expect((await activeGoal(d, me))?.id).toBe(goalId);
     expect((await d.select().from(goals).where(eq(goals.id, first)))[0].status).toBe("waiting");
 
-    const view = (await goalView(d, goalId, NOW))!;
+    const view = (await goalView(d, USER, goalId, NOW))!;
     expect(view.sections.length).toBeGreaterThan(1);
     expect(view.coverage).toBeGreaterThan(0.2);
     expect(view.coverage).toBeLessThan(0.7);
     expect(view.sections.every((s) => s.rungs.map((r) => r.level).join() === "gist,comfortable,balanced,challenging,original")).toBe(true);
     expect(view.sections[0].recommended).toBeUndefined();
     expect(view.queued).toBeLessThan(view.unknownLemmas); // one-off rarities stay out of the queue
-    const series = await goalCoverageSeries(d, goalId);
+    const series = await goalCoverageSeries(d, USER, goalId);
     expect(series).toHaveLength(1);
     expect(series[0].date).toBe("2026-09-20");
     expect(series[0].coverage).toBeCloseTo(view.coverage, 5);
 
     // Sections live on the goal page: not in the library list, not served as "something new".
-    expect((await listPassages(d)).map((p) => p.title)).toEqual(["La famille Martin"]);
-    expect(await findReusable(d, { targetCoverage: view.sections[0].coverage, genre: "short story", mustInclude: [] }, NOW)).toMatchObject({ id: originalId });
+    expect((await listPassages(d, me)).map((p) => p.title)).toEqual(["La famille Martin"]);
+    expect(await findReusable(d, me, { targetCoverage: view.sections[0].coverage, genre: "short story", mustInclude: [] }, NOW)).toMatchObject({ id: originalId });
     const [section] = await d.select().from(passages).where(eq(passages.id, view.sections[0].passage.id));
     expect(section.tokens.find((t) => t.surface === "Marcel")?.isWord).toBe(false);
   });
@@ -94,6 +98,7 @@ describe("goal texts", () => {
     const asked: string[] = [];
     const result = await prepareGoal(
       d,
+      USER,
       goalId,
       {
         gloss: async (items) => {
@@ -124,21 +129,21 @@ describe("goal texts", () => {
     expect(found.find((g) => g.key === "imparfait")?.source).toBe("frequency");
 
     // A second run glosses what is left and doesn't survey again.
-    const again = await prepareGoal(d, goalId, { gloss: async () => new Map(), survey: async () => Promise.reject(new Error("surveyed twice")) }, NOW);
+    const again = await prepareGoal(d, USER, goalId, { gloss: async () => new Map(), survey: async () => Promise.reject(new Error("surveyed twice")) }, NOW);
     expect(again.grammar).toBe(2);
   });
 
   it("leads the new-atom order only once the learner is reading; before that it steers scenarios", async () => {
-    const order = await goalNewOrder(d);
+    const order = await goalNewOrder(d, me);
     const [goal] = await d.select().from(goals).where(eq(goals.id, goalId));
     expect(order.slice(0, 2)).toEqual(goal.grammarAtomIds);
     const keys = (await d.select({ id: atoms.id, key: atoms.key }).from(atoms).where(inArray(atoms.id, order))).map((r) => r.key);
     expect(keys).toContain("village"); // eight times in the text
     expect(keys).not.toContain("saperlipopette"); // once, and rare: glossed in place, never a card
 
-    expect((await newAtomOrder(d, "fr", false)).phase).toBe("foundation");
-    expect((await newAtomOrder(d, "fr", false)).newOrder).toEqual([]);
-    expect(await goalLemmasForScenarios(d)).toContain("village");
+    expect((await newAtomOrder(d, me, false)).phase).toBe("foundation");
+    expect((await newAtomOrder(d, me, false)).newOrder).toEqual([]);
+    expect(await goalLemmasForScenarios(d, me)).toContain("village");
     expect(phaseFor(0.79)).toBe("foundation");
     expect(phaseFor(0.8)).toBe("reading");
   });
@@ -149,38 +154,38 @@ describe("goal texts", () => {
     expect(rungGate("balanced", 600, "foundation")).toMatch(/reading phase/);
     expect(rungGate("balanced", 900, "reading")).toBeUndefined();
 
-    const view = (await goalView(d, goalId, NOW))!;
+    const view = (await goalView(d, USER, goalId, NOW))!;
     const sectionId = view.sections[0].passage.id;
     const easy = "Le père de mon père est né en 1921. Il est de Lyon. Il a une femme et des enfants. Il ne parle pas de la guerre. C'est un homme bon.";
-    const rung = await adaptPassage(d, sectionId, "gist", async () => ({ title: "La famille Martin", text: easy }));
+    const rung = await adaptPassage(d, USER, sectionId, "gist", async () => ({ title: "La famille Martin", text: easy }));
     expect(rung.reused).toBe(false);
 
-    const after = (await goalView(d, goalId, NOW))!;
+    const after = (await goalView(d, USER, goalId, NOW))!;
     const gist = after.sections[0].rungs[0];
     expect(gist).toMatchObject({ level: "gist", passageId: rung.id, stale: false });
     expect(after.sections[0].recommended?.level === "gist" || (gist.coverage ?? 0) < 0.9).toBe(true);
 
     // The learner learns a lot more: the old rung is stale, and a rewrite makes a new passage.
     await d.update(atoms).set({ status: "review", stability: 20, reps: 3 }).where(sql`${atoms.type} = 'word' and ${atoms.frequencyRank} <= 60`);
-    expect((await goalView(d, goalId, NOW))!.sections[0].rungs[0].stale).toBe(true);
-    const rewritten = await adaptPassage(d, sectionId, "gist", async () => ({ title: "La famille Martin", text: easy }), { refresh: true });
+    expect((await goalView(d, USER, goalId, NOW))!.sections[0].rungs[0].stale).toBe(true);
+    const rewritten = await adaptPassage(d, USER, sectionId, "gist", async () => ({ title: "La famille Martin", text: easy }), { refresh: true });
     expect(rewritten.id).not.toBe(rung.id);
-    expect((await goalView(d, goalId, NOW))!.sections[0].rungs[0]).toMatchObject({ passageId: rewritten.id, stale: false });
+    expect((await goalView(d, USER, goalId, NOW))!.sections[0].rungs[0]).toMatchObject({ passageId: rewritten.id, stale: false });
   });
 
   it("is reached when the original is 95% known and every section has been read", async () => {
-    const view = (await goalView(d, goalId, NOW))!;
+    const view = (await goalView(d, USER, goalId, NOW))!;
     const sectionIds = view.sections.map((s) => s.passage.id);
     const rows = await d.select().from(passages).where(inArray(passages.id, sectionIds));
     const lemmas = Array.from(new Set(rows.flatMap((p) => p.tokens.filter((t) => t.isWord).map((t) => t.lemma))));
     for (const lemma of lemmas) {
-      await d.insert(atoms).values({ type: "word", key: lemma, gloss: "x", source: "goal", status: "review", stability: 30 }).onConflictDoUpdate({ target: [atoms.lang, atoms.type, atoms.key], set: { status: "review", stability: 30 } });
+      await d.insert(atoms).values({ userId: USER, type: "word", key: lemma, gloss: "x", source: "goal", status: "review", stability: 30 }).onConflictDoUpdate({ target: [atoms.userId, atoms.lang, atoms.type, atoms.key], set: { status: "review", stability: 30 } });
     }
-    expect((await goalView(d, goalId, NOW))!.reached).toBe(false); // known, but not read
-    for (const id of sectionIds) await openPassage(d, id, NOW);
-    const done = (await goalView(d, goalId, NOW))!;
+    expect((await goalView(d, USER, goalId, NOW))!.reached).toBe(false); // known, but not read
+    for (const id of sectionIds) await openPassage(d, USER, id, NOW);
+    const done = (await goalView(d, USER, goalId, NOW))!;
     expect(done.coverage).toBeGreaterThanOrEqual(0.95);
     expect(done.reached).toBe(true);
-    expect(await activeGoal(d)).toBeUndefined();
+    expect(await activeGoal(d, me)).toBeUndefined();
   });
 });

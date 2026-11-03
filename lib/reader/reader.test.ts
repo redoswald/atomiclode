@@ -21,10 +21,14 @@ import { rowToAtom } from "@/lib/atoms/rows";
 import { computeCoverage } from "./coverage";
 import { cleanText, validateUrl } from "./import";
 import { createPassage, listPassages, markKnown, mineWord, openPassage } from "./passages";
+import type { Learner } from "@/lib/learners/provision";
 
 let client: PGlite;
 let d: ReturnType<typeof drizzle<typeof schema>>;
 const NOW = new Date("2026-09-10T12:00:00Z");
+const USER = "11111111-1111-1111-1111-111111111111";
+const me: Learner = { userId: USER, lang: "fr" };
+
 const TEXT =
   "Je voudrais un café, s'il vous plaît. Le marché du samedi est toujours bondé.\n\nHier, Marie achète des tomates et un scontrino inconnu.";
 
@@ -32,7 +36,7 @@ beforeAll(async () => {
   client = new PGlite();
   d = drizzle(client, { schema });
   await migrate(d, { migrationsFolder: "./drizzle" });
-  await seedAtoms(d, { freq: freq as FrequencyEntry[], chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
+  await seedAtoms(d, USER, { freq: freq as FrequencyEntry[], chunks: chunks as ChunkEntry[], grammar: grammar as GrammarEntry[] });
   // Pretend a few words are learned so coverage is not zero.
   for (const key of ["le", "un", "être", "toujours", "et", "de"]) {
     await d.update(atoms).set({ status: "review", stability: 20, reps: 3 }).where(sql`${atoms.type} = 'word' and ${atoms.key} = ${key}`);
@@ -47,16 +51,16 @@ describe("reader", () => {
   let passageId: string;
 
   it("imports and analyses a passage", async () => {
-    const { id, source } = await createPassage(d, { text: TEXT, origin: "imported", title: "Au marché" });
+    const { id, source } = await createPassage(d, USER, { text: TEXT, origin: "imported", title: "Au marché" });
     passageId = id;
     expect(source).toBe("local");
-    const [summary] = await listPassages(d);
+    const [summary] = await listPassages(d, me);
     expect(summary).toMatchObject({ id, title: "Au marché", origin: "imported", reads: 0 });
     expect(summary.wordCount).toBeGreaterThan(15);
   });
 
   it("opens with live coverage, chunk matches, names excluded, and logs encounters", async () => {
-    const view = (await openPassage(d, passageId, NOW))!;
+    const view = (await openPassage(d, USER, passageId, NOW))!;
     expect(view.reads).toBe(1);
     expect(view.sentences).toHaveLength(3);
     // The chunk atom "je voudrais un café" is not learned yet, so its words are unknown.
@@ -81,10 +85,11 @@ describe("reader", () => {
   });
 
   it("mines a word: links the seeded atom, saves the sentence with every atom in it", async () => {
-    const view = (await openPassage(d, passageId, NOW))!;
+    const view = (await openPassage(d, USER, passageId, NOW))!;
     const marche = view.tokens.find((t) => t.surface === "marché")!;
     const { atomId, sentenceId } = await mineWord(
       d,
+      USER,
       { passageId, sentenceIdx: marche.sentenceIdx, lemma: marche.lemma, surface: marche.surface, gloss: "market" },
       NOW,
     );
@@ -100,14 +105,14 @@ describe("reader", () => {
 
     // Mining a second word in the same sentence reuses the sentence row.
     const bonde = view.tokens.find((t) => t.surface === "bondé")!;
-    const second = await mineWord(d, { passageId, sentenceIdx: bonde.sentenceIdx, lemma: bonde.lemma, surface: "bondé", gloss: "packed" }, NOW);
+    const second = await mineWord(d, USER, { passageId, sentenceIdx: bonde.sentenceIdx, lemma: bonde.lemma, surface: "bondé", gloss: "packed" }, NOW);
     expect(second.sentenceId).toBe(sentenceId);
   });
 
   it("creates an atom for an unseeded word and 'already know' makes it mature", async () => {
-    const view = (await openPassage(d, passageId, NOW))!;
+    const view = (await openPassage(d, USER, passageId, NOW))!;
     const tok = view.tokens.find((t) => t.surface === "scontrino")!;
-    const { atomId } = await markKnown(d, { lemma: tok.lemma, surface: tok.surface, gloss: "receipt" }, NOW);
+    const { atomId } = await markKnown(d, me, { lemma: tok.lemma, surface: tok.surface, gloss: "receipt" }, NOW);
     const [atom] = await d.select().from(atoms).where(eq(atoms.id, atomId));
     expect(atom).toMatchObject({ type: "word", key: "scontrino", gloss: "receipt", source: "manual", status: "review" });
     expect(atom.stability).toBeGreaterThan(30);
@@ -116,12 +121,12 @@ describe("reader", () => {
     const [replayed] = replay([rowToAtom(atom)], []);
     expect(replayed.memory.status).toBe("review");
 
-    const again = (await openPassage(d, passageId, NOW))!;
+    const again = (await openPassage(d, USER, passageId, NOW))!;
     expect(again.tokens.find((t) => t.surface === "scontrino")?.known).toBe(true);
   });
 
   it("mined atoms come first as new cards, then get cloze cards from the saved sentence", async () => {
-    const first = await buildSession(d, "steady", NOW);
+    const first = await buildSession(d, me, "steady", NOW);
     const newKeys = first.cards.filter((c) => c.reason === "new").map((c) => c.key);
     expect(newKeys.slice(0, 2).sort()).toEqual(["bonder", "marché"]); // bondé lemmatizes to bonder
 
@@ -132,12 +137,12 @@ describe("reader", () => {
     let due = new Date(row0.due).getTime();
     for (const modality of ["recognize", "recall", "recognize", "recall"] as const) {
       t = Math.max(t + 60_000, due);
-      await recordReview(d, { atomId: marche.atomId, modality, grade: 3, responseMs: 2000 }, new Date(t));
+      await recordReview(d, USER, { atomId: marche.atomId, modality, grade: 3, responseMs: 2000 }, new Date(t));
       const [row] = await d.select().from(atoms).where(eq(atoms.id, marche.atomId));
       due = new Date(row.due).getTime();
     }
     const later = new Date(due + 1000);
-    const session = await buildSession(d, "steady", later);
+    const session = await buildSession(d, me, "steady", later);
     const card = session.cards.find((c) => c.atomId === marche.atomId);
     expect(card?.modality).toBe("cloze");
     expect(card?.cloze).toEqual({ before: "Le ", answer: "marché", after: " du samedi est toujours bondé." });

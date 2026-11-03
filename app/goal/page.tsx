@@ -4,7 +4,7 @@ import { Shell } from "@/app/components/shell";
 import { db, hasDatabase } from "@/db";
 import { listGoals } from "@/lib/goals/goals";
 import { langName } from "@/lib/lang";
-import { currentLang } from "@/lib/lang-server";
+import { learner } from "@/lib/learner";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,9 @@ export default async function GoalsPage() {
       </Shell>
     );
   }
-  const lang = await currentLang();
-  const all = await listGoals(db(), lang);
+  const me = await learner();
+  const { lang } = me;
+  const all = await listGoals(db(), me);
   const active = all.find((g) => g.status === "active");
   if (active && all.length === 1) redirect(`/goal/${active.id}`);
 

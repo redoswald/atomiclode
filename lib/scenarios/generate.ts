@@ -7,6 +7,7 @@ import type { Db } from "@/db";
 import { atoms, scenarios, scenarioVisits } from "@/db/schema";
 import { generateVisit as generateWithModel, type GeneratedVisit, type GenerateVisitInput } from "@/lib/llm/scenario";
 import { isLang, type Lang } from "@/lib/lang";
+import type { Learner } from "@/lib/learners/provision";
 import { isKnownStatus } from "@/lib/reader/coverage";
 import type { BundleEntry } from "./seed";
 import { storeVisit } from "./visits";
@@ -16,13 +17,16 @@ export type GenerateVisitFn = (input: GenerateVisitInput) => Promise<GeneratedVi
 /** How many unknown frequency-list lemmas the model gets to choose from. */
 export const CANDIDATES = 120;
 
-async function generatorInput(d: Db, lang: Lang, extraCandidates: string[]): Promise<Pick<GenerateVisitInput, "known" | "chunks" | "candidates" | "grammar">> {
+async function generatorInput(d: Db, me: Learner, extraCandidates: string[]): Promise<Pick<GenerateVisitInput, "known" | "chunks" | "candidates" | "grammar">> {
   const rows = await d
     .select({ id: atoms.id, type: atoms.type, key: atoms.key, gloss: atoms.gloss, status: atoms.status, rank: atoms.frequencyRank })
     .from(atoms)
-    .where(eq(atoms.lang, lang));
+    .where(and(eq(atoms.userId, me.userId), eq(atoms.lang, me.lang)));
   // Bundles already handed out count as known here: they are on their way in, and shouldn't be taught twice.
-  const started = await d.select({ bundle: scenarioVisits.bundle }).from(scenarioVisits).where(isNotNull(scenarioVisits.startedAt));
+  const started = await d
+    .select({ bundle: scenarioVisits.bundle })
+    .from(scenarioVisits)
+    .where(and(eq(scenarioVisits.userId, me.userId), isNotNull(scenarioVisits.startedAt)));
   const inFlight = new Set(started.flatMap((v) => v.bundle));
   const usable = (r: (typeof rows)[number]) => isKnownStatus(r.status) || inFlight.has(r.id);
 
@@ -54,8 +58,8 @@ export interface NextVisitOptions {
 }
 
 /** Write the next visit of a scenario. Refuses while the latest one hasn't been opened. */
-export async function generateNextVisit(d: Db, scenarioId: string, opts: NextVisitOptions = {}): Promise<{ visitId: string; n: number }> {
-  const [scenario] = await d.select().from(scenarios).where(eq(scenarios.id, scenarioId));
+export async function generateNextVisit(d: Db, userId: string, scenarioId: string, opts: NextVisitOptions = {}): Promise<{ visitId: string; n: number }> {
+  const [scenario] = await d.select().from(scenarios).where(and(eq(scenarios.id, scenarioId), eq(scenarios.userId, userId)));
   if (!scenario) throw new Error("unknown scenario");
   const earlier = await d.select().from(scenarioVisits).where(eq(scenarioVisits.scenarioId, scenarioId)).orderBy(asc(scenarioVisits.n));
   const latest = earlier[earlier.length - 1];
@@ -69,11 +73,12 @@ export async function generateNextVisit(d: Db, scenarioId: string, opts: NextVis
     scenario: { title: scenario.title, brief: scenario.brief },
     n,
     earlier: earlier.map((v) => v.summary || v.brief),
-    ...(await generatorInput(d, lang, opts.goalLemmas ?? [])),
+    ...(await generatorInput(d, { userId, lang }, opts.goalLemmas ?? [])),
   });
   if (g.dialogue.trim().split(/\s+/).length < 30) throw new Error("The model returned too short a dialogue; try again.");
   const visitId = await storeVisit(
     d,
+    userId,
     scenario,
     n,
     { brief: g.brief.trim(), summary: g.summary.trim(), dialogue: g.dialogue.trim(), translation: g.translation.trim(), bundle: toBundle(g), prompts: g.prompts },
@@ -86,18 +91,19 @@ export async function generateNextVisit(d: Db, scenarioId: string, opts: NextVis
 /** "Meeting her grandmother on Sunday": a scenario from the learner's own words, with its first visit. */
 export async function createCustomScenario(
   d: Db,
+  me: Learner,
   situation: string,
-  opts: NextVisitOptions & { origin?: "custom" | "goal"; goalId?: string; lang?: Lang } = {},
+  opts: NextVisitOptions & { origin?: "custom" | "goal"; goalId?: string } = {},
 ): Promise<{ scenarioId: string; visitId: string }> {
   const brief = situation.trim().replace(/\s+/g, " ");
   if (brief.length < 10) throw new Error("Describe the situation in a sentence.");
   if (brief.length > 400) throw new Error("Keep it to a sentence or two.");
   const [row] = await d
     .insert(scenarios)
-    .values({ slug: `${opts.origin ?? "custom"}-${crypto.randomUUID().slice(0, 8)}`, lang: opts.lang ?? "fr", title: "", brief, origin: opts.origin ?? "custom", goalId: opts.goalId ?? null })
+    .values({ userId: me.userId, slug: `${opts.origin ?? "custom"}-${crypto.randomUUID().slice(0, 8)}`, lang: me.lang, title: "", brief, origin: opts.origin ?? "custom", goalId: opts.goalId ?? null })
     .returning({ id: scenarios.id });
   try {
-    const { visitId } = await generateNextVisit(d, row.id, opts);
+    const { visitId } = await generateNextVisit(d, me.userId, row.id, opts);
     const [named] = await d.select({ title: scenarios.title }).from(scenarios).where(eq(scenarios.id, row.id));
     if (!named.title) await d.update(scenarios).set({ title: brief.length > 40 ? brief.slice(0, 37).trimEnd() + "…" : brief }).where(eq(scenarios.id, row.id));
     return { scenarioId: row.id, visitId };

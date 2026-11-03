@@ -27,6 +27,7 @@ import { lenientMatch } from "@/lib/review/match";
 import { buildSession } from "@/lib/review/session";
 import { validateScenarios, type ScenarioEntry } from "@/lib/scenarios/seed";
 import { scenarioStates } from "@/lib/scenarios/visits";
+import type { Learner } from "@/lib/learners/provision";
 
 const words = wordsEl as WordEntry[];
 const chunks = chunksEl as ChunkEntry[];
@@ -97,13 +98,16 @@ describe("Greek track in the database", () => {
   let client: PGlite;
   let d: ReturnType<typeof drizzle<typeof schema>>;
   const NOW = new Date("2026-10-28T09:00:00Z");
+  const USER = "11111111-1111-1111-1111-111111111111";
+  const el: Learner = { userId: USER, lang: "el" };
+  const fr: Learner = { userId: USER, lang: "fr" };
 
   beforeAll(async () => {
     client = new PGlite();
     d = drizzle(client, { schema });
     await migrate(d, { migrationsFolder: "./drizzle" });
-    await seedAtoms(d, { freq: words, chunks, grammar }, "el");
-    await seedScenarios(d, scenes, "el", NOW);
+    await seedAtoms(d, USER, { freq: words, chunks, grammar }, "el");
+    await seedScenarios(d, USER, scenes, "el", NOW);
   }, 60_000);
 
   afterAll(async () => {
@@ -117,18 +121,18 @@ describe("Greek track in the database", () => {
     expect(exodos).toMatchObject({ gender: "f", romanization: "éxodos", receptiveOnly: true });
     expect(exodos!.forms).toContain("ΕΞΟΔΟΣ");
     expect(await d.select().from(atoms).where(eq(atoms.lang, "fr"))).toHaveLength(0);
-    const counts = await homeCounts(NOW, d, "el");
+    const counts = await homeCounts(d, el, NOW);
     expect(counts.unglossed).toBe(0);
-    expect((await homeCounts(NOW, d, "fr")).total).toBe(0);
+    expect((await homeCounts(d, fr, NOW)).total).toBe(0);
   });
 
   it("seeds the scenes with Greek dialogue passages", async () => {
-    const states = await scenarioStates(d, "el");
+    const states = await scenarioStates(d, el);
     expect(states.length).toBe(scenes.length);
-    expect(await scenarioStates(d, "fr")).toHaveLength(0);
+    expect(await scenarioStates(d, fr)).toHaveLength(0);
     const taxi = states.find((s) => s.scenario.slug === "el-taxi");
     expect(taxi?.latest).toBeDefined();
-    const view = await openPassage(d, taxi!.latest!.visit.passageId!, NOW);
+    const view = await openPassage(d, USER, taxi!.latest!.visit.passageId!, NOW);
     expect(view?.lang).toBe("el");
     expect(view!.wordCount).toBeGreaterThan(30);
     // Nothing is known yet, but nearly every word of the dialogue is in the curriculum.
@@ -139,31 +143,31 @@ describe("Greek track in the database", () => {
   });
 
   it("builds a session that starts with the alphabet and shows signs receptively", async () => {
-    const session = await buildSession(d, "steady", NOW, { lang: "el" });
+    const session = await buildSession(d, el, "steady", NOW);
     expect(session.cards.length).toBeGreaterThan(0);
     expect(session.cards.every((c) => c.lang === "el")).toBe(true);
     const first = session.cards.find((c) => c.reason === "new");
     expect(first?.pos).toBe("LETTER");
     expect(first?.modality).toBe("recognize");
     expect(first?.romanization).toBeTruthy();
-    expect(await buildSession(d, "steady", NOW, { lang: "fr" })).toMatchObject({ cards: [] });
+    expect(await buildSession(d, fr, "steady", NOW)).toMatchObject({ cards: [] });
   });
 
   it("reads a sign in capitals against the curriculum and keeps the passage on the Greek track", async () => {
-    const { id } = await createPassage(d, { lang: "el", title: "Στο λιμάνι", text: "ΕΙΣΟΔΟΣ — ΕΞΟΔΟΣ. ΑΠΑΓΟΡΕΥΕΤΑΙ ΤΟ ΠΑΡΚΙΝΓΚ.", origin: "imported" });
-    const view = await openPassage(d, id, NOW);
+    const { id } = await createPassage(d, USER, { lang: "el", title: "Στο λιμάνι", text: "ΕΙΣΟΔΟΣ — ΕΞΟΔΟΣ. ΑΠΑΓΟΡΕΥΕΤΑΙ ΤΟ ΠΑΡΚΙΝΓΚ.", origin: "imported" });
+    const view = await openPassage(d, USER, id, NOW);
     const exodos = view!.tokens.find((t) => t.surface === "ΕΞΟΔΟΣ");
     expect(exodos?.atomId).toBeTruthy();
     expect(exodos?.gloss).toBe("exit");
     expect(exodos?.romanization).toBe("éxodos");
     const [row] = await d.select({ lang: passages.lang }).from(passages).where(eq(passages.id, id));
     expect(row.lang).toBe("el");
-    expect((await listPassages(d, "el")).some((p) => p.id === id)).toBe(true);
-    expect(await listPassages(d, "fr")).toHaveLength(0);
+    expect((await listPassages(d, el)).some((p) => p.id === id)).toBe(true);
+    expect(await listPassages(d, fr)).toHaveLength(0);
     const parking = view!.tokens.find((t) => t.surface === "ΠΑΡΚΙΝΓΚ");
     expect(parking?.gloss).toBe("parking");
     expect(view!.tokens.find((t) => t.surface === "ΤΟ")?.atomId).toBeTruthy();
-    const stats = await vocabStats(d, NOW, "el");
+    const stats = await vocabStats(d, el, NOW);
     expect(stats.corpusCoverage).toBe(0);
     const [grammarAtom] = await d.select().from(atoms).where(and(eq(atoms.lang, "el"), eq(atoms.key, "alphabet-and-sounds")));
     expect(grammarAtom).toBeDefined();
