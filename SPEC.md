@@ -552,7 +552,7 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 
 **v3** (accounts and per-learner data landed first: suite sign-in, `ALLOWED_EMAILS`, `user_id` on every learner table)
 
-9. **Sound:** `lib/speech` with the Google provider and the browser fallback, `speech_clips` + Blob storage, `/api/speech`, play buttons on cards, the reader and dialogue lines, slow replay, the auto-play setting, `speech:warm`, letter `say` texts.
+9. **Sound:** `lib/speech` with the Google provider and the browser fallback, `speech_clips` + Blob storage, `/api/speech`, play buttons on cards, the reader and dialogue lines, slow replay, the auto-play setting, letter texts. `speech:warm` is deferred: the review screen voices the current and next card ahead of time, which hides first-play latency.
 10. **Listen cards:** the modality in `chooseModality` and the review screen.
 11. **Greek script:** script units and the four new letter atoms, the unlock rule and `scriptOrder` in place of the alphabet primer, decode cards, lookalike hints.
 
@@ -587,7 +587,7 @@ Neural text-to-speech from a hosted provider, generated the first time a clip is
 
 Not OpenAI: its speech endpoint and all three of its TTS models shut down on 6 January 2027, the named replacement is a realtime conversational model that doesn't serve that endpoint, and its voices are tuned for English. OpenAI stays the candidate for speech-to-text when speak-your-answer lands; that side isn't affected.
 
-Env: `GOOGLE_TTS_API_KEY`. Voices live in `LANG_SPECS` (`lib/lang.ts`): a primary and a second voice per language.
+Env: `GOOGLE_TTS_API_KEY`. Voices live in `LANG_SPECS` (`lib/lang.ts`): a primary and a second voice per language. Picked by ear: Greek Leda and Charon (Orus as an alternate), French Aoede and Orus (Leda and Puck as alternates).
 
 ### Clips
 
@@ -606,7 +606,7 @@ interface SpeechClip {
 
 Table `speech_clips`; audio in Vercel Blob (`BLOB_READ_WRITE_TOKEN`). `GET /api/speech?lang&text&voice&rate` returns a redirect to the clip, generating it on a miss (text capped at 400 characters; signed-in, allowed learners only, like every route). `npm run speech:warm` pre-generates the seed: every word and phrase atom, every letter, every seed dialogue line, so a new learner never waits on a first play.
 
-**What is said.** A word or phrase: its key as written (Greek accents matter: the stress is in them). A sign word: the lowercase key, never the capitals, which voices tend to spell out. A letter: a `say` field added to the alphabet seed, its name and one example word ("άλφα… αέρας"); letter combinations have no names, so just the example ("ου… ούζο"). Grammar atoms: nothing. Dialogue lines that start with a dash alternate the two voices, so a café scene has a waiter and a customer.
+**What is said.** A word or phrase: its key as written (Greek accents matter: the stress is in them). A sign word: the lowercase key, never the capitals, which voices tend to spell out. A letter: its name and one example word ("άλφα, αέρας"), from `LETTER_SAY` in `lib/speech/say.ts`; letter combinations have no names, so just the example ("ου… ούζο"). Grammar atoms: nothing. Dialogue lines that start with a dash alternate the two voices, so a café scene has a waiter and a customer.
 
 ### Playing
 
