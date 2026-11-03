@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { checkProduceAnswer, submitProduce, submitReview } from "@/app/actions/review";
+import { AutoplayToggle, playSpeech, prefetchSpeech, SpeakButton, stopSpeech, useSpeechSettings } from "@/app/components/speech";
 import { WhyPanel } from "@/app/why-panel";
 import type { Grade } from "@/lib/atoms/types";
 import { LANG_SPECS, langName, type Lang } from "@/lib/lang";
 import { lenientMatch } from "@/lib/review/match";
+import { spokenText } from "@/lib/speech/say";
 import type { ProduceCheck } from "@/lib/review/produce";
 import type { BuiltSession, SessionCard } from "@/lib/review/session";
 
@@ -36,6 +38,12 @@ export function ReviewSession({ session, canWhy }: { session: BuiltSession; canW
   const flushing = useRef(false);
 
   const card = cards[index];
+  const { cloud } = useSpeechSettings();
+
+  // Voice this card and the next while the learner is still thinking, so reveal plays at once.
+  useEffect(() => {
+    for (const c of [cards[index], cards[index + 1]]) if (c) prefetchSpeech(cloud, c.lang, cardSpeech(c));
+  }, [cards, index, cloud]);
 
   /**
    * Run the queued saves in order, one loop at a time (a grade made while it runs is picked up
@@ -121,8 +129,11 @@ export function ReviewSession({ session, canWhy }: { session: BuiltSession; canW
         <span>
           Item {index + 1} of {cards.length}
         </span>
-        <span>
-          {outcomes.length} reviewed · {fresh} new
+        <span className="flex items-baseline gap-3">
+          <AutoplayToggle />
+          <span>
+            {outcomes.length} reviewed · {fresh} new
+          </span>
         </span>
       </div>
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-line" aria-hidden>
@@ -142,10 +153,19 @@ function CardView({ card, onGrade, canWhy }: { card: SessionCard; onGrade: (grad
   const [check, setCheck] = useState<ProduceCheck | { error: string } | undefined>();
   const startedAt = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { cloud, autoplay } = useSpeechSettings();
 
   useEffect(() => {
     startedAt.current = Date.now();
+    return () => stopSpeech();
   }, []);
+
+  // Reveal is when a card speaks: never before, or a recall card would say its own answer.
+  useEffect(() => {
+    if (phase !== "revealed" || !autoplay) return;
+    const text = cardSpeech(card);
+    if (text) playSpeech(cloud, card.lang, text);
+  }, [phase, autoplay, cloud, card]);
 
   const typedModality = card.modality === "recall" || card.modality === "cloze";
   const isProduce = card.modality === "produce" && card.produce !== undefined;
@@ -294,12 +314,32 @@ function OtherForms({ card }: { card: SessionCard }) {
 
 const CLOZE_PLACEHOLDER: Record<Lang, string> = { fr: "le mot manquant", el: "η λέξη που λείπει" };
 
+/** What a card says on reveal: the word (with its article), or a cloze card's whole sentence. Produce cards stay quiet. */
+function cardSpeech(card: SessionCard): string | undefined {
+  if (card.modality === "produce") return undefined;
+  if (card.modality === "cloze" && card.sentence) return card.sentence.text;
+  return spokenText(card);
+}
+
+/** A word on a card with its play button beside it. */
+function Spoken({ card, children, className = "" }: { card: SessionCard; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`flex items-center justify-center gap-3 ${className}`}>
+      {children}
+      <SpeakButton lang={card.lang} text={cardSpeech(card)} />
+    </div>
+  );
+}
+
 function RecognizePrompt({ card, phase }: { card: SessionCard; phase: Phase }) {
+  const word = (
+    <p className="font-display text-4xl leading-tight" lang={card.type === "grammar" ? undefined : card.lang}>
+      {card.type === "grammar" ? card.gloss : displayKey(card)}
+    </p>
+  );
   return (
     <div>
-      <p className="font-display mt-3 text-4xl leading-tight" lang={card.type === "grammar" ? undefined : card.lang}>
-        {card.type === "grammar" ? card.gloss : displayKey(card)}
-      </p>
+      {card.type === "grammar" ? <div className="mt-3">{word}</div> : <Spoken card={card} className="mt-3">{word}</Spoken>}
       {card.pos === "LETTER" && <Romanized card={card} />}
       {card.pos && card.type === "word" && <p className="mt-1 text-xs uppercase tracking-wide text-muted">{card.pos.toLowerCase()}</p>}
       {card.sentence && (
@@ -379,9 +419,11 @@ function RecallPrompt(props: TypedProps) {
       {phase === "revealed" && (
         <div className="mt-6 border-t border-line pt-5">
           <Verdict correct={correct} />
-          <p className="font-display mt-1 text-3xl" lang={card.lang}>
-            {displayKey(card)}
-          </p>
+          <Spoken card={card} className="mt-1">
+            <p className="font-display text-3xl" lang={card.lang}>
+              {displayKey(card)}
+            </p>
+          </Spoken>
           <Romanized card={card} />
           <OtherForms card={card} />
         </div>
@@ -405,9 +447,11 @@ function ClozePrompt(props: TypedProps) {
       {phase === "revealed" && (
         <div className="mt-6 border-t border-line pt-5">
           <Verdict correct={correct} />
-          <p className="font-display mt-1 text-3xl" lang={card.lang}>
-            {c.answer}
-          </p>
+          <Spoken card={card} className="mt-1">
+            <p className="font-display text-3xl" lang={card.lang}>
+              {c.answer}
+            </p>
+          </Spoken>
           <Romanized card={card} />
           <p className="mt-1 text-sm text-muted">
             <span lang={card.lang}>{card.key}</span>

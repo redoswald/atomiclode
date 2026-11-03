@@ -337,6 +337,21 @@ export const producePrompts = pgTable("produce_prompts", {
   createdAt: timestamptz("created_at").notNull().defaultNow(),
 });
 
+// ---- speech clips (§15) ----------------------------------------------------------
+// Shared like the other caches: a clip of "καφές" is the same for every learner.
+
+export const speechClips = pgTable("speech_clips", {
+  /** sha256(lang | voice | rate | text), hex. */
+  key: text("key").primaryKey(),
+  lang: text("lang").notNull(),
+  voice: text("voice").notNull(),
+  rate: text("rate").$type<"normal" | "slow">().notNull(),
+  text: text("text").notNull(),
+  url: text("url").notNull(),
+  bytes: integer("bytes").notNull(),
+  createdAt: timestamptz("created_at").notNull().defaultNow(),
+});
+
 // ---- learners ------------------------------------------------------------------
 // One row per learner per language, written when their starter content is in
 // place (lib/learner.ts). Everything above except the caches belongs to one learner.
