@@ -30,7 +30,7 @@ Target language for v1: French. Base language: English.
 
 **In (v3):** a second track. Greek for travellers: alphabet, signs, phrases, core words and nine scenes, switched from the header; every atom, passage, scene and goal is scoped by `lang`, so the two tracks never mix. Greek lemmas come from the curriculum's own forms (accent- and case-insensitive, so ΕΞΟΔΟΣ reads as έξοδος); answers may be typed in Latin letters against the romanization.
 
-**Out for now:** voice/pronunciation, open-ended AI conversation, audio in the reader, native iOS/Android (the PWA is the phone app until offline, audio, or a share sheet justify more), languages beyond French and Greek, PDF/epub import, per-user FSRS parameter fitting, social features, gamification of any kind.
+**Out for now:** pronunciation scoring, open-ended AI conversation, native iOS/Android (the PWA is the phone app until offline, audio, or a share sheet justify more; with sound and speaking in, they may), languages beyond French and Greek, PDF/epub import, per-user FSRS parameter fitting, social features, gamification of any kind.
 
 ---
 
@@ -86,7 +86,8 @@ Modalities are the things you can do with an atom. They don't get their own curv
 type Modality =
   | "recognize"   // FR → EN
   | "recall"      // EN → FR, typed
-  | "listen"      // audio → meaning (v2; field reserved)
+  | "listen"      // audio → meaning (§15)
+  | "decode"      // Greek script → Latin reading (§16)
   | "produce"     // use in a sentence
   | "cloze";      // fill the gap in a mined sentence
 
@@ -549,6 +550,14 @@ Usable for real French reading by the end of milestone 3. Milestones 1–5 are b
 
 The cold start is fixed by the end of milestone 7; the father-in-law's letter is on the home screen by the end of 8.
 
+**v3** (accounts and per-learner data landed first: suite sign-in, `ALLOWED_EMAILS`, `user_id` on every learner table)
+
+9. **Sound:** `lib/speech` with the Azure provider and the browser fallback, `speech_clips` + Blob storage, `/api/speech`, play buttons on cards, the reader and dialogue lines, slow replay, the auto-play setting, `speech:warm`, letter `say` texts.
+10. **Listen cards:** the modality in `chooseModality` and the review screen.
+11. **Greek script:** script units and the four new letter atoms, the unlock rule and `scriptOrder` in place of the alphabet primer, decode cards, lookalike hints.
+
+Later: speak-your-answer (speech-to-text into the existing answer checks; no pronunciation scoring), then a JSON API and an iOS app for the daily loop.
+
 ## 14. Open questions
 
 - Chunk detection beyond dictionary match (n-gram frequency over the user's passages?).
@@ -560,3 +569,87 @@ The cold start is fixed by the end of milestone 7; the father-in-law's letter is
 - The lookup lemmatizer reads *j'ai marché* as the noun *marché* and *fatiguée* as *fatiguer*. Seed bundles are written around it; generated ones lose the odd word to it. Does it matter enough to make the spaCy service the default?
 - More than one active goal, and what happens to the ordering when there are two.
 - Greek as the second language: no spaCy model of equal quality; likely model-based lemmatization.
+- Which voice provider sounds best in Greek (Azure, Google, OpenAI). Decide by ear before milestone 9 builds on one.
+- Decode before meaning, or both on one card? The spec alternates them; a combined card ("say it, then what it means") may be faster once the alphabet is in.
+- Whether the one-unknown-letter rule is too strict for long words late in the alphabet, when most letters are known anyway.
+
+---
+
+## 15. Sound
+
+The app has been silent. Hearing a word is half of learning it, and for Greek it is half of learning to read (§16). Every word, phrase, letter and dialogue line can be played; a new **listen** card asks for meaning from sound alone.
+
+### Where audio comes from
+
+Neural text-to-speech from a hosted provider, generated the first time a clip is asked for, stored, and shared by every learner (like the "why?" cache: no `user_id`). Browser `speechSynthesis` is the fallback when no provider is configured: free, but its Greek voice ranges from good (iOS) to missing (some desktop Chrome builds), so with the fallback, play buttons work where a voice exists and listen cards are never scheduled.
+
+**Provider: Azure AI Speech**, behind `lib/speech/tts.ts` so it can be swapped. Chosen because it has natural neural voices for both tracks (Greek: Athina, Nestoras; French: Denise, Henri), SSML for slowing a clip down, and the same account covers speech-to-text when speaking lands. Cost is negligible: the whole Greek seed is roughly 10–15k characters, the French seed roughly 40k, against a free tier of 500k characters a month. Before building on it, listen to Greek samples from Azure, Google and OpenAI side by side; the provider is one file.
+
+Env: `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`. Voices live in `LANG_SPECS` (`lib/lang.ts`): a primary and a second voice per language.
+
+### Clips
+
+```ts
+interface SpeechClip {
+  key: string;        // sha256(lang | voice | rate | text): the primary key
+  lang: Lang;
+  voice: string;
+  rate: "normal" | "slow";   // slow = SSML prosody rate -30%
+  text: string;
+  url: string;        // Vercel Blob, speech/<key>.mp3
+  bytes: number;
+  createdAt: string;
+}
+```
+
+Table `speech_clips`; audio in Vercel Blob (`BLOB_READ_WRITE_TOKEN`). `GET /api/speech?lang&text&voice&rate` returns a redirect to the clip, generating it on a miss (text capped at 400 characters; signed-in, allowed learners only, like every route). `npm run speech:warm` pre-generates the seed: every word and phrase atom, every letter, every seed dialogue line, so a new learner never waits on a first play.
+
+**What is said.** A word or phrase: its key as written (Greek accents matter: the stress is in them). A sign word: the lowercase key, never the capitals, which voices tend to spell out. A letter: a `say` field added to the alphabet seed, its name and one example word ("άλφα… αέρας"); letter combinations have no names, so just the example ("ου… ούζο"). Grammar atoms: nothing. Dialogue lines that start with a dash alternate the two voices, so a café scene has a waiter and a customer.
+
+### Playing
+
+- A speaker button on every card, every tapped word in the reader, and every dialogue line; tap again within two seconds for the slow clip.
+- **When it plays by itself** (a per-device setting, on by default): recognize and decode cards play on reveal; recall and cloze play on reveal too, never before, since hearing the answer would give it away. A scene's dialogue has a "play all" that steps through the lines.
+- Nothing plays on page load, and nothing plays while the device is muted or the setting is off.
+
+### Listen cards
+
+The reserved `listen` modality becomes real: the prompt is audio only, with replay and slow buttons; the answer reveals the written form and gloss; the learner self-grades (*did I understand it?*), as with recognize.
+
+Eligible when a provider is configured, the atom is a word or chunk in `review` with stability of at least 3 days, and it isn't a letter or a sign (signs are read, not heard). `chooseModality`: never on light; on steady, when listen attempts are under half of recognize attempts; on push, before cloze. `MODALITY_SECONDS.listen` is 10. The log, the replay and the exposure signals need nothing new: `listen` was in the enum from the start.
+
+## 16. Greek script
+
+Greek is two skills that the first Greek track kept apart: **decoding** (ΦΑΡΜΑΚΕΙΟ says *farmakío*) and **meaning** (it's a pharmacy). Today all 32 letter atoms come first, as a block, and words wait until no letter is new. Decoding never meets a word until the alphabet is done, and the alphabet is learned without anything to read.
+
+The new rule: **letters arrive in small groups, chosen by what they unlock, and every word is first something you can sound out.**
+
+### Script units
+
+A word's units are its letters and letter combinations, found greedily, combinations first, in the lowercase key with accents stripped and ς read as σ: `τουαλέτα` → τ, ου, α, λ, ε, τ, α. `scriptUnits(word)` is pure and computed on the fly (a few hundred words; no column).
+
+The alphabet seed has 24 letters and 8 combinations. Add the four that words need and the seed lacks: **οι** (i), **ευ** (ev / ef), **γγ** (ng), **τζ** (dz); αυ keeps av / af. That makes 36 units. A unit is *known* once its letter atom has been introduced (`learning` or `review`).
+
+### Unlocking
+
+A Greek word or phrase may be introduced only when at most **one** of its units is unknown. If one is, that letter is introduced immediately before the word, in the same session: you meet ρ, and then ΜΕΤΡΟ.
+
+Scenes and goals lead, as everywhere (§4.2): a bundle word with several unknown letters doesn't wait. Its letters are pulled forward ahead of it, so the scene you open decides which letters you learn next. Words from the frequency list and signs follow the one-unknown rule.
+
+**Which letter next**, when nothing in a scene asks for one: the letter that makes the most new words fully decodable, weighted by where they come from (a bundle word in progress ×3, a sign ×2, any other word ×1). Ties go to letters that look and sound like their Latin counterparts (α, ε, ι, ο, κ, μ, τ, ζ), which is also where every learner should start: on day one ΚΑΦΕ, ΤΑΞΙ and ΜΕΤΡΟ are a few letters away.
+
+This replaces `primerOrder` in `lib/review/newOrder.ts`: a `scriptOrder(me)` builds the Greek part of `newOrder`, letters interleaved before the words they unlock. The daily new-atom budget is shared; a letter counts as one.
+
+### Decode cards
+
+A new modality, `decode` (Greek only; an enum migration and an empty stat in `emptyModalityStats`):
+
+| Modality | Prompt | Answer | Grading |
+|---|---|---|---|
+| decode | the word as written (a sign in capitals) | type how it sounds in Latin letters (`farmakio`) | auto-check against the romanization with the existing variants (accents optional, χ as ch or h); self-grade override; audio plays after |
+
+A Greek word's first reviews alternate decode and recognize (decode first: say it, then mean it). After its first three reps, decode is chosen when decode accuracy is under 80%, and otherwise not. Letters themselves stay recognize cards (letter → sound), now with their clip on reveal.
+
+### Lookalikes
+
+Η (i), Ρ (r), Χ (ch), Ν (n), Υ (i), Β (v), and lowercase ν (n) and η (i) look like Latin letters that say something else. Their letter atoms get the domain `lookalike`. On introduction the card says so ("Looks like P. Says r."). When a decode answer goes wrong because of one (the typed answer matches a naive Latin reading of the capitals, such as *metpo* for ΜΕΤΡΟ), the result names the letter that misled. A lookalike letter is pulled forward like a lapse when that happens.
